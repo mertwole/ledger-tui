@@ -6,6 +6,9 @@ mod app;
 mod device;
 mod window;
 
+mod api;
+mod device_selection;
+
 use app::App;
 
 #[tokio::main]
@@ -17,6 +20,8 @@ async fn main() {
         .filter(None, LevelFilter::Info)
         .init();
 
-    let app = App::new().await;
+    let ledger_api = api::ledger::Ledger {};
+
+    let app = App::new(ledger_api).await;
     app.run().await;
 }

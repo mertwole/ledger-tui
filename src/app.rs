@@ -9,16 +9,21 @@ use ratatui::{
     Terminal,
 };
 
-use crate::window::{connection_request::ConnectionRequest, ExecutionState, Window};
+use crate::{
+    api::ledger::LedgerApi,
+    window::{connection_request::ConnectionRequest, ExecutionState, Window},
+};
 
-pub struct App {
+pub struct App<L: LedgerApi> {
     window: Box<dyn Window>,
+
+    ledger_api: L,
 }
 
-impl App {
-    pub async fn new() -> Self {
+impl<L: LedgerApi> App<L> {
+    pub async fn new(ledger_api: L) -> Self {
         let window = Box::from(ConnectionRequest::new());
-        Self { window }
+        Self { window, ledger_api }
     }
 
     pub async fn run(mut self) {
