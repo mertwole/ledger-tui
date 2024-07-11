@@ -20,8 +20,6 @@ async fn main() {
         .filter(None, LevelFilter::Info)
         .init();
 
-    let ledger_api = api::ledger::Ledger {};
-
-    let app = App::new(ledger_api).await;
+    let app = App::new().await;
     app.run().await;
 }

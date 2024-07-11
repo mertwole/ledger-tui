@@ -1,39 +1,31 @@
-use super::Api;
+use super::{Api, ApiCache};
 
-pub trait LedgerApi: Api<Cache = LedgerCache> {
-    //
-}
+pub trait LedgerApiT: Api {}
 
-pub struct Ledger {
-    //
-}
+pub struct LedgerApiCache {}
 
-pub struct LedgerCache {}
-
-impl Api for Ledger {
-    type Cache = LedgerCache;
-
-    async fn get_cache(&self) -> Self::Cache {
-        LedgerCache {}
+impl<A: LedgerApiT> ApiCache<A> for LedgerApiCache {
+    async fn init(api: &A) -> Self {
+        LedgerApiCache {}
     }
 }
 
-impl LedgerApi for Ledger {
-    //
+mod api {
+    use super::*;
+
+    pub struct LedgerApi {}
+
+    impl Api for LedgerApi {}
+
+    impl LedgerApiT for LedgerApi {}
 }
 
-pub struct LedgerMock {
-    //
-}
+mod mock {
+    use super::*;
 
-impl Api for LedgerMock {
-    type Cache = LedgerCache;
+    pub struct LedgerApiMock {}
 
-    async fn get_cache(&self) -> Self::Cache {
-        LedgerCache {}
-    }
-}
+    impl Api for LedgerApiMock {}
 
-impl LedgerApi for LedgerMock {
-    //
+    impl LedgerApiT for LedgerApiMock {}
 }
