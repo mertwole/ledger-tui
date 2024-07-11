@@ -2,12 +2,9 @@ use log::LevelFilter;
 use pretty_env_logger::env_logger::fmt::{Target, TimestampPrecision};
 use std::fs::File;
 
-mod app;
-mod device;
-mod window;
-
 mod api;
-mod device_selection;
+mod app;
+mod window;
 
 use app::App;
 

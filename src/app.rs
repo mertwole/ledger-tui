@@ -1,7 +1,8 @@
+use futures::executor::block_on;
 use std::io::stdout;
 
 use ratatui::{
-    backend::CrosstermBackend,
+    backend::{Backend, CrosstermBackend},
     crossterm::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
@@ -9,16 +10,16 @@ use ratatui::{
     Terminal,
 };
 
-use crate::window::{connection_request::ConnectionRequest, ExecutionState, Window};
+use crate::{
+    api::ledger::LedgerApi,
+    window::device_selection::{DeviceSelection, OutgoingMessage},
+};
 
-pub struct App {
-    window: Box<dyn Window>,
-}
+pub struct App {}
 
 impl App {
     pub async fn new() -> Self {
-        let window = Box::from(ConnectionRequest::new());
-        Self { window }
+        Self {}
     }
 
     pub async fn run(mut self) {
@@ -27,19 +28,25 @@ impl App {
         let mut terminal = Terminal::new(CrosstermBackend::new(stdout())).unwrap();
         terminal.clear().unwrap();
 
-        loop {
-            terminal.draw(|frame| self.window.render(frame)).unwrap();
-
-            match self.window.process_events() {
-                ExecutionState::Terminate => break,
-                ExecutionState::Continue => {}
-                ExecutionState::SwitchWindow(new_window) => {
-                    self.window = new_window;
-                }
-            }
-        }
+        self.main_loop(terminal).await;
 
         stdout().execute(LeaveAlternateScreen).unwrap();
         disable_raw_mode().unwrap();
+    }
+
+    async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
+        let ledger_api = LedgerApi::new().await;
+
+        let mut window = DeviceSelection::new(ledger_api).await;
+
+        loop {
+            terminal
+                .draw(|frame| block_on(window.render(frame)))
+                .unwrap();
+
+            if let Some(OutgoingMessage::Quit) = window.tick().await {
+                break;
+            }
+        }
     }
 }
