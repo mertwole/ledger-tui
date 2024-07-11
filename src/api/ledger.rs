@@ -46,13 +46,7 @@ impl LedgerApiT for LedgerApi {
 
         let info = handle.device_info(DEFAULT_TIMEOUT).await.ok()?;
 
-        let model = match device.info.model {
-            Model::NanoS => "Nano S".into(),
-            Model::NanoSPlus => "Nano S+".into(),
-            Model::NanoX => "Nano X".into(),
-            Model::Stax => "Stax".into(),
-            Model::Unknown(id) => format!("Unknown {}", id),
-        };
+        let model = model_to_string(&device.info.model);
 
         Some(DeviceInfo {
             model,
@@ -62,18 +56,78 @@ impl LedgerApiT for LedgerApi {
     }
 }
 
-mod mock {
+fn model_to_string(model: &Model) -> String {
+    match model {
+        Model::NanoS => "Nano S".into(),
+        Model::NanoSPlus => "Nano S+".into(),
+        Model::NanoX => "Nano X".into(),
+        Model::Stax => "Stax".into(),
+        Model::Unknown(id) => format!("Unknown {}", id),
+    }
+}
+
+pub mod mock {
+    use ledger_lib::{info::ConnInfo, transport::UsbInfo};
+    use std::iter;
+
     use super::*;
 
-    pub struct LedgerApiMock {}
+    pub struct LedgerApiMock {
+        devices: Vec<Device>,
+    }
+
+    impl LedgerApiMock {
+        pub fn new(device_count: usize) -> Self {
+            let conn = ConnInfo::Usb(UsbInfo {
+                vid: 0,
+                pid: 0,
+                path: None,
+            });
+
+            let devices = vec![
+                Device {
+                    info: LedgerInfo {
+                        model: Model::NanoX,
+                        conn: conn.clone(),
+                    },
+                },
+                Device {
+                    info: LedgerInfo {
+                        model: Model::NanoSPlus,
+                        conn: conn.clone(),
+                    },
+                },
+                Device {
+                    info: LedgerInfo {
+                        model: Model::Stax,
+                        conn: conn.clone(),
+                    },
+                },
+                Device {
+                    info: LedgerInfo {
+                        model: Model::NanoS,
+                        conn: conn.clone(),
+                    },
+                },
+            ];
+
+            let devices = iter::repeat(devices).flatten().take(device_count).collect();
+
+            Self { devices }
+        }
+    }
 
     impl LedgerApiT for LedgerApiMock {
         async fn discover_devices(&self) -> Vec<Device> {
-            todo!()
+            self.devices.clone()
         }
 
-        async fn get_device_info(&self, _device: &Device) -> Option<DeviceInfo> {
-            todo!()
+        async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
+            Some(DeviceInfo {
+                model: model_to_string(&device.info.model),
+                se_version: "0.0.0".into(),
+                mcu_version: "0.0".into(),
+            })
         }
     }
 }

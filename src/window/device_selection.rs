@@ -1,8 +1,9 @@
 use ratatui::{
-    crossterm::event::{self, KeyCode, KeyEvent, KeyEventKind},
-    layout::Margin,
-    style::Color,
-    widgets::{Block, BorderType, Borders, List},
+    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    layout::{Alignment, Margin},
+    style::{Color, Stylize},
+    text::Text,
+    widgets::{Block, BorderType, Borders, List, Padding},
     Frame,
 };
 use std::time::{Duration, Instant};
@@ -15,6 +16,8 @@ pub struct DeviceSelection<L: LedgerApiT> {
     devices: Vec<(Device, DeviceInfo)>,
     previous_poll: Instant,
 
+    selected_device: Option<usize>,
+
     ledger_api: L,
 }
 
@@ -26,7 +29,8 @@ impl<L: LedgerApiT> DeviceSelection<L> {
     pub async fn new(ledger_api: L) -> Self {
         Self {
             devices: vec![],
-            previous_poll: Instant::now(),
+            previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
+            selected_device: None,
             ledger_api,
         }
     }
@@ -34,22 +38,37 @@ impl<L: LedgerApiT> DeviceSelection<L> {
     pub async fn render(&self, frame: &mut Frame<'_>) {
         let area = frame.size();
 
-        let block_area = area.inner(Margin::new(8, 8));
-
-        let block = Block::new()
+        let list_block = Block::new()
             .border_type(BorderType::Double)
             .borders(Borders::all())
-            .border_style(Color::Green);
-        let list_area = block.inner(block_area);
+            .border_style(Color::Green)
+            .padding(Padding::uniform(1))
+            .title("Select a device")
+            .title_alignment(Alignment::Center);
 
-        let list = List::new(self.devices.iter().map(|(_, info)| {
-            format!(
+        let mut list_height = 0;
+        let list = List::new(self.devices.iter().enumerate().map(|(idx, (_, info))| {
+            let label = format!(
                 "{} MCU v{} SE v{}",
                 info.model, info.mcu_version, info.se_version
-            )
+            );
+
+            let mut item = Text::centered(label.into());
+
+            if Some(idx) == self.selected_device {
+                item = item.bold().bg(Color::DarkGray);
+            }
+
+            list_height += item.height();
+
+            item
         }));
 
-        frame.render_widget(block, block_area);
+        let list_area = list_block.inner(area);
+        let margin = list_area.height.saturating_sub(list_height as u16) / 2;
+        let list_area = list_area.inner(Margin::new(0, margin));
+
+        frame.render_widget(list_block, area);
         frame.render_widget(list, list_area);
     }
 
@@ -70,21 +89,65 @@ impl<L: LedgerApiT> DeviceSelection<L> {
             self.previous_poll = Instant::now();
         }
 
+        if self.devices.is_empty() {
+            self.selected_device = None;
+        }
+
+        if let Some(selected) = self.selected_device.as_mut() {
+            if *selected >= self.devices.len() {
+                *selected = self.devices.len() - 1;
+            }
+        }
+
+        self.process_input().await
+    }
+
+    async fn process_input(&mut self) -> Option<OutgoingMessage> {
         if !event::poll(Duration::ZERO).unwrap() {
             return None;
         }
 
-        if matches!(
-            event::read().unwrap(),
-            event::Event::Key(KeyEvent {
-                kind: KeyEventKind::Press,
-                code: KeyCode::Char('q'),
-                ..
-            })
-        ) {
+        let event = event::read().unwrap();
+
+        if event.is_key_pressed(KeyCode::Down) && !self.devices.is_empty() {
+            if let Some(selected) = self.selected_device.as_mut() {
+                *selected = (self.devices.len() - 1).min(*selected + 1);
+            } else {
+                self.selected_device = Some(0);
+            }
+        }
+
+        if event.is_key_pressed(KeyCode::Up) && !self.devices.is_empty() {
+            if let Some(selected) = self.selected_device.as_mut() {
+                *selected = if *selected == 0 { 0 } else { *selected - 1 };
+            } else {
+                self.selected_device = Some(self.devices.len() - 1);
+            }
+        }
+
+        if event.is_key_pressed(KeyCode::Char('q')) {
             return Some(OutgoingMessage::Quit);
         }
 
         None
+    }
+}
+
+trait EventExt {
+    fn is_key_pressed(&self, code: KeyCode) -> bool;
+}
+
+impl EventExt for Event {
+    fn is_key_pressed(&self, code: KeyCode) -> bool {
+        let pressed_code = code;
+
+        matches!(
+            self,
+            &Event::Key(KeyEvent {
+                kind: KeyEventKind::Press,
+                code,
+                ..
+            }) if code == pressed_code
+        )
     }
 }
