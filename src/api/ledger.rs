@@ -39,6 +39,18 @@ pub struct Account {
     pub(self) pk: String,
 }
 
+impl Account {
+    pub fn get_info(&self) -> AccountInfo {
+        AccountInfo {
+            pk: self.pk.clone(),
+        }
+    }
+}
+
+pub struct AccountInfo {
+    pub pk: String,
+}
+
 pub struct LedgerApi {
     provider: RefCell<LedgerProvider>,
 }
