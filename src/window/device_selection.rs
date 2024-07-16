@@ -1,5 +1,5 @@
 use ratatui::{
-    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    crossterm::event::{self, KeyCode},
     layout::{Alignment, Margin},
     style::{Color, Stylize},
     text::Text,
@@ -9,6 +9,8 @@ use ratatui::{
 use std::time::{Duration, Instant};
 
 use crate::api::ledger::{Device, DeviceInfo, LedgerApiT};
+
+use super::EventExt;
 
 const DEVICE_POLL_PERIOD: Duration = Duration::from_secs(2);
 
@@ -130,24 +132,5 @@ impl<L: LedgerApiT> DeviceSelection<L> {
         }
 
         None
-    }
-}
-
-trait EventExt {
-    fn is_key_pressed(&self, code: KeyCode) -> bool;
-}
-
-impl EventExt for Event {
-    fn is_key_pressed(&self, code: KeyCode) -> bool {
-        let pressed_code = code;
-
-        matches!(
-            self,
-            &Event::Key(KeyEvent {
-                kind: KeyEventKind::Press,
-                code,
-                ..
-            }) if code == pressed_code
-        )
     }
 }

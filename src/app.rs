@@ -11,8 +11,8 @@ use ratatui::{
 };
 
 use crate::{
-    api::ledger::mock::LedgerApiMock,
-    window::device_selection::{DeviceSelection, OutgoingMessage},
+    api::ledger::{mock::LedgerApiMock, LedgerApiT},
+    window::portfolio::{OutgoingMessage, Portfolio},
 };
 
 pub struct App {}
@@ -35,9 +35,10 @@ impl App {
     }
 
     async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
-        let ledger_api = LedgerApiMock::new(10);
+        let ledger_api = LedgerApiMock::new(10, 5);
+        let mut devices = ledger_api.discover_devices().await;
 
-        let mut window = DeviceSelection::new(ledger_api).await;
+        let mut window = Portfolio::new(ledger_api, devices.pop().unwrap()).await;
 
         loop {
             terminal

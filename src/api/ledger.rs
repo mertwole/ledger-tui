@@ -9,6 +9,12 @@ pub trait LedgerApiT {
     async fn discover_devices(&self) -> Vec<Device>;
 
     async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
+
+    async fn discover_accounts(
+        &self,
+        device: &Device,
+        network: Network,
+    ) -> impl Iterator<Item = Account>;
 }
 
 #[derive(Clone, Debug)]
@@ -21,6 +27,51 @@ pub struct DeviceInfo {
     pub model: String,
     pub se_version: String,
     pub mcu_version: String,
+}
+
+// TODO: Move it level up as it'll be shared between ledger and market APIs.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Network {
+    Bitcoin,
+    Ethereum,
+}
+
+pub struct NetworkInfo {
+    pub name: String,
+    pub symbol: String,
+}
+
+impl Network {
+    pub fn get_info(&self) -> NetworkInfo {
+        match self {
+            Self::Bitcoin => NetworkInfo {
+                name: "Bitcoin".into(),
+                symbol: "BTC".into(),
+            },
+            Self::Ethereum => NetworkInfo {
+                name: "Ethereum".into(),
+                symbol: "ETH".into(),
+            },
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Account {
+    pub(self) pk: String,
+}
+
+impl Account {
+    pub fn get_info(&self) -> AccountInfo {
+        AccountInfo {
+            pk: self.pk.clone(),
+        }
+    }
+}
+
+pub struct AccountInfo {
+    #[allow(dead_code)]
+    pub pk: String,
 }
 
 pub struct LedgerApi {
@@ -54,6 +105,17 @@ impl LedgerApiT for LedgerApi {
             mcu_version: info.mcu_version,
         })
     }
+
+    async fn discover_accounts(
+        &self,
+        _device: &Device,
+        _network: Network,
+    ) -> impl Iterator<Item = Account> {
+        todo!();
+
+        #[allow(unreachable_code)]
+        None.into_iter()
+    }
 }
 
 fn model_to_string(model: &Model) -> String {
@@ -68,16 +130,17 @@ fn model_to_string(model: &Model) -> String {
 
 pub mod mock {
     use ledger_lib::{info::ConnInfo, transport::UsbInfo};
-    use std::iter;
+    use std::{collections::HashMap, iter};
 
     use super::*;
 
     pub struct LedgerApiMock {
         devices: Vec<Device>,
+        accounts: HashMap<Network, Vec<Account>>,
     }
 
     impl LedgerApiMock {
-        pub fn new(device_count: usize) -> Self {
+        pub fn new(device_count: usize, account_count: usize) -> Self {
             let conn = ConnInfo::Usb(UsbInfo {
                 vid: 0,
                 pid: 0,
@@ -113,7 +176,43 @@ pub mod mock {
 
             let devices = iter::repeat(devices).flatten().take(device_count).collect();
 
-            Self { devices }
+            let btc_accounts = vec![
+                Account {
+                    pk: "0x0123456789012345678901234567890101234567890123456789012345678901".into(),
+                },
+                Account {
+                    pk: "0x9876543210987654321098765432109876543210987654321098765432109876".into(),
+                },
+                Account {
+                    pk: "0x0000001111111112222222223333333333344444444445555555555666666666".into(),
+                },
+                Account {
+                    pk: "0x1230000000000000000000000000000000000000000000000000000000000321".into(),
+                },
+                Account {
+                    pk: "0x1111000000000000000000000000000000000000000000000000000000001111".into(),
+                },
+            ];
+
+            let btc_accounts = std::iter::repeat(btc_accounts)
+                .flatten()
+                .take(account_count)
+                .collect();
+
+            let eth_accounts = vec![Account {
+                pk: "0x1234567891011121123456789101112112345678".into(),
+            }];
+
+            let eth_accounts = std::iter::repeat(eth_accounts)
+                .flatten()
+                .take(account_count)
+                .collect();
+
+            let mut accounts = HashMap::new();
+            accounts.insert(Network::Bitcoin, btc_accounts);
+            accounts.insert(Network::Ethereum, eth_accounts);
+
+            Self { devices, accounts }
         }
     }
 
@@ -128,6 +227,14 @@ pub mod mock {
                 se_version: "0.0.0".into(),
                 mcu_version: "0.0".into(),
             })
+        }
+
+        async fn discover_accounts(
+            &self,
+            _device: &Device,
+            network: Network,
+        ) -> impl Iterator<Item = Account> {
+            self.accounts.get(&network).cloned().into_iter().flatten()
         }
     }
 }
