@@ -35,7 +35,7 @@ impl App {
     }
 
     async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
-        let ledger_api = LedgerApiMock::new(10, 3);
+        let ledger_api = LedgerApiMock::new(10, 5);
         let mut devices = ledger_api.discover_devices().await;
 
         let mut window = Portfolio::new(ledger_api, devices.pop().unwrap()).await;

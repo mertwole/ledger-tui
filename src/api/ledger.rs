@@ -29,9 +29,31 @@ pub struct DeviceInfo {
     pub mcu_version: String,
 }
 
+// TODO: Move it level up as it'll be shared between ledger and market APIs.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Network {
     Bitcoin,
+    Ethereum,
+}
+
+pub struct NetworkInfo {
+    pub name: String,
+    pub symbol: String,
+}
+
+impl Network {
+    pub fn get_info(&self) -> NetworkInfo {
+        match self {
+            Self::Bitcoin => NetworkInfo {
+                name: "Bitcoin".into(),
+                symbol: "BTC".into(),
+            },
+            Self::Ethereum => NetworkInfo {
+                name: "Ethereum".into(),
+                symbol: "ETH".into(),
+            },
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -48,6 +70,7 @@ impl Account {
 }
 
 pub struct AccountInfo {
+    #[allow(dead_code)]
     pub pk: String,
 }
 
@@ -176,8 +199,18 @@ pub mod mock {
                 .take(account_count)
                 .collect();
 
+            let eth_accounts = vec![Account {
+                pk: "0x1234567891011121123456789101112112345678".into(),
+            }];
+
+            let eth_accounts = std::iter::repeat(eth_accounts)
+                .flatten()
+                .take(account_count)
+                .collect();
+
             let mut accounts = HashMap::new();
             accounts.insert(Network::Bitcoin, btc_accounts);
+            accounts.insert(Network::Ethereum, eth_accounts);
 
             Self { devices, accounts }
         }
@@ -201,11 +234,7 @@ pub mod mock {
             _device: &Device,
             network: Network,
         ) -> impl Iterator<Item = Account> {
-            self.accounts
-                .get(&network)
-                .map(|acc| acc.clone())
-                .into_iter()
-                .flatten()
+            self.accounts.get(&network).cloned().into_iter().flatten()
         }
     }
 }
