@@ -1,4 +1,3 @@
-use futures::executor::block_on;
 use std::{collections::HashMap, io::stdout, marker::PhantomData};
 
 use ratatui::{
@@ -55,15 +54,16 @@ impl App {
     }
 
     async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
-        let state = StateRegistry::new();
+        let mut state = Some(StateRegistry::new());
 
         let ledger_api = LedgerApiMock::new(10, 5);
-        let window = Portfolio::new(ledger_api).await;
-
-        let (state, mut msg) = Self::window_loop(window, &mut terminal, state).await;
-        let mut state = Some(state);
+        let mut window: Option<Box<dyn Window>> = Some(Box::from(Portfolio::new(ledger_api)));
 
         loop {
+            let (new_state, msg) =
+                Self::window_loop(window.take().unwrap(), &mut terminal, state.take().unwrap());
+            state = Some(new_state);
+
             match msg {
                 OutgoingMessage::Exit => {
                     return;
@@ -71,41 +71,31 @@ impl App {
                 OutgoingMessage::SwitchWindow(new_window) => match new_window {
                     WindowName::Portfolio => {
                         let ledger_api = LedgerApiMock::new(10, 5);
-                        let window = Portfolio::new(ledger_api).await;
-                        let (new_state, new_msg) =
-                            Self::window_loop(window, &mut terminal, state.take().unwrap()).await;
-                        state = Some(new_state);
-                        msg = new_msg;
+                        window = Some(Box::from(Portfolio::new(ledger_api)));
                     }
                     WindowName::DeviceSelection => {
                         let ledger_api = LedgerApiMock::new(10, 5);
-                        let window = DeviceSelection::new(ledger_api).await;
-                        let (new_state, new_msg) =
-                            Self::window_loop(window, &mut terminal, state.take().unwrap()).await;
-                        state = Some(new_state);
-                        msg = new_msg;
+                        window = Some(Box::from(DeviceSelection::new(ledger_api)));
                     }
                 },
             }
         }
     }
 
-    async fn window_loop<W: Window, B: Backend>(
-        mut window: W,
+    fn window_loop<B: Backend>(
+        mut window: Box<dyn Window>,
         terminal: &mut Terminal<B>,
         state: StateRegistry,
     ) -> (StateRegistry, OutgoingMessage) {
-        window.construct(state).await;
+        window.construct(state);
 
         loop {
-            terminal
-                .draw(|frame| block_on(window.render(frame)))
-                .unwrap();
+            terminal.draw(|frame| window.render(frame)).unwrap();
 
-            let msg = window.tick().await;
+            let msg = window.tick();
 
             if let Some(msg) = msg {
-                let state = window.deconstruct().await;
+                let state = window.deconstruct();
                 return (state, msg);
             }
         }

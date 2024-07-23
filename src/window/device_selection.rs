@@ -1,3 +1,6 @@
+use std::time::{Duration, Instant};
+
+use futures::executor::block_on;
 use ratatui::{
     crossterm::event::{self, KeyCode},
     layout::{Alignment, Margin},
@@ -6,7 +9,6 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, Padding},
     Frame,
 };
-use std::time::{Duration, Instant};
 
 use crate::{
     api::ledger::{Device, DeviceInfo, LedgerApiT},
@@ -29,11 +31,11 @@ pub struct DeviceSelection<L: LedgerApiT> {
 }
 
 impl<L: LedgerApiT> Window for DeviceSelection<L> {
-    async fn construct(&mut self, state: StateRegistry) {
+    fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }
 
-    async fn render(&self, frame: &mut Frame<'_>) {
+    fn render(&self, frame: &mut Frame<'_>) {
         let area = frame.size();
 
         let list_block = Block::new()
@@ -70,13 +72,13 @@ impl<L: LedgerApiT> Window for DeviceSelection<L> {
         frame.render_widget(list, list_area);
     }
 
-    async fn tick(&mut self) -> Option<OutgoingMessage> {
+    fn tick(&mut self) -> Option<OutgoingMessage> {
         if self.previous_poll.elapsed() >= DEVICE_POLL_PERIOD {
-            let devices = self.ledger_api.discover_devices().await;
+            let devices = block_on(self.ledger_api.discover_devices());
             let mut devices_with_info = Vec::with_capacity(devices.len());
 
             for device in devices {
-                let info = self.ledger_api.get_device_info(&device).await;
+                let info = block_on(self.ledger_api.get_device_info(&device));
                 if let Some(info) = info {
                     devices_with_info.push((device, info));
                 }
@@ -97,17 +99,17 @@ impl<L: LedgerApiT> Window for DeviceSelection<L> {
             }
         }
 
-        self.process_input().await
+        self.process_input()
     }
 
-    async fn deconstruct(self) -> StateRegistry {
+    fn deconstruct(self: Box<Self>) -> StateRegistry {
         self.state
             .expect("Construct should be called at the start of window lifetime")
     }
 }
 
 impl<L: LedgerApiT> DeviceSelection<L> {
-    pub async fn new(ledger_api: L) -> Self {
+    pub fn new(ledger_api: L) -> Self {
         Self {
             devices: vec![],
             previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
@@ -117,7 +119,7 @@ impl<L: LedgerApiT> DeviceSelection<L> {
         }
     }
 
-    async fn process_input(&mut self) -> Option<OutgoingMessage> {
+    fn process_input(&mut self) -> Option<OutgoingMessage> {
         if !event::poll(Duration::ZERO).unwrap() {
             return None;
         }

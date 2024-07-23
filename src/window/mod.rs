@@ -10,12 +10,12 @@ pub mod portfolio;
 
 pub trait Window {
     // TODO: Make it into unified constructor.
-    async fn construct(&mut self, state: StateRegistry);
+    fn construct(&mut self, state: StateRegistry);
 
-    async fn render(&self, frame: &mut Frame<'_>);
-    async fn tick(&mut self) -> Option<OutgoingMessage>;
+    fn render(&self, frame: &mut Frame<'_>);
+    fn tick(&mut self) -> Option<OutgoingMessage>;
 
-    async fn deconstruct(self) -> StateRegistry;
+    fn deconstruct(self: Box<Self>) -> StateRegistry;
 }
 
 pub enum OutgoingMessage {

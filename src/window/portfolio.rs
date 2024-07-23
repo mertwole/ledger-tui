@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use futures::executor::block_on;
 use ratatui::{
     crossterm::event::{self, Event, KeyCode},
     layout::{Alignment, Constraint},
@@ -30,25 +31,25 @@ pub struct Portfolio<L: LedgerApiT> {
 }
 
 impl<L: LedgerApiT> Window for Portfolio<L> {
-    async fn construct(&mut self, state: StateRegistry) {
+    fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }
 
-    async fn render(&self, frame: &mut Frame<'_>) {
+    fn render(&self, frame: &mut Frame<'_>) {
         let state = self
             .state
             .as_ref()
             .expect("Construct should be called at the start of window lifetime");
 
         if let Some(accounts) = state.device_accounts.as_ref() {
-            Self::render_account_table(frame, self.table_state.borrow_mut(), accounts).await;
+            Self::render_account_table(frame, self.table_state.borrow_mut(), accounts);
         } else {
             // TODO: Process case when device is connected but accounts haven't been loaded yet.
-            Self::render_account_table_placeholder(frame).await;
+            Self::render_account_table_placeholder(frame);
         }
     }
 
-    async fn tick(&mut self) -> Option<OutgoingMessage> {
+    fn tick(&mut self) -> Option<OutgoingMessage> {
         let state = self
             .state
             .as_mut()
@@ -61,10 +62,7 @@ impl<L: LedgerApiT> Window for Portfolio<L> {
                 // TODO: Load at startup from config and add only on user request.
                 // TODO: Filter accounts based on balance.
                 for network in [Network::Bitcoin, Network::Ethereum] {
-                    let accs = self
-                        .ledger_api
-                        .discover_accounts(active_device, network)
-                        .await
+                    let accs = block_on(self.ledger_api.discover_accounts(active_device, network))
                         .collect();
 
                     accounts.entry(network).or_insert(accs);
@@ -74,17 +72,17 @@ impl<L: LedgerApiT> Window for Portfolio<L> {
             }
         }
 
-        self.process_input().await
+        self.process_input()
     }
 
-    async fn deconstruct(self) -> StateRegistry {
+    fn deconstruct(self: Box<Self>) -> StateRegistry {
         self.state
             .expect("Construct should be called at the start of window lifetime")
     }
 }
 
 impl<L: LedgerApiT> Portfolio<L> {
-    pub async fn new(ledger_api: L) -> Self {
+    pub fn new(ledger_api: L) -> Self {
         Self {
             ledger_api,
             state: None,
@@ -92,7 +90,7 @@ impl<L: LedgerApiT> Portfolio<L> {
         }
     }
 
-    async fn render_account_table(
+    fn render_account_table(
         frame: &mut Frame<'_>,
         mut table_state: RefMut<'_, TableState>,
         accounts: &HashMap<Network, Vec<Account>>,
@@ -131,7 +129,7 @@ impl<L: LedgerApiT> Portfolio<L> {
         frame.render_stateful_widget(table, area, &mut *table_state);
     }
 
-    async fn render_account_table_placeholder(frame: &mut Frame<'_>) {
+    fn render_account_table_placeholder(frame: &mut Frame<'_>) {
         let area = frame.size();
 
         let block = Block::new()
@@ -151,7 +149,7 @@ impl<L: LedgerApiT> Portfolio<L> {
         frame.render_widget(text, text_area);
     }
 
-    async fn process_input(&mut self) -> Option<OutgoingMessage> {
+    fn process_input(&mut self) -> Option<OutgoingMessage> {
         if !event::poll(Duration::ZERO).unwrap() {
             return None;
         }
@@ -160,7 +158,7 @@ impl<L: LedgerApiT> Portfolio<L> {
 
         if let Some(state) = self.state.as_ref() {
             if let Some(accounts) = state.device_accounts.as_ref() {
-                self.process_table_navigation(&event, accounts.len()).await;
+                self.process_table_navigation(&event, accounts.len());
             }
         }
 
@@ -175,7 +173,7 @@ impl<L: LedgerApiT> Portfolio<L> {
         None
     }
 
-    async fn process_table_navigation(&mut self, event: &Event, accounts_len: usize) {
+    fn process_table_navigation(&mut self, event: &Event, accounts_len: usize) {
         if event.is_key_pressed(KeyCode::Down) {
             let selected = self
                 .table_state
