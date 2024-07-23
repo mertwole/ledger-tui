@@ -1,3 +1,6 @@
+use std::time::{Duration, Instant};
+
+use futures::executor::block_on;
 use ratatui::{
     crossterm::event::{self, KeyCode},
     layout::{Alignment, Margin},
@@ -6,11 +9,13 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, Padding},
     Frame,
 };
-use std::time::{Duration, Instant};
 
-use crate::api::ledger::{Device, DeviceInfo, LedgerApiT};
+use crate::{
+    api::ledger::{Device, DeviceInfo, LedgerApiT},
+    app::StateRegistry,
+};
 
-use super::EventExt;
+use super::{EventExt, OutgoingMessage, Window, WindowName};
 
 const DEVICE_POLL_PERIOD: Duration = Duration::from_secs(2);
 
@@ -20,24 +25,17 @@ pub struct DeviceSelection<L: LedgerApiT> {
 
     selected_device: Option<usize>,
 
+    state: Option<StateRegistry>,
+
     ledger_api: L,
 }
 
-pub enum OutgoingMessage {
-    Quit,
-}
-
-impl<L: LedgerApiT> DeviceSelection<L> {
-    pub async fn new(ledger_api: L) -> Self {
-        Self {
-            devices: vec![],
-            previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
-            selected_device: None,
-            ledger_api,
-        }
+impl<L: LedgerApiT> Window for DeviceSelection<L> {
+    fn construct(&mut self, state: StateRegistry) {
+        self.state = Some(state);
     }
 
-    pub async fn render(&self, frame: &mut Frame<'_>) {
+    fn render(&self, frame: &mut Frame<'_>) {
         let area = frame.size();
 
         let list_block = Block::new()
@@ -74,13 +72,13 @@ impl<L: LedgerApiT> DeviceSelection<L> {
         frame.render_widget(list, list_area);
     }
 
-    pub async fn tick(&mut self) -> Option<OutgoingMessage> {
+    fn tick(&mut self) -> Option<OutgoingMessage> {
         if self.previous_poll.elapsed() >= DEVICE_POLL_PERIOD {
-            let devices = self.ledger_api.discover_devices().await;
+            let devices = block_on(self.ledger_api.discover_devices());
             let mut devices_with_info = Vec::with_capacity(devices.len());
 
             for device in devices {
-                let info = self.ledger_api.get_device_info(&device).await;
+                let info = block_on(self.ledger_api.get_device_info(&device));
                 if let Some(info) = info {
                     devices_with_info.push((device, info));
                 }
@@ -101,10 +99,27 @@ impl<L: LedgerApiT> DeviceSelection<L> {
             }
         }
 
-        self.process_input().await
+        self.process_input()
     }
 
-    async fn process_input(&mut self) -> Option<OutgoingMessage> {
+    fn deconstruct(self: Box<Self>) -> StateRegistry {
+        self.state
+            .expect("Construct should be called at the start of window lifetime")
+    }
+}
+
+impl<L: LedgerApiT> DeviceSelection<L> {
+    pub fn new(ledger_api: L) -> Self {
+        Self {
+            devices: vec![],
+            previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
+            selected_device: None,
+            state: None,
+            ledger_api,
+        }
+    }
+
+    fn process_input(&mut self) -> Option<OutgoingMessage> {
         if !event::poll(Duration::ZERO).unwrap() {
             return None;
         }
@@ -127,8 +142,20 @@ impl<L: LedgerApiT> DeviceSelection<L> {
             }
         }
 
+        if event.is_key_pressed(KeyCode::Enter) {
+            if let Some(device_idx) = self.selected_device {
+                let (device, info) = self.devices[device_idx].clone();
+                self.state
+                    .as_mut()
+                    .expect("Construct should be called at the start of window lifetime")
+                    .active_device = Some((device, info));
+                // TODO: Add mechanism to return one window back.
+                return Some(OutgoingMessage::SwitchWindow(WindowName::Portfolio));
+            }
+        }
+
         if event.is_key_pressed(KeyCode::Char('q')) {
-            return Some(OutgoingMessage::Quit);
+            return Some(OutgoingMessage::Exit);
         }
 
         None

@@ -22,7 +22,7 @@ pub struct Device {
     info: LedgerInfo,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DeviceInfo {
     pub model: String,
     pub se_version: String,
