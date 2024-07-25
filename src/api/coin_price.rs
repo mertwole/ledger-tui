@@ -16,7 +16,7 @@ pub enum Coin {
 }
 
 impl Coin {
-    fn to_api_string(&self) -> String {
+    fn to_api_string(self) -> String {
         match self {
             Self::BTC => "BTC".to_string(),
             Self::ETH => "ETH".to_string(),
