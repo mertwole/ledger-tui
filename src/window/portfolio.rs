@@ -1,8 +1,4 @@
-use std::{
-    cell::{RefCell, RefMut},
-    collections::HashMap,
-    time::Duration,
-};
+use std::{cell::RefCell, collections::HashMap, time::Duration};
 
 use futures::executor::block_on;
 use ratatui::{
@@ -15,22 +11,26 @@ use ratatui::{
 };
 
 use crate::{
-    api::ledger::{Account, LedgerApiT, Network},
+    api::{
+        coin_price::{Coin, CoinPriceApiT},
+        ledger::{Account, LedgerApiT, Network},
+    },
     app::StateRegistry,
     window::WindowName,
 };
 
 use super::{EventExt, OutgoingMessage, Window};
 
-pub struct Portfolio<L: LedgerApiT> {
+pub struct Portfolio<L: LedgerApiT, C: CoinPriceApiT> {
     ledger_api: L,
+    coin_price_api: C,
 
     state: Option<StateRegistry>,
 
     table_state: RefCell<TableState>,
 }
 
-impl<L: LedgerApiT> Window for Portfolio<L> {
+impl<L: LedgerApiT, C: CoinPriceApiT> Window for Portfolio<L, C> {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }
@@ -42,7 +42,7 @@ impl<L: LedgerApiT> Window for Portfolio<L> {
             .expect("Construct should be called at the start of window lifetime");
 
         if let Some(accounts) = state.device_accounts.as_ref() {
-            Self::render_account_table(frame, self.table_state.borrow_mut(), accounts);
+            self.render_account_table(frame, accounts);
         } else {
             // TODO: Process case when device is connected but accounts haven't been loaded yet.
             Self::render_account_table_placeholder(frame);
@@ -81,18 +81,19 @@ impl<L: LedgerApiT> Window for Portfolio<L> {
     }
 }
 
-impl<L: LedgerApiT> Portfolio<L> {
-    pub fn new(ledger_api: L) -> Self {
+impl<L: LedgerApiT, C: CoinPriceApiT> Portfolio<L, C> {
+    pub fn new(ledger_api: L, coin_price_api: C) -> Self {
         Self {
             ledger_api,
+            coin_price_api,
             state: None,
             table_state: RefCell::default(),
         }
     }
 
     fn render_account_table(
+        &self,
         frame: &mut Frame<'_>,
-        mut table_state: RefMut<'_, TableState>,
         accounts: &HashMap<Network, Vec<Account>>,
     ) {
         let area = frame.size();
@@ -107,17 +108,29 @@ impl<L: LedgerApiT> Portfolio<L> {
 
         // TODO: Sort.
         let rows = accounts.iter().map(|(nw, acc)| {
+            // TODO: Correctly map accounts to coins.
+            let coin = match nw {
+                Network::Bitcoin => Coin::BTC,
+                Network::Ethereum => Coin::ETH,
+            };
+
+            let price = block_on(self.coin_price_api.get_price(coin, Coin::USDT));
+            let price = price
+                .map(|price| price.to_string())
+                .unwrap_or_else(|| "N/A".to_string());
+
             Row::new(vec![
                 nw.get_info().name,
                 nw.get_info().symbol,
                 acc.len().to_string(),
+                price,
             ])
         });
 
-        let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
+        let table = Table::new(rows, [Constraint::Ratio(1, 4); 4])
             .column_spacing(1)
             .header(
-                Row::new(vec!["Network", "Symbol", "Accounts"])
+                Row::new(vec!["Network", "Symbol", "Accounts", "USDT Price"])
                     .style(Style::new().bold())
                     .bottom_margin(1),
             )
@@ -126,7 +139,7 @@ impl<L: LedgerApiT> Portfolio<L> {
             .highlight_spacing(HighlightSpacing::Always)
             .highlight_symbol(">>");
 
-        frame.render_stateful_widget(table, area, &mut *table_state);
+        frame.render_stateful_widget(table, area, &mut *self.table_state.borrow_mut());
     }
 
     fn render_account_table_placeholder(frame: &mut Frame<'_>) {
