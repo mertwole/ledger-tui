@@ -1,10 +1,13 @@
+use binance_spot_connector_rust::{market, ureq::BinanceHttpClient};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use serde::Deserialize;
 
 pub trait CoinPriceApiT {
     async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Coin {
     BTC,
@@ -12,11 +15,49 @@ pub enum Coin {
     USDT,
 }
 
-pub struct CoinPriceApi {}
+impl Coin {
+    fn to_api_string(&self) -> String {
+        match self {
+            Self::BTC => "BTC".to_string(),
+            Self::ETH => "ETH".to_string(),
+            Self::USDT => "USDT".to_string(),
+        }
+    }
+}
+
+pub struct CoinPriceApi {
+    client: BinanceHttpClient,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct BinanceApiMarketAvgPriceResponse {
+    mins: u32,
+    price: Decimal,
+    close_time: u64,
+}
+
+impl CoinPriceApi {
+    pub fn new(url: &str) -> Self {
+        let client = BinanceHttpClient::with_url(url);
+        CoinPriceApi { client }
+    }
+}
 
 impl CoinPriceApiT for CoinPriceApi {
-    async fn get_price(&self, _from: Coin, _to: Coin) -> Option<Decimal> {
-        todo!()
+    async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal> {
+        let pair = [from.to_api_string(), to.to_api_string()].concat();
+        let price = self
+            .client
+            .send(market::avg_price(&pair))
+            .unwrap()
+            .into_body_str()
+            .unwrap();
+
+        let price: BinanceApiMarketAvgPriceResponse = serde_json::from_str(&price).unwrap();
+
+        Some(price.price)
     }
 }
 

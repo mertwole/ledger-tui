@@ -11,7 +11,7 @@ use ratatui::{
 
 use crate::{
     api::{
-        coin_price::mock::CoinPriceApiMock,
+        coin_price::{mock::CoinPriceApiMock, Coin, CoinPriceApiT},
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
     window::{
@@ -61,6 +61,9 @@ impl App {
 
         let ledger_api = LedgerApiMock::new(10, 5);
         let coin_price_api = CoinPriceApiMock::new();
+
+        coin_price_api.get_price(Coin::BTC, Coin::USDT).await;
+
         let mut window: Option<Box<dyn Window>> =
             Some(Box::from(Portfolio::new(ledger_api, coin_price_api)));
 
@@ -77,6 +80,7 @@ impl App {
                     WindowName::Portfolio => {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         let coin_price_api = CoinPriceApiMock::new();
+
                         window = Some(Box::from(Portfolio::new(ledger_api, coin_price_api)));
                     }
                     WindowName::DeviceSelection => {
