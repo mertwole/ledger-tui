@@ -5,6 +5,7 @@ use ratatui::{
 
 use crate::app::StateRegistry;
 
+pub mod asset;
 pub mod device_selection;
 pub mod portfolio;
 
@@ -27,6 +28,7 @@ pub enum OutgoingMessage {
 pub enum WindowName {
     DeviceSelection,
     Portfolio,
+    Asset,
 }
 
 trait EventExt {

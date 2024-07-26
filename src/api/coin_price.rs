@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use binance_spot_connector_rust::{market, ureq::BinanceHttpClient};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -5,7 +7,11 @@ use serde::Deserialize;
 
 pub trait CoinPriceApiT {
     async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
+
+    async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory>;
 }
+
+pub type PriceHistory = Vec<(Instant, Decimal)>;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -16,7 +22,7 @@ pub enum Coin {
 }
 
 impl Coin {
-    fn to_api_string(&self) -> String {
+    fn to_api_string(self) -> String {
         match self {
             Self::BTC => "BTC".to_string(),
             Self::ETH => "ETH".to_string(),
@@ -59,10 +65,16 @@ impl CoinPriceApiT for CoinPriceApi {
 
         Some(price.price)
     }
+
+    async fn get_price_history(&self, _from: Coin, _to: Coin) -> Option<PriceHistory> {
+        todo!()
+    }
 }
 
 pub mod mock {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, time::Duration};
+
+    use rust_decimal::prelude::FromPrimitive;
 
     use super::*;
 
@@ -85,6 +97,29 @@ pub mod mock {
     impl CoinPriceApiT for CoinPriceApiMock {
         async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal> {
             self.prices.get(&(from, to)).cloned()
+        }
+
+        async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory> {
+            const RESULTS: usize = 100;
+
+            let mut price = self.get_price(from, to).await?;
+            let price_interval = price
+                .checked_div(Decimal::from_usize(2 * RESULTS).unwrap())
+                .unwrap();
+
+            let mut time = Instant::now();
+            let time_interval = Duration::new(10, 0);
+
+            let mut prices = vec![];
+
+            for _ in 0..RESULTS {
+                prices.push((time, price));
+
+                price = price.saturating_sub(price_interval);
+                time -= time_interval;
+            }
+
+            Some(prices)
         }
     }
 }
