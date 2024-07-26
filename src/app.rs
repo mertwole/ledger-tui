@@ -15,8 +15,8 @@ use crate::{
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
     window::{
-        device_selection::DeviceSelection, portfolio::Portfolio, OutgoingMessage, Window,
-        WindowName,
+        asset::Asset, device_selection::DeviceSelection, portfolio::Portfolio, OutgoingMessage,
+        Window, WindowName,
     },
 };
 
@@ -25,7 +25,8 @@ pub struct App {}
 // TODO: Add macro to automatically break this registry into sub-registries designated for specific windows.
 pub(crate) struct StateRegistry {
     pub active_device: Option<(Device, DeviceInfo)>,
-    pub device_accounts: Option<HashMap<Network, Vec<Account>>>,
+    pub device_accounts: Option<Vec<(Network, Vec<Account>)>>,
+    pub selected_account: Option<(Network, Account)>,
     _phantom: PhantomData<()>,
 }
 
@@ -34,6 +35,7 @@ impl StateRegistry {
         StateRegistry {
             active_device: None,
             device_accounts: None,
+            selected_account: None,
             _phantom: PhantomData,
         }
     }
@@ -86,6 +88,12 @@ impl App {
                     WindowName::DeviceSelection => {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         window = Some(Box::from(DeviceSelection::new(ledger_api)));
+                    }
+                    WindowName::Asset => {
+                        let ledger_api = LedgerApiMock::new(10, 5);
+                        let coin_price_api = CoinPriceApiMock::new();
+
+                        window = Some(Box::from(Asset::new(ledger_api, coin_price_api)));
                     }
                 },
             }

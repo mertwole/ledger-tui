@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, time::Duration};
+use std::{cell::RefCell, time::Duration};
 
 use futures::executor::block_on;
 use ratatui::{
@@ -57,18 +57,24 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Window for Portfolio<L, C> {
 
         if state.device_accounts.is_none() {
             if let Some((active_device, _)) = state.active_device.as_ref() {
-                let mut accounts = HashMap::new();
-
                 // TODO: Load at startup from config and add only on user request.
                 // TODO: Filter accounts based on balance.
-                for network in [Network::Bitcoin, Network::Ethereum] {
-                    let accs = block_on(self.ledger_api.discover_accounts(active_device, network))
-                        .collect();
+                state.device_accounts = Some(
+                    [Network::Bitcoin, Network::Ethereum]
+                        .into_iter()
+                        .filter_map(|network| {
+                            let accounts: Vec<_> =
+                                block_on(self.ledger_api.discover_accounts(active_device, network))
+                                    .collect();
 
-                    accounts.entry(network).or_insert(accs);
-                }
-
-                state.device_accounts = Some(accounts);
+                            if accounts.is_empty() {
+                                None
+                            } else {
+                                Some((network, accounts))
+                            }
+                        })
+                        .collect(),
+                );
             }
         }
 
@@ -91,11 +97,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Portfolio<L, C> {
         }
     }
 
-    fn render_account_table(
-        &self,
-        frame: &mut Frame<'_>,
-        accounts: &HashMap<Network, Vec<Account>>,
-    ) {
+    fn render_account_table(&self, frame: &mut Frame<'_>, accounts: &[(Network, Vec<Account>)]) {
         let area = frame.size();
 
         let table_block = Block::new()
@@ -169,9 +171,20 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Portfolio<L, C> {
 
         let event = event::read().unwrap();
 
-        if let Some(state) = self.state.as_ref() {
+        if let Some(state) = self.state.as_mut() {
             if let Some(accounts) = state.device_accounts.as_ref() {
-                self.process_table_navigation(&event, accounts.len());
+                if event.is_key_pressed(KeyCode::Enter) {
+                    if let Some(selected_idx) = self.table_state.borrow().selected() {
+                        // TODO: Don't ignore other accounts - let user choose it on portfolio window,
+                        let selected = accounts[selected_idx].clone();
+                        state.selected_account = Some((selected.0, selected.1[0].clone()));
+
+                        return Some(OutgoingMessage::SwitchWindow(WindowName::Asset));
+                    }
+                }
+
+                let accounts_len = accounts.len();
+                self.process_table_navigation(&event, accounts_len);
             }
         }
 
