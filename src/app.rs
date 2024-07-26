@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::stdout, marker::PhantomData};
+use std::{io::stdout, marker::PhantomData};
 
 use ratatui::{
     backend::{Backend, CrosstermBackend},
