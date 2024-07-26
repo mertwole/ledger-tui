@@ -91,7 +91,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Asset<L, C> {
 
         let mut price_bounds = [f64::MAX, f64::MIN];
         for (_, price) in &prices {
-            let price: f64 = price.clone().try_into().unwrap();
+            let price: f64 = (*price).try_into().unwrap();
             price_bounds[0] = price_bounds[0].min(price);
             price_bounds[1] = price_bounds[1].max(price);
         }
