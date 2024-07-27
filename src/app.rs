@@ -14,9 +14,9 @@ use crate::{
         coin_price::{mock::CoinPriceApiMock, Coin, CoinPriceApiT},
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
-    window::{
+    screen::{
         asset::Model as AssetWindow, device_selection::Model as DeviceSelectionWindow,
-        portfolio::Model as PortfolioWindow, OutgoingMessage, Window, WindowName,
+        portfolio::Model as PortfolioWindow, OutgoingMessage, Screen, WindowName,
     },
 };
 
@@ -66,7 +66,7 @@ impl App {
 
         coin_price_api.get_price(Coin::BTC, Coin::USDT).await;
 
-        let mut window: Option<Box<dyn Window>> =
+        let mut window: Option<Box<dyn Screen>> =
             Some(Box::from(PortfolioWindow::new(ledger_api, coin_price_api)));
 
         loop {
@@ -101,7 +101,7 @@ impl App {
     }
 
     fn window_loop<B: Backend>(
-        mut window: Box<dyn Window>,
+        mut window: Box<dyn Screen>,
         terminal: &mut Terminal<B>,
         state: StateRegistry,
     ) -> (StateRegistry, OutgoingMessage) {

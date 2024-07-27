@@ -1,6 +1,6 @@
 use ratatui::Frame;
 
-use super::{OutgoingMessage, Window};
+use super::{OutgoingMessage, Screen};
 use crate::{
     api::{coin_price::CoinPriceApiT, ledger::LedgerApiT},
     app::StateRegistry,
@@ -26,13 +26,13 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Window for Model<L, C> {
+impl<L: LedgerApiT, C: CoinPriceApiT> Screen for Model<L, C> {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
-        view::render(&self, frame);
+        view::render(self, frame);
     }
 
     fn tick(&mut self) -> Option<OutgoingMessage> {

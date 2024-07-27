@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use futures::executor::block_on;
 use ratatui::Frame;
 
-use super::{OutgoingMessage, Window};
+use super::{OutgoingMessage, Screen};
 use crate::{
     api::ledger::{Device, DeviceInfo, LedgerApiT},
     app::StateRegistry,
@@ -64,13 +64,13 @@ impl<L: LedgerApiT> Model<L> {
     }
 }
 
-impl<L: LedgerApiT> Window for Model<L> {
+impl<L: LedgerApiT> Screen for Model<L> {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
-        view::render(&self, frame);
+        view::render(self, frame);
     }
 
     fn tick(&mut self) -> Option<OutgoingMessage> {

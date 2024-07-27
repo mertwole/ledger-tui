@@ -5,7 +5,7 @@ use ratatui::crossterm::event::{self, Event, KeyCode};
 use super::Model;
 use crate::{
     api::{coin_price::CoinPriceApiT, ledger::LedgerApiT},
-    window::{EventExt, OutgoingMessage, WindowName},
+    screen::{EventExt, OutgoingMessage, WindowName},
 };
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(

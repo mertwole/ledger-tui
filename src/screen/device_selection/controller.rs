@@ -4,7 +4,7 @@ use ratatui::crossterm::event::{self, KeyCode};
 
 use crate::{
     api::ledger::LedgerApiT,
-    window::{EventExt, OutgoingMessage, WindowName},
+    screen::{EventExt, OutgoingMessage, WindowName},
 };
 
 use super::Model;
