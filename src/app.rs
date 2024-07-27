@@ -15,7 +15,7 @@ use crate::{
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
     window::{
-        asset::Asset, device_selection::Model as DeviceSelectionWindow,
+        asset::Model as AssetWindow, device_selection::Model as DeviceSelectionWindow,
         portfolio::Model as PortfolioWindow, OutgoingMessage, Window, WindowName,
     },
 };
@@ -93,7 +93,7 @@ impl App {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         let coin_price_api = CoinPriceApiMock::new();
 
-                        window = Some(Box::from(Asset::new(ledger_api, coin_price_api)));
+                        window = Some(Box::from(AssetWindow::new(ledger_api, coin_price_api)));
                     }
                 },
             }
