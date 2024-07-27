@@ -15,5 +15,9 @@ pub(super) fn process_input() -> Option<OutgoingMessage> {
         return Some(OutgoingMessage::Exit);
     }
 
+    if event.is_key_pressed(KeyCode::Char('b')) {
+        return Some(OutgoingMessage::Back);
+    }
+
     None
 }

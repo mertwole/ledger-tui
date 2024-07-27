@@ -21,6 +21,7 @@ pub trait Screen {
 
 pub enum OutgoingMessage {
     SwitchScreen(ScreenName),
+    Back,
     Exit,
 }
 
