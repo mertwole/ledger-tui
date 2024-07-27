@@ -5,7 +5,7 @@ use ratatui::crossterm::event::{self, Event, KeyCode};
 use super::Model;
 use crate::{
     api::{coin_price::CoinPriceApiT, ledger::LedgerApiT},
-    screen::{EventExt, OutgoingMessage, WindowName},
+    screen::{EventExt, OutgoingMessage, ScreenName},
 };
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
@@ -25,7 +25,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
                     let selected = accounts[selected_idx].clone();
                     state.selected_account = Some((selected.0, selected.1[0].clone()));
 
-                    return Some(OutgoingMessage::SwitchWindow(WindowName::Asset));
+                    return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
                 }
             }
 
@@ -35,7 +35,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
     }
 
     if event.is_key_pressed(KeyCode::Char('d')) {
-        return Some(OutgoingMessage::SwitchWindow(WindowName::DeviceSelection));
+        return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection));
     }
 
     if event.is_key_pressed(KeyCode::Char('q')) {

@@ -11,16 +11,18 @@ use ratatui::{
 
 use crate::{
     api::{
-        coin_price::{mock::CoinPriceApiMock, Coin, CoinPriceApiT},
+        coin_price::mock::CoinPriceApiMock,
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
     screen::{
         asset::Model as AssetWindow, device_selection::Model as DeviceSelectionWindow,
-        portfolio::Model as PortfolioWindow, OutgoingMessage, Screen, WindowName,
+        portfolio::Model as PortfolioWindow, OutgoingMessage, Screen, ScreenName,
     },
 };
 
-pub struct App {}
+pub struct App {
+    screens: Vec<ScreenName>,
+}
 
 // TODO: Add macro to automatically break this registry into sub-registries designated for specific windows.
 pub(crate) struct StateRegistry {
@@ -43,7 +45,9 @@ impl StateRegistry {
 
 impl App {
     pub async fn new() -> Self {
-        Self {}
+        Self {
+            screens: vec![ScreenName::Portfolio],
+        }
     }
 
     pub async fn run(mut self) {
@@ -61,61 +65,59 @@ impl App {
     async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
         let mut state = Some(StateRegistry::new());
 
-        let ledger_api = LedgerApiMock::new(10, 5);
-        let coin_price_api = CoinPriceApiMock::new();
-
-        coin_price_api.get_price(Coin::BTC, Coin::USDT).await;
-
-        let mut window: Option<Box<dyn Screen>> =
-            Some(Box::from(PortfolioWindow::new(ledger_api, coin_price_api)));
-
         loop {
-            let (new_state, msg) =
-                Self::window_loop(window.take().unwrap(), &mut terminal, state.take().unwrap());
+            let screen = self
+                .screens
+                .last()
+                .expect("At least one screen should be present");
+            let screen = create_screen(*screen);
+
+            let (new_state, msg) = Self::screen_loop(screen, &mut terminal, state.take().unwrap());
             state = Some(new_state);
 
             match msg {
                 OutgoingMessage::Exit => {
                     return;
                 }
-                OutgoingMessage::SwitchWindow(new_window) => match new_window {
-                    WindowName::Portfolio => {
-                        let ledger_api = LedgerApiMock::new(10, 5);
-                        let coin_price_api = CoinPriceApiMock::new();
-
-                        window = Some(Box::from(PortfolioWindow::new(ledger_api, coin_price_api)));
+                OutgoingMessage::Back => {
+                    if self.screens.pop().is_none() {
+                        return;
                     }
-                    WindowName::DeviceSelection => {
-                        let ledger_api = LedgerApiMock::new(10, 5);
-                        window = Some(Box::from(DeviceSelectionWindow::new(ledger_api)));
-                    }
-                    WindowName::Asset => {
-                        let ledger_api = LedgerApiMock::new(10, 5);
-                        let coin_price_api = CoinPriceApiMock::new();
-
-                        window = Some(Box::from(AssetWindow::new(ledger_api, coin_price_api)));
-                    }
-                },
+                }
+                OutgoingMessage::SwitchScreen(new_screen) => {
+                    self.screens.push(new_screen);
+                }
             }
         }
     }
 
-    fn window_loop<B: Backend>(
-        mut window: Box<dyn Screen>,
+    fn screen_loop<B: Backend>(
+        mut screen: Box<dyn Screen>,
         terminal: &mut Terminal<B>,
         state: StateRegistry,
     ) -> (StateRegistry, OutgoingMessage) {
-        window.construct(state);
+        screen.construct(state);
 
         loop {
-            terminal.draw(|frame| window.render(frame)).unwrap();
+            terminal.draw(|frame| screen.render(frame)).unwrap();
 
-            let msg = window.tick();
+            let msg = screen.tick();
 
             if let Some(msg) = msg {
-                let state = window.deconstruct();
+                let state = screen.deconstruct();
                 return (state, msg);
             }
         }
+    }
+}
+
+fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
+    let ledger_api = LedgerApiMock::new(10, 5);
+    let coin_price_api = CoinPriceApiMock::new();
+
+    match screen {
+        ScreenName::Portfolio => Box::from(PortfolioWindow::new(ledger_api, coin_price_api)),
+        ScreenName::DeviceSelection => Box::from(DeviceSelectionWindow::new(ledger_api)),
+        ScreenName::Asset => Box::from(AssetWindow::new(ledger_api, coin_price_api)),
     }
 }
