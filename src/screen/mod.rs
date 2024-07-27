@@ -9,7 +9,7 @@ pub mod asset;
 pub mod device_selection;
 pub mod portfolio;
 
-pub trait Window {
+pub trait Screen {
     // TODO: Make it into unified constructor.
     fn construct(&mut self, state: StateRegistry);
 

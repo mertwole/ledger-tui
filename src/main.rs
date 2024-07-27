@@ -4,7 +4,7 @@ use std::fs::File;
 
 mod api;
 mod app;
-mod window;
+mod screen;
 
 use app::App;
 

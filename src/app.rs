@@ -14,9 +14,9 @@ use crate::{
         coin_price::{mock::CoinPriceApiMock, Coin, CoinPriceApiT},
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
-    window::{
-        asset::Asset, device_selection::DeviceSelection, portfolio::Portfolio, OutgoingMessage,
-        Window, WindowName,
+    screen::{
+        asset::Model as AssetWindow, device_selection::Model as DeviceSelectionWindow,
+        portfolio::Model as PortfolioWindow, OutgoingMessage, Screen, WindowName,
     },
 };
 
@@ -66,8 +66,8 @@ impl App {
 
         coin_price_api.get_price(Coin::BTC, Coin::USDT).await;
 
-        let mut window: Option<Box<dyn Window>> =
-            Some(Box::from(Portfolio::new(ledger_api, coin_price_api)));
+        let mut window: Option<Box<dyn Screen>> =
+            Some(Box::from(PortfolioWindow::new(ledger_api, coin_price_api)));
 
         loop {
             let (new_state, msg) =
@@ -83,17 +83,17 @@ impl App {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         let coin_price_api = CoinPriceApiMock::new();
 
-                        window = Some(Box::from(Portfolio::new(ledger_api, coin_price_api)));
+                        window = Some(Box::from(PortfolioWindow::new(ledger_api, coin_price_api)));
                     }
                     WindowName::DeviceSelection => {
                         let ledger_api = LedgerApiMock::new(10, 5);
-                        window = Some(Box::from(DeviceSelection::new(ledger_api)));
+                        window = Some(Box::from(DeviceSelectionWindow::new(ledger_api)));
                     }
                     WindowName::Asset => {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         let coin_price_api = CoinPriceApiMock::new();
 
-                        window = Some(Box::from(Asset::new(ledger_api, coin_price_api)));
+                        window = Some(Box::from(AssetWindow::new(ledger_api, coin_price_api)));
                     }
                 },
             }
@@ -101,7 +101,7 @@ impl App {
     }
 
     fn window_loop<B: Backend>(
-        mut window: Box<dyn Window>,
+        mut window: Box<dyn Screen>,
         terminal: &mut Terminal<B>,
         state: StateRegistry,
     ) -> (StateRegistry, OutgoingMessage) {
