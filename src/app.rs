@@ -15,8 +15,8 @@ use crate::{
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
     window::{
-        asset::Asset, device_selection::DeviceSelection, portfolio::Model as PortfolioWindow,
-        OutgoingMessage, Window, WindowName,
+        asset::Asset, device_selection::Model as DeviceSelectionWindow,
+        portfolio::Model as PortfolioWindow, OutgoingMessage, Window, WindowName,
     },
 };
 
@@ -87,7 +87,7 @@ impl App {
                     }
                     WindowName::DeviceSelection => {
                         let ledger_api = LedgerApiMock::new(10, 5);
-                        window = Some(Box::from(DeviceSelection::new(ledger_api)));
+                        window = Some(Box::from(DeviceSelectionWindow::new(ledger_api)));
                     }
                     WindowName::Asset => {
                         let ledger_api = LedgerApiMock::new(10, 5);
