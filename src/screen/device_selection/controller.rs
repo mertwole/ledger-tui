@@ -4,7 +4,7 @@ use ratatui::crossterm::event::{self, KeyCode};
 
 use crate::{
     api::ledger::LedgerApiT,
-    screen::{EventExt, OutgoingMessage, WindowName},
+    screen::{EventExt, OutgoingMessage, ScreenName},
 };
 
 use super::Model;
@@ -41,7 +41,7 @@ pub(super) fn process_input<L: LedgerApiT>(model: &mut Model<L>) -> Option<Outgo
                 .expect("Construct should be called at the start of window lifetime")
                 .active_device = Some((device, info));
             // TODO: Add mechanism to return one window back.
-            return Some(OutgoingMessage::SwitchWindow(WindowName::Portfolio));
+            return Some(OutgoingMessage::SwitchScreen(ScreenName::Portfolio));
         }
     }
 

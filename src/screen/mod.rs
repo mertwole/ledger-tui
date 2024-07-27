@@ -20,12 +20,12 @@ pub trait Screen {
 }
 
 pub enum OutgoingMessage {
-    SwitchWindow(WindowName),
+    SwitchScreen(ScreenName),
     Exit,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum WindowName {
+pub enum ScreenName {
     DeviceSelection,
     Portfolio,
     Asset,

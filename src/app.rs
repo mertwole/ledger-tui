@@ -16,7 +16,7 @@ use crate::{
     },
     screen::{
         asset::Model as AssetWindow, device_selection::Model as DeviceSelectionWindow,
-        portfolio::Model as PortfolioWindow, OutgoingMessage, Screen, WindowName,
+        portfolio::Model as PortfolioWindow, OutgoingMessage, Screen, ScreenName,
     },
 };
 
@@ -78,18 +78,18 @@ impl App {
                 OutgoingMessage::Exit => {
                     return;
                 }
-                OutgoingMessage::SwitchWindow(new_window) => match new_window {
-                    WindowName::Portfolio => {
+                OutgoingMessage::SwitchScreen(new_window) => match new_window {
+                    ScreenName::Portfolio => {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         let coin_price_api = CoinPriceApiMock::new();
 
                         window = Some(Box::from(PortfolioWindow::new(ledger_api, coin_price_api)));
                     }
-                    WindowName::DeviceSelection => {
+                    ScreenName::DeviceSelection => {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         window = Some(Box::from(DeviceSelectionWindow::new(ledger_api)));
                     }
-                    WindowName::Asset => {
+                    ScreenName::Asset => {
                         let ledger_api = LedgerApiMock::new(10, 5);
                         let coin_price_api = CoinPriceApiMock::new();
 
