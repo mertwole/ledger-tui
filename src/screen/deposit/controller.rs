@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use ratatui::crossterm::event::{self, KeyCode};
 
-use crate::screen::{EventExt, OutgoingMessage, ScreenName};
+use crate::screen::{EventExt, OutgoingMessage};
 
 pub(super) fn process_input() -> Option<OutgoingMessage> {
     if !event::poll(Duration::ZERO).unwrap() {
@@ -17,10 +17,6 @@ pub(super) fn process_input() -> Option<OutgoingMessage> {
 
     if event.is_key_pressed(KeyCode::Char('b')) {
         return Some(OutgoingMessage::Back);
-    }
-
-    if event.is_key_pressed(KeyCode::Char('d')) {
-        return Some(OutgoingMessage::SwitchScreen(ScreenName::Deposit));
     }
 
     None
