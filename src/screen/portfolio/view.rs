@@ -40,28 +40,50 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT>(
 
     let accounts = accounts
         .iter()
-        .map(|(network, accounts)| NetworkAccountsTable {
-            network: *network,
-            accounts,
-            model,
+        .enumerate()
+        .map(|(network_idx, (network, accounts))| {
+            let selected_account = match model.selected_account {
+                Some((selected_network, selected_account)) if selected_network == network_idx => {
+                    Some(selected_account)
+                }
+                _ => None,
+            };
+
+            NetworkAccountsTable {
+                model,
+                network: *network,
+                accounts,
+                selected_account,
+                is_self_selected: false,
+            }
         })
         .collect();
 
     let list = tui_widget_list::List::new(accounts);
     let mut state = tui_widget_list::ListState::default();
 
+    let selected_network = model.selected_account.map(|(network, _)| network);
+    state.select(selected_network);
+
     frame.render_stateful_widget(list, area, &mut state);
 }
 
 struct NetworkAccountsTable<'a, L: LedgerApiT, C: CoinPriceApiT> {
+    model: &'a Model<L, C>,
+
     network: Network,
     accounts: &'a [Account],
-    model: &'a Model<L, C>,
+
+    selected_account: Option<usize>,
+
+    is_self_selected: bool,
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT> PreRender for NetworkAccountsTable<'_, L, C> {
-    fn pre_render(&mut self, _context: &tui_widget_list::PreRenderContext) -> u16 {
-        self.accounts.len() as u16 + 4
+    fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
+        self.is_self_selected = context.is_selected;
+
+        self.accounts.len() as u16 + 2
     }
 }
 
@@ -71,12 +93,17 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Widget for NetworkAccountsTable<'_, L, C> 
         Self: Sized,
     {
         let block = Block::new()
-            .border_type(BorderType::Double)
+            .border_type(BorderType::Rounded)
             .borders(Borders::all())
             .border_style(Color::Yellow)
-            .padding(Padding::uniform(1))
             .title(self.network.get_info().name)
-            .title_alignment(Alignment::Center);
+            .title_alignment(Alignment::Left);
+
+        let block = if self.is_self_selected {
+            block.bold()
+        } else {
+            block
+        };
 
         let rows = self.accounts.iter().map(|acc| {
             // TODO: Correctly map accounts to coins.
@@ -104,7 +131,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Widget for NetworkAccountsTable<'_, L, C> 
             .highlight_spacing(HighlightSpacing::Always)
             .highlight_symbol(">>");
 
-        let mut table_state = TableState::default().with_selected(self.model.selected_account);
+        let mut table_state = TableState::default().with_selected(self.selected_account);
         StatefulWidget::render(table, area, buf, &mut table_state);
     }
 }

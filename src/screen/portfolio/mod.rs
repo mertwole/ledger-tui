@@ -17,10 +17,13 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT> {
     ledger_api: L,
     coin_price_api: C,
 
-    selected_account: Option<usize>,
+    selected_account: Option<(NetworkIdx, AccountIdx)>,
 
     state: Option<StateRegistry>,
 }
+
+type AccountIdx = usize;
+type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
     pub fn new(ledger_api: L, coin_price_api: C) -> Self {

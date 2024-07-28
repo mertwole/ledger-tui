@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{num::NonZeroUsize, time::Duration};
 
 use ratatui::crossterm::event::{self, Event, KeyCode};
 
@@ -20,17 +20,24 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
     if let Some(state) = model.state.as_mut() {
         if let Some(accounts) = state.device_accounts.as_ref() {
             if event.is_key_pressed(KeyCode::Enter) {
-                if let Some(selected_idx) = model.selected_account {
-                    // TODO: Don't ignore other accounts - let user choose it on portfolio window,
-                    let selected = accounts[selected_idx].clone();
-                    state.selected_account = Some((selected.0, selected.1[0].clone()));
+                if let Some((selected_network_idx, selected_account_idx)) = model.selected_account {
+                    let (selected_network, accounts) = &accounts[selected_network_idx];
+                    let selected_account = accounts[selected_account_idx].clone();
+
+                    state.selected_account = Some((*selected_network, selected_account));
 
                     return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
                 }
             }
 
-            let accounts_len = accounts.len();
-            process_table_navigation(model, &event, accounts_len);
+            let accounts_per_network: Vec<_> = accounts
+                .iter()
+                .map(|(_, accounts)| {
+                    NonZeroUsize::new(accounts.len())
+                        .expect("No accounts for provided network found")
+                })
+                .collect();
+            process_table_navigation(model, &event, &accounts_per_network);
         }
     }
 
@@ -48,39 +55,52 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
 fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT>(
     model: &mut Model<L, C>,
     event: &Event,
-    accounts_len: usize,
+    accounts_per_network: &[NonZeroUsize],
 ) {
     if event.is_key_pressed(KeyCode::Down) {
-        let selected = model
-            .selected_account
-            .as_mut()
-            .map(|sel| {
-                *sel += 1;
-                if *sel >= accounts_len {
-                    *sel = accounts_len - 1;
-                }
-            })
-            .is_some();
+        if let Some((selected_network, selected_account)) = model.selected_account {
+            if selected_account + 1 >= accounts_per_network[selected_network].into() {
+                if selected_network >= accounts_per_network.len() - 1 {
+                    let last_network_accounts: usize =
+                        (*accounts_per_network.last().unwrap()).into();
 
-        if !selected {
-            model.selected_account = if accounts_len == 0 { None } else { Some(0) };
+                    model.selected_account =
+                        Some((accounts_per_network.len() - 1, last_network_accounts - 1));
+                } else {
+                    model.selected_account = Some((selected_network + 1, 0));
+                }
+            } else {
+                model.selected_account = Some((selected_network, selected_account + 1));
+            }
+        } else {
+            model.selected_account = if accounts_per_network.is_empty() {
+                None
+            } else {
+                Some((0, 0))
+            };
         }
     }
 
     if event.is_key_pressed(KeyCode::Up) {
-        let selected = model
-            .selected_account
-            .as_mut()
-            .map(|sel| {
-                *sel = sel.saturating_sub(1);
-            })
-            .is_some();
-
-        if !selected {
-            model.selected_account = if accounts_len == 0 {
+        if let Some((selected_network, selected_account)) = model.selected_account {
+            if selected_account == 0 {
+                if selected_network == 0 {
+                    model.selected_account = Some((0, 0));
+                } else {
+                    let accounts: usize = accounts_per_network[selected_network - 1].into();
+                    model.selected_account = Some((selected_network - 1, accounts - 1));
+                }
+            } else {
+                model.selected_account = Some((selected_network, selected_account - 1));
+            }
+        } else {
+            model.selected_account = if accounts_per_network.is_empty() {
                 None
             } else {
-                Some(accounts_len - 1)
+                let network = accounts_per_network.len() - 1;
+                let account: usize = accounts_per_network[network].into();
+                let account = account - 1;
+                Some((network, account))
             };
         }
     }
