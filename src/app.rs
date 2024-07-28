@@ -112,7 +112,7 @@ impl App {
 }
 
 fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
-    let ledger_api = LedgerApiMock::new(10, 5);
+    let ledger_api = LedgerApiMock::new(10, 3);
     let coin_price_api = CoinPriceApiMock::new();
 
     match screen {
