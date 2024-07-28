@@ -1,19 +1,19 @@
-use futures::executor::block_on;
 use ratatui::{
     layout::{Alignment, Constraint},
     style::{Color, Style, Stylize},
     text::Text,
     widgets::{
-        Block, BorderType, Borders, HighlightSpacing, Padding, Row, StatefulWidget, Table,
-        TableState, Widget,
+        block::Title, Block, BorderType, Borders, HighlightSpacing, Padding, Row, StatefulWidget,
+        Table, TableState, Widget,
     },
     Frame,
 };
+use rust_decimal::Decimal;
 use tui_widget_list::PreRender;
 
 use super::Model;
 use crate::api::{
-    coin_price::{Coin, CoinPriceApiT},
+    coin_price::CoinPriceApiT,
     ledger::{Account, LedgerApiT, Network},
 };
 
@@ -49,12 +49,14 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT>(
                 _ => None,
             };
 
+            let price = model.coin_prices.get(network).copied().unwrap_or_default();
+
             NetworkAccountsTable {
-                model,
                 network: *network,
                 accounts,
                 selected_account,
                 is_self_selected: false,
+                price,
             }
         })
         .collect();
@@ -68,18 +70,17 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT>(
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-struct NetworkAccountsTable<'a, L: LedgerApiT, C: CoinPriceApiT> {
-    model: &'a Model<L, C>,
-
+struct NetworkAccountsTable<'a> {
     network: Network,
     accounts: &'a [Account],
 
     selected_account: Option<usize>,
-
     is_self_selected: bool,
+
+    price: Option<Decimal>,
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> PreRender for NetworkAccountsTable<'_, L, C> {
+impl PreRender for NetworkAccountsTable<'_> {
     fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
         self.is_self_selected = context.is_selected;
 
@@ -87,17 +88,30 @@ impl<L: LedgerApiT, C: CoinPriceApiT> PreRender for NetworkAccountsTable<'_, L, 
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Widget for NetworkAccountsTable<'_, L, C> {
+impl Widget for NetworkAccountsTable<'_> {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
     {
+        let icon = match self.network {
+            Network::Bitcoin => "₿",
+            Network::Ethereum => "⟠",
+        };
+
+        let price_label = format!(
+            "1{} = {}₮",
+            icon,
+            self.price
+                .map(|price| price.to_string())
+                .unwrap_or_else(|| "N/A".to_string())
+        );
+
         let block = Block::new()
             .border_type(BorderType::Rounded)
             .borders(Borders::all())
             .border_style(Color::Yellow)
-            .title(self.network.get_info().name)
-            .title_alignment(Alignment::Left);
+            .title(Title::from(self.network.get_info().name).alignment(Alignment::Left))
+            .title(Title::from(price_label).alignment(Alignment::Right));
 
         let block = if self.is_self_selected {
             block.bold()
@@ -106,25 +120,14 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Widget for NetworkAccountsTable<'_, L, C> 
         };
 
         let rows = self.accounts.iter().map(|acc| {
-            // TODO: Correctly map accounts to coins.
-            let (coin, icon) = match self.network {
-                Network::Bitcoin => (Coin::BTC, "₿"),
-                Network::Ethereum => (Coin::ETH, "⟠"),
-            };
-            // TODO: Move API call to model.
-            let price = block_on(self.model.coin_price_api.get_price(coin, Coin::USDT));
-            let price = price
-                .map(|price| price.to_string())
-                .unwrap_or_else(|| "N/A".to_string());
-
+            // TODO: Pretty formatting.
             let pk = acc.get_info().pk[..8].to_string();
-
             let balance = ["0.0000", icon].concat();
 
-            Row::new(vec![pk, balance, price])
+            Row::new(vec![pk, balance])
         });
 
-        let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
+        let table = Table::new(rows, [Constraint::Ratio(1, 2); 2])
             .column_spacing(1)
             .block(block)
             .highlight_style(Style::new().reversed())

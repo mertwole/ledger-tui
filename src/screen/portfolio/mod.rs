@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+
 use futures::executor::block_on;
 use ratatui::Frame;
+use rust_decimal::Decimal;
 
 use super::{OutgoingMessage, Screen};
 use crate::{
     api::{
-        coin_price::CoinPriceApiT,
+        coin_price::{Coin, CoinPriceApiT},
         ledger::{LedgerApiT, Network},
     },
     app::StateRegistry,
@@ -18,6 +21,8 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT> {
     coin_price_api: C,
 
     selected_account: Option<(NetworkIdx, AccountIdx)>,
+    // TODO: Store it in API cache.
+    coin_prices: HashMap<Network, Option<Decimal>>,
 
     state: Option<StateRegistry>,
 }
@@ -31,11 +36,12 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
             ledger_api,
             coin_price_api,
             selected_account: None,
+            coin_prices: Default::default(),
             state: None,
         }
     }
 
-    fn fetch_device_accounts(&mut self) {
+    fn tick_logic(&mut self) {
         let state = self
             .state
             .as_mut()
@@ -63,6 +69,23 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
                 );
             }
         }
+
+        // TODO: Correctly map accounts to coins.
+        // TODO: Don't request price each tick.
+        self.coin_prices = [Network::Bitcoin, Network::Ethereum]
+            .into_iter()
+            .map(|network| {
+                let coin = match network {
+                    Network::Bitcoin => Coin::BTC,
+                    Network::Ethereum => Coin::ETH,
+                };
+
+                (
+                    network,
+                    block_on(self.coin_price_api.get_price(coin, Coin::USDT)),
+                )
+            })
+            .collect();
     }
 }
 
@@ -76,7 +99,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Screen for Model<L, C> {
     }
 
     fn tick(&mut self) -> Option<OutgoingMessage> {
-        self.fetch_device_accounts();
+        self.tick_logic();
 
         controller::process_input(self)
     }
