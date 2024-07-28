@@ -38,6 +38,7 @@ pub enum Network {
 
 pub struct NetworkInfo {
     pub name: String,
+    #[allow(dead_code)]
     pub symbol: String,
 }
 
