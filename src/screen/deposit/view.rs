@@ -114,7 +114,7 @@ impl QrCodeWidget {
         let width = code.width();
         let colors = code.into_colors();
 
-        let text = colors
+        colors
             .into_iter()
             .enumerate()
             .map(|(idx, color)| {
@@ -132,9 +132,7 @@ impl QrCodeWidget {
             .fold(String::new(), |mut acc, x| {
                 acc.push_str(&x);
                 acc
-            });
-
-        text
+            })
     }
 
     fn render_small(&self, code: QrCode) -> String {
@@ -158,7 +156,7 @@ impl QrCodeWidget {
             }
         }
 
-        let text = cells
+        cells
             .into_iter()
             .enumerate()
             .map(|(idx, cell)| {
@@ -178,8 +176,6 @@ impl QrCodeWidget {
             .fold(String::new(), |mut acc, x| {
                 acc.push_str(&x);
                 acc
-            });
-
-        text
+            })
     }
 }
