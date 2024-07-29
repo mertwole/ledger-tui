@@ -142,37 +142,19 @@ impl QrCodeWidget {
         let colors = code.into_colors();
         let height = colors.len() / width;
 
-        const WIDTH_SCALE: usize = 1;
-        const HEIGHT_SCALE: usize = 2;
-
-        let cells_width = if width % WIDTH_SCALE == 0 {
-            width / WIDTH_SCALE
-        } else {
-            width / WIDTH_SCALE + 1
-        };
-        let cells_height = if height % HEIGHT_SCALE == 0 {
-            height / HEIGHT_SCALE
-        } else {
-            height / HEIGHT_SCALE + 1
-        };
-
         let mut cells = vec![];
 
-        for cell_y in 0..cells_height {
-            for cell_x in 0..cells_width {
-                let mut cell_colors: Vec<QrCodeColor> = vec![];
-                for x in cell_x * WIDTH_SCALE..(cell_x + 1) * WIDTH_SCALE {
-                    for y in cell_y * HEIGHT_SCALE..(cell_y + 1) * HEIGHT_SCALE {
-                        let idx = x + y * width;
-                        let color = if idx >= colors.len() {
-                            QrCodeColor::Light
-                        } else {
-                            colors[idx]
-                        };
-                        cell_colors.push(color);
-                    }
-                }
-                cells.push(cell_colors);
+        let read_color = |x: usize, y: usize| {
+            if x >= width || y >= height {
+                QrCodeColor::Light
+            } else {
+                colors[x + y * width]
+            }
+        };
+
+        for y in 0..height.div_ceil(2) {
+            for x in 0..width {
+                cells.push([read_color(x, 2 * y), read_color(x, 2 * y + 1)]);
             }
         }
 
@@ -187,7 +169,7 @@ impl QrCodeWidget {
                     (QrCodeColor::Light, QrCodeColor::Light) => " ",
                 };
 
-                if (idx + 1) % cells_width == 0 {
+                if (idx + 1) % width == 0 {
                     [str, "\n"].concat()
                 } else {
                     str.to_string()
