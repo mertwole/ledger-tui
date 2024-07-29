@@ -1,21 +1,15 @@
-use futures::executor::block_on;
 use qrcode::{Color as QrCodeColor, QrCode};
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Layout, Rect},
     prelude::Buffer,
-    style::{Style, Stylize},
-    symbols,
+    style::Stylize,
     text::Text,
-    widgets::{canvas::Label, Axis, Block, Borders, Chart, Dataset, GraphType, Widget},
+    widgets::{Block, BorderType, Borders, Padding, Widget},
     Frame,
 };
 
-use crate::api::{
-    coin_price::{Coin, CoinPriceApiT},
-    ledger::{LedgerApiT, Network},
-};
-
 use super::Model;
+use crate::api::{coin_price::CoinPriceApiT, ledger::LedgerApiT};
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame: &mut Frame<'_>) {
     let _state = model
@@ -27,7 +21,7 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame
 
     let data =
         hex::decode("0123456789012345678901234567890101234567890123456789012345678901").unwrap();
-    let qr_code = QrCodeWidget::new(data).with_size(QrCodeSize::Half);
+    let qr_code = QrCodeWidget::new(data).with_size(QrCodeSize::Small);
 
     frame.render_widget(qr_code, area);
 }
@@ -38,11 +32,7 @@ struct QrCodeWidget {
 }
 
 enum QrCodeSize {
-    // 2 * 4
-    Full,
-    // 1 * 2
-    Half,
-    // 0.5 x 1
+    Big,
     Small,
 }
 
@@ -51,17 +41,41 @@ impl Widget for QrCodeWidget {
     where
         Self: Sized,
     {
-        let text = self.render_small();
+        let data = bs58::encode(&self.content).into_vec();
+        let code = QrCode::new(data).unwrap();
+
+        let text = match self.size {
+            QrCodeSize::Big => self.render_big(code),
+            QrCodeSize::Small => self.render_small(code),
+        };
+
         let text = Text::raw(text).alignment(Alignment::Center);
+
+        let block = Block::new()
+            .borders(Borders::all())
+            .border_type(BorderType::Thick)
+            .padding(Padding::uniform(2))
+            .black()
+            .on_white();
 
         let area = Layout::vertical([
             Constraint::Fill(1),
-            Constraint::Length(text.height() as u16),
+            Constraint::Length(text.height() as u16 + 6),
             Constraint::Fill(1),
         ])
         .split(area)[1];
 
-        text.render(area, buf);
+        let area = Layout::horizontal([
+            Constraint::Fill(1),
+            Constraint::Length((text.height() as u16 + 6) * 2),
+            Constraint::Fill(1),
+        ])
+        .split(area)[1];
+
+        let text_area = block.inner(area);
+        block.render(area, buf);
+
+        text.render(text_area, buf);
     }
 }
 
@@ -69,7 +83,7 @@ impl QrCodeWidget {
     fn new(content: Vec<u8>) -> QrCodeWidget {
         QrCodeWidget {
             content,
-            size: QrCodeSize::Full,
+            size: QrCodeSize::Big,
         }
     }
 
@@ -78,10 +92,34 @@ impl QrCodeWidget {
         self
     }
 
-    fn render_small(&self) -> String {
-        let data = bs58::encode(&self.content).into_vec();
-        let code = QrCode::new(data).unwrap();
+    fn render_big(&self, code: QrCode) -> String {
+        let width = code.width();
+        let colors = code.into_colors();
 
+        let text = colors
+            .into_iter()
+            .enumerate()
+            .map(|(idx, color)| {
+                let cell = match color {
+                    QrCodeColor::Dark => "██",
+                    QrCodeColor::Light => "  ",
+                };
+
+                if (idx + 1) % width == 0 {
+                    [cell, "\n"].concat()
+                } else {
+                    cell.to_string()
+                }
+            })
+            .fold(String::new(), |mut acc, x| {
+                acc.push_str(&x);
+                acc
+            });
+
+        text
+    }
+
+    fn render_small(&self, code: QrCode) -> String {
         let width = code.width();
         let colors = code.into_colors();
         let height = colors.len() / width;
@@ -145,10 +183,3 @@ impl QrCodeWidget {
         text
     }
 }
-
-// 38 * 38
-// ⊠ ■ ▣ ▩ ◼ ⬛ █
-// ▀ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █ ▉ ▊ ▋ ▌  ▍ ▍
-
-// █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
-// ▖ ▗ ▘ ▙ ▚ ▛ ▜ ▝ ▞ ▟ ▐ ▌ ▄ ▀
