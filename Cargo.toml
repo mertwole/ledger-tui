@@ -8,7 +8,6 @@ authors = ["mertwole"]
 binance_spot_connector_rust = "1.1.0"
 bs58 = "0.5.1"
 futures = "0.3.30"
-hex = "0.4.3"
 ledger_bitcoin_client = "0.4.1"
 ledger-lib = "0.1.0"
 ledger-proto = "0.1.0"

@@ -10,7 +10,7 @@ mod controller;
 mod view;
 
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT> {
-    _ledger_api: L,
+    _ledger_api: L, // TODO: Remove it.
     coin_price_api: C,
 
     state: Option<StateRegistry>,

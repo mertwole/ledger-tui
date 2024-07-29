@@ -47,7 +47,7 @@ impl StateRegistry {
 impl App {
     pub async fn new() -> Self {
         Self {
-            screens: vec![ScreenName::Deposit],
+            screens: vec![ScreenName::DeviceSelection],
         }
     }
 
@@ -120,6 +120,6 @@ fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
         ScreenName::Portfolio => Box::from(PortfolioScreen::new(ledger_api, coin_price_api)),
         ScreenName::DeviceSelection => Box::from(DeviceSelectionScreen::new(ledger_api)),
         ScreenName::Asset => Box::from(AssetScreen::new(ledger_api, coin_price_api)),
-        ScreenName::Deposit => Box::from(DepositScreen::new(ledger_api, coin_price_api)),
+        ScreenName::Deposit => Box::from(DepositScreen::new()),
     }
 }

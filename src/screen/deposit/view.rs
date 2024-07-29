@@ -9,25 +9,30 @@ use ratatui::{
 };
 
 use super::Model;
-use crate::api::{coin_price::CoinPriceApiT, ledger::LedgerApiT};
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame: &mut Frame<'_>) {
-    let _state = model
+pub(super) fn render(model: &Model, frame: &mut Frame<'_>) {
+    let state = model
         .state
         .as_ref()
         .expect("Construct should be called at the start of window lifetime");
 
+    let pubkey = state
+        .selected_account
+        .as_ref()
+        .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?
+        .1
+        .get_info()
+        .pk;
+
     let area = frame.size();
 
-    let data =
-        hex::decode("0123456789012345678901234567890101234567890123456789012345678901").unwrap();
-    let qr_code = QrCodeWidget::new(data).with_size(QrCodeSize::Small);
+    let qr_code = QrCodeWidget::new(pubkey).with_size(QrCodeSize::Small);
 
     frame.render_widget(qr_code, area);
 }
 
 struct QrCodeWidget {
-    content: Vec<u8>,
+    content: String,
     size: QrCodeSize,
 }
 
@@ -41,8 +46,7 @@ impl Widget for QrCodeWidget {
     where
         Self: Sized,
     {
-        let data = bs58::encode(&self.content).into_vec();
-        let code = QrCode::new(data).unwrap();
+        let code = QrCode::new(&self.content).unwrap();
 
         let text = match self.size {
             QrCodeSize::Big => self.render_big(code),
@@ -58,29 +62,43 @@ impl Widget for QrCodeWidget {
             .black()
             .on_white();
 
-        let area = Layout::vertical([
+        let address_text = Text::raw(&self.content).alignment(Alignment::Center);
+
+        let areas = Layout::vertical([
             Constraint::Fill(1),
             Constraint::Length(text.height() as u16 + 6),
             Constraint::Fill(1),
         ])
-        .split(area)[1];
+        .split(area);
 
-        let area = Layout::horizontal([
+        let footer_area = areas[2];
+
+        let address_area = Layout::vertical([
+            Constraint::Fill(1),
+            Constraint::Length(address_text.height() as u16),
+            Constraint::Fill(1),
+        ])
+        .split(footer_area)[1];
+
+        let areas = Layout::horizontal([
             Constraint::Fill(1),
             Constraint::Length((text.height() as u16 + 6) * 2),
             Constraint::Fill(1),
         ])
-        .split(area)[1];
+        .split(areas[1]);
 
-        let text_area = block.inner(area);
-        block.render(area, buf);
+        let block_area = areas[1];
 
+        let text_area = block.inner(block_area);
+        block.render(block_area, buf);
         text.render(text_area, buf);
+
+        address_text.render(address_area, buf);
     }
 }
 
 impl QrCodeWidget {
-    fn new(content: Vec<u8>) -> QrCodeWidget {
+    fn new(content: String) -> QrCodeWidget {
         QrCodeWidget {
             content,
             size: QrCodeSize::Big,

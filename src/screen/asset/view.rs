@@ -20,11 +20,10 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame
         .as_ref()
         .expect("Construct should be called at the start of window lifetime");
 
-    // TODO: Enforce this rule at `app` level?
     let selected_account = state
         .selected_account
         .as_ref()
-        .expect("Selected account should be present in state");
+        .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
 
     let area = frame.size();
 

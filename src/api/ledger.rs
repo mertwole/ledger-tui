@@ -72,6 +72,7 @@ impl Account {
 
 pub struct AccountInfo {
     #[allow(dead_code)]
+    /// Public key of account in encoding native for network,
     pub pk: String,
 }
 
