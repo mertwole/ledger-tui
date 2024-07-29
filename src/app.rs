@@ -15,8 +15,9 @@ use crate::{
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
     screen::{
-        asset::Model as AssetWindow, device_selection::Model as DeviceSelectionWindow,
-        portfolio::Model as PortfolioWindow, OutgoingMessage, Screen, ScreenName,
+        asset::Model as AssetScreen, deposit::Model as DepositScreen,
+        device_selection::Model as DeviceSelectionScreen, portfolio::Model as PortfolioScreen,
+        OutgoingMessage, Screen, ScreenName,
     },
 };
 
@@ -24,7 +25,7 @@ pub struct App {
     screens: Vec<ScreenName>,
 }
 
-// TODO: Add macro to automatically break this registry into sub-registries designated for specific windows.
+// TODO: Add macro to automatically break this registry into sub-registries designated for specific Screens.
 pub(crate) struct StateRegistry {
     pub active_device: Option<(Device, DeviceInfo)>,
     pub device_accounts: Option<Vec<(Network, Vec<Account>)>>,
@@ -46,7 +47,7 @@ impl StateRegistry {
 impl App {
     pub async fn new() -> Self {
         Self {
-            screens: vec![ScreenName::Portfolio],
+            screens: vec![ScreenName::DeviceSelection],
         }
     }
 
@@ -116,8 +117,9 @@ fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
     let coin_price_api = CoinPriceApiMock::new();
 
     match screen {
-        ScreenName::Portfolio => Box::from(PortfolioWindow::new(ledger_api, coin_price_api)),
-        ScreenName::DeviceSelection => Box::from(DeviceSelectionWindow::new(ledger_api)),
-        ScreenName::Asset => Box::from(AssetWindow::new(ledger_api, coin_price_api)),
+        ScreenName::Portfolio => Box::from(PortfolioScreen::new(ledger_api, coin_price_api)),
+        ScreenName::DeviceSelection => Box::from(DeviceSelectionScreen::new(ledger_api)),
+        ScreenName::Asset => Box::from(AssetScreen::new(ledger_api, coin_price_api)),
+        ScreenName::Deposit => Box::from(DepositScreen::new()),
     }
 }

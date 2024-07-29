@@ -1,32 +1,22 @@
 use ratatui::Frame;
 
 use super::{OutgoingMessage, Screen};
-use crate::{
-    api::{coin_price::CoinPriceApiT, ledger::LedgerApiT},
-    app::StateRegistry,
-};
+use crate::app::StateRegistry;
 
 mod controller;
 mod view;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT> {
-    _ledger_api: L, // TODO: Remove it.
-    coin_price_api: C,
-
+pub struct Model {
     state: Option<StateRegistry>,
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
-    pub fn new(ledger_api: L, coin_price_api: C) -> Self {
-        Self {
-            _ledger_api: ledger_api,
-            coin_price_api,
-            state: None,
-        }
+impl Model {
+    pub fn new() -> Self {
+        Self { state: None }
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Screen for Model<L, C> {
+impl Screen for Model {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }
