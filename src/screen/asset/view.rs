@@ -1,4 +1,3 @@
-use futures::executor::block_on;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
@@ -7,24 +6,11 @@ use ratatui::{
     Frame,
 };
 
-use crate::api::{
-    coin_price::{Coin, CoinPriceApiT},
-    ledger::{LedgerApiT, Network},
-};
+use crate::api::{coin_price::CoinPriceApiT, ledger::LedgerApiT};
 
 use super::Model;
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame: &mut Frame<'_>) {
-    let state = model
-        .state
-        .as_ref()
-        .expect("Construct should be called at the start of window lifetime");
-
-    let selected_account = state
-        .selected_account
-        .as_ref()
-        .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
-
     let area = frame.size();
 
     let areas = Layout::default()
@@ -35,7 +21,7 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame
     let price_chart_block = Block::new().title("Price").borders(Borders::all());
     let price_chart_area = price_chart_block.inner(areas[0]);
     frame.render_widget(price_chart_block, areas[0]);
-    render_price_chart(model, frame, price_chart_area, &selected_account.0);
+    render_price_chart(model, frame, price_chart_area);
 
     // TODO: Display transactions here.
     let txs_list_block = Block::new().title("Transactions").borders(Borders::all());
@@ -46,25 +32,21 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT>(
     model: &Model<L, C>,
     frame: &mut Frame<'_>,
     area: Rect,
-    network: &Network,
 ) {
-    let coin = match network {
-        Network::Bitcoin => Coin::BTC,
-        Network::Ethereum => Coin::ETH,
+    let Some(prices) = model.coin_price_history.as_ref() else {
+        // TODO: Draw some placeholder.
+        return;
     };
 
-    let mut prices = block_on(model.coin_price_api.get_price_history(coin, Coin::USDT)).unwrap();
-    prices.sort_by(|a, b| a.0.cmp(&b.0));
-
     let mut price_bounds = [f64::MAX, f64::MIN];
-    for (_, price) in &prices {
+    for (_, price) in prices {
         let price: f64 = (*price).try_into().unwrap();
         price_bounds[0] = price_bounds[0].min(price);
         price_bounds[1] = price_bounds[1].max(price);
     }
 
     let price_data: Vec<_> = prices
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(idx, price)| (idx as f64, price.1.try_into().unwrap()))
         .collect();
