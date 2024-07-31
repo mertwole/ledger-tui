@@ -71,6 +71,49 @@ impl CoinPriceApiT for CoinPriceApi {
     }
 }
 
+pub mod cache {
+    use std::collections::HashMap;
+
+    use super::{super::cache_utils, *};
+
+    struct Cache<C: CoinPriceApiT> {
+        api: C,
+
+        get_price: HashMap<(Coin, Coin), Option<Decimal>>,
+        get_price_history: HashMap<(Coin, Coin), Option<PriceHistory>>,
+    }
+
+    impl<C: CoinPriceApiT> Cache<C> {
+        pub async fn new(api: C) -> Self {
+            Self {
+                api,
+                get_price: Default::default(),
+                get_price_history: Default::default(),
+            }
+        }
+    }
+
+    impl<C: CoinPriceApiT> CoinPriceApiT for Cache<C> {
+        async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal> {
+            let api_result = self.api.get_price(from, to);
+            let api_result = Box::pin(api_result);
+
+            let cache = self.get_price.get(&(from, to));
+
+            cache_utils::transparent_mode((from, to), cache, api_result).await
+        }
+
+        async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory> {
+            let api_result = self.api.get_price_history(from, to);
+            let api_result = Box::pin(api_result);
+
+            let cache = self.get_price_history.get(&(from, to));
+
+            cache_utils::transparent_mode((from, to), cache, api_result).await
+        }
+    }
+}
+
 pub mod mock {
     use std::{collections::HashMap, time::Duration};
 
