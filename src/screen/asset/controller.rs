@@ -1,16 +1,8 @@
-use std::time::Duration;
-
-use ratatui::crossterm::event::{self, KeyCode};
+use ratatui::crossterm::event::{Event, KeyCode};
 
 use crate::screen::{EventExt, OutgoingMessage, ScreenName};
 
-pub(super) fn process_input() -> Option<OutgoingMessage> {
-    if !event::poll(Duration::ZERO).unwrap() {
-        return None;
-    }
-
-    let event = event::read().unwrap();
-
+pub(super) fn process_input(event: &Event) -> Option<OutgoingMessage> {
     if event.is_key_pressed(KeyCode::Char('q')) {
         return Some(OutgoingMessage::Exit);
     }

@@ -15,7 +15,7 @@ pub trait Screen {
     fn construct(&mut self, state: StateRegistry);
 
     fn render(&self, frame: &mut Frame<'_>);
-    fn tick(&mut self) -> Option<OutgoingMessage>;
+    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage>;
 
     fn deconstruct(self: Box<Self>) -> StateRegistry;
 }

@@ -1,6 +1,6 @@
-use std::{num::NonZeroUsize, time::Duration};
+use std::num::NonZeroUsize;
 
-use ratatui::crossterm::event::{self, Event, KeyCode};
+use ratatui::crossterm::event::{Event, KeyCode};
 
 use super::Model;
 use crate::{
@@ -10,13 +10,8 @@ use crate::{
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
     model: &mut Model<L, C>,
+    event: &Event,
 ) -> Option<OutgoingMessage> {
-    if !event::poll(Duration::ZERO).unwrap() {
-        return None;
-    }
-
-    let event = event::read().unwrap();
-
     if let Some(state) = model.state.as_mut() {
         if let Some(accounts) = state.device_accounts.as_ref() {
             if event.is_key_pressed(KeyCode::Enter) {

@@ -1,4 +1,4 @@
-use ratatui::Frame;
+use ratatui::{crossterm::event::Event, Frame};
 
 use super::{OutgoingMessage, Screen};
 use crate::app::StateRegistry;
@@ -25,8 +25,8 @@ impl Screen for Model {
         view::render(self, frame);
     }
 
-    fn tick(&mut self) -> Option<OutgoingMessage> {
-        controller::process_input()
+    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
+        controller::process_input(event.as_ref()?)
     }
 
     fn deconstruct(self: Box<Self>) -> StateRegistry {
