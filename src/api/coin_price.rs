@@ -5,10 +5,14 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 
-pub trait CoinPriceApiT {
-    async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
+use crate::impl_cache_for_api;
 
-    async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory>;
+impl_cache_for_api! {
+    pub trait CoinPriceApiT {
+        async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
+
+        async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory>;
+    }
 }
 
 pub type PriceHistory = Vec<(Instant, Decimal)>;
@@ -68,63 +72,6 @@ impl CoinPriceApiT for CoinPriceApi {
 
     async fn get_price_history(&self, _from: Coin, _to: Coin) -> Option<PriceHistory> {
         todo!()
-    }
-}
-
-pub mod cache {
-    use std::{cell::RefCell, collections::HashMap, time::Duration};
-
-    use super::{super::cache_utils, *};
-    use crate::api::cache_utils::Mode;
-
-    pub struct Cache<C: CoinPriceApiT> {
-        api: C,
-
-        get_price: RefCell<HashMap<(Coin, Coin), Option<Decimal>>>,
-        get_price_mode: RefCell<Mode<(Coin, Coin)>>,
-
-        get_price_history: RefCell<HashMap<(Coin, Coin), Option<PriceHistory>>>,
-        get_price_history_mode: RefCell<Mode<(Coin, Coin)>>,
-    }
-
-    impl<C: CoinPriceApiT> Cache<C> {
-        pub async fn new(api: C) -> Self {
-            Self {
-                api,
-
-                get_price: Default::default(),
-                get_price_mode: RefCell::from(Mode::new_timed_out(Duration::from_secs(1))),
-
-                get_price_history: Default::default(),
-                get_price_history_mode: Default::default(),
-            }
-        }
-    }
-
-    impl<C: CoinPriceApiT> CoinPriceApiT for Cache<C> {
-        async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal> {
-            let api_result = self.api.get_price(from, to);
-            let api_result = Box::pin(api_result);
-
-            let mut cache = self.get_price.borrow_mut();
-            let cache = cache.entry((from, to));
-
-            let mut mode = self.get_price_mode.borrow_mut();
-
-            cache_utils::use_cache((from, to), cache, api_result, &mut *mode).await
-        }
-
-        async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory> {
-            let api_result = self.api.get_price_history(from, to);
-            let api_result = Box::pin(api_result);
-
-            let mut cache = self.get_price_history.borrow_mut();
-            let cache = cache.entry((from, to));
-
-            let mut mode = self.get_price_history_mode.borrow_mut();
-
-            cache_utils::use_cache((from, to), cache, api_result, &mut *mode).await
-        }
     }
 }
 

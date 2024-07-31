@@ -1,7 +1,7 @@
 pub mod coin_price;
 pub mod ledger;
 
-mod cache_utils {
+pub mod cache_utils {
     use std::{
         collections::{hash_map::Entry, HashMap},
         future::Future,
@@ -9,6 +9,90 @@ mod cache_utils {
         pin::Pin,
         time::{Duration, Instant},
     };
+
+    #[macro_export]
+    macro_rules! impl_cache_for_api {
+        (
+            pub trait $api_trait: ident {
+                $(
+                    $(#[$($attributes:tt)*])*
+                    async fn $method_name:ident(
+                        &self,
+                        $($arg_name:ident : $arg_type:ty),*
+                        $(,)?
+                    ) -> $return_type:ty
+                );*
+                $(;)?
+            }
+        ) => {
+            pub trait $api_trait {
+                $(
+                    $(#[$($attributes)*])*
+                    async fn $method_name(
+                        &self,
+                        $($arg_name : $arg_type),*
+                    ) -> $return_type
+                );*;
+            }
+
+            pub mod cache {
+                use std::{cell::RefCell, collections::HashMap};
+
+                use super::*;
+                use crate::api::cache_utils::Mode;
+
+                ::paste::paste! {
+                    pub struct Cache<A: super::$api_trait> {
+                        api: A,
+
+                        $(
+                            $method_name: RefCell<HashMap<(Coin, Coin), $return_type>>,
+                            [<__ $method_name _mode>] : RefCell<Mode<(Coin, Coin)>>,
+                        )*
+                    }
+
+
+                    impl<A: super::$api_trait> Cache<A> {
+                        pub async fn new(api: A) -> Self {
+                            Self {
+                                api,
+
+                                $(
+                                    $method_name: Default::default(),
+                                    [<__ $method_name _mode>] : Default::default(),
+                                )*
+                            }
+                        }
+
+                        // TODO: implement wrappers for all fields.
+                        pub fn set_get_price_mode(&mut self, mode: Mode<(Coin, Coin)>) {
+                            (*self.__get_price_mode.borrow_mut()) = mode;
+                        }
+                    }
+
+                    impl<A: super::$api_trait> super::$api_trait for Cache<A> {
+                        $(
+                            $(#[$($attributes)*])*
+                            async fn $method_name(
+                                &self,
+                                $($arg_name : $arg_type),*
+                            ) -> $return_type {
+                                let api_result = self.api.$method_name($($arg_name),*);
+                                let api_result = Box::pin(api_result);
+
+                                let mut cache = self.$method_name.borrow_mut();
+                                let cache = cache.entry(($($arg_name),*));
+
+                                let mut mode = self.[<__ $method_name _mode>].borrow_mut();
+
+                                $crate::api::cache_utils::use_cache(($($arg_name),*), cache, api_result, &mut *mode).await
+                            }
+                        )*
+                    }
+                }
+            }
+        };
+    }
 
     #[derive(Default)]
     pub enum Mode<In: Hash + PartialEq + Eq> {

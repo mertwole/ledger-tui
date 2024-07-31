@@ -1258,6 +1258,7 @@ dependencies = [
  "ledger-proto",
  "ledger_bitcoin_client",
  "log",
+ "paste",
  "pretty_env_logger",
  "qrcode",
  "ratatui",
