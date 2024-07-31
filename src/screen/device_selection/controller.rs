@@ -1,6 +1,4 @@
-use std::time::Duration;
-
-use ratatui::crossterm::event::{self, KeyCode};
+use ratatui::crossterm::event::{Event, KeyCode};
 
 use crate::{
     api::ledger::LedgerApiT,
@@ -9,13 +7,10 @@ use crate::{
 
 use super::Model;
 
-pub(super) fn process_input<L: LedgerApiT>(model: &mut Model<L>) -> Option<OutgoingMessage> {
-    if !event::poll(Duration::ZERO).unwrap() {
-        return None;
-    }
-
-    let event = event::read().unwrap();
-
+pub(super) fn process_input<L: LedgerApiT>(
+    model: &mut Model<L>,
+    event: &Event,
+) -> Option<OutgoingMessage> {
     if event.is_key_pressed(KeyCode::Down) && !model.devices.is_empty() {
         if let Some(selected) = model.selected_device.as_mut() {
             *selected = (model.devices.len() - 1).min(*selected + 1);

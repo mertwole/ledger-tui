@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use futures::executor::block_on;
-use ratatui::Frame;
+use ratatui::{crossterm::event::Event, Frame};
 
 use super::{OutgoingMessage, Screen};
 use crate::{
@@ -73,10 +73,10 @@ impl<L: LedgerApiT> Screen for Model<L> {
         view::render(self, frame);
     }
 
-    fn tick(&mut self) -> Option<OutgoingMessage> {
+    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         self.tick_logic();
 
-        controller::process_input(self)
+        controller::process_input(self, event.as_ref()?)
     }
 
     fn deconstruct(self: Box<Self>) -> StateRegistry {

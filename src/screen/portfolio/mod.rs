@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use futures::executor::block_on;
-use ratatui::Frame;
+use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
 
 use super::{OutgoingMessage, Screen};
@@ -98,10 +98,10 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Screen for Model<L, C> {
         view::render(self, frame);
     }
 
-    fn tick(&mut self) -> Option<OutgoingMessage> {
+    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         self.tick_logic();
 
-        controller::process_input(self)
+        controller::process_input(self, event.as_ref()?)
     }
 
     fn deconstruct(self: Box<Self>) -> StateRegistry {

@@ -1,8 +1,9 @@
-use std::{io::stdout, marker::PhantomData};
+use std::{io::stdout, marker::PhantomData, time::Duration};
 
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     crossterm::{
+        event,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
     },
@@ -102,9 +103,11 @@ impl App {
         loop {
             terminal.draw(|frame| screen.render(frame)).unwrap();
 
-            //
+            let event = event::poll(Duration::ZERO)
+                .unwrap()
+                .then(|| event::read().unwrap());
 
-            let msg = screen.tick();
+            let msg = screen.tick(event);
 
             if let Some(msg) = msg {
                 let state = screen.deconstruct();
