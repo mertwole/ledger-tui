@@ -14,7 +14,7 @@ async fn main() {
     pretty_env_logger::formatted_timed_builder()
         .format_timestamp(Some(TimestampPrecision::Seconds))
         .target(Target::Pipe(Box::from(log_file)))
-        .filter(None, LevelFilter::Info)
+        .filter(None, LevelFilter::Debug)
         .init();
 
     let app = App::new().await;
