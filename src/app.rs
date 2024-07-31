@@ -103,11 +103,9 @@ impl App {
         loop {
             terminal.draw(|frame| screen.render(frame)).unwrap();
 
-            let event = if event::poll(Duration::ZERO).unwrap() {
-                Some(event::read().unwrap())
-            } else {
-                None
-            };
+            let event = event::poll(Duration::ZERO)
+                .unwrap()
+                .then(|| event::read().unwrap());
 
             let msg = screen.tick(event);
 

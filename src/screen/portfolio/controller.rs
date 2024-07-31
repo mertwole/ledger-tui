@@ -32,7 +32,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
                         .expect("No accounts for provided network found")
                 })
                 .collect();
-            process_table_navigation(model, &event, &accounts_per_network);
+            process_table_navigation(model, event, &accounts_per_network);
         }
     }
 
