@@ -102,6 +102,8 @@ impl App {
         loop {
             terminal.draw(|frame| screen.render(frame)).unwrap();
 
+            //
+
             let msg = screen.tick();
 
             if let Some(msg) = msg {
