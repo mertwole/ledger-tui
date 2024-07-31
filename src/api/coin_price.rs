@@ -81,10 +81,10 @@ pub mod cache {
         api: C,
 
         get_price: RefCell<HashMap<(Coin, Coin), Option<Decimal>>>,
-        get_price_mode: RefCell<Mode>,
+        get_price_mode: RefCell<Mode<(Coin, Coin)>>,
 
         get_price_history: RefCell<HashMap<(Coin, Coin), Option<PriceHistory>>>,
-        get_price_history_mode: RefCell<Mode>,
+        get_price_history_mode: RefCell<Mode<(Coin, Coin)>>,
     }
 
     impl<C: CoinPriceApiT> Cache<C> {

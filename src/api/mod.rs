@@ -3,38 +3,37 @@ pub mod ledger;
 
 mod cache_utils {
     use std::{
-        collections::hash_map::Entry,
+        collections::{hash_map::Entry, HashMap},
         future::Future,
+        hash::Hash,
         pin::Pin,
         time::{Duration, Instant},
     };
 
     #[derive(Default)]
-    pub enum Mode {
+    pub enum Mode<In: Hash + PartialEq + Eq> {
         /// This type of cache will call API each time the corresponding method is called.
         #[default]
         Transparent,
         /// This type of cache will call API only if some specified time have passed after previous call.
         /// It will return value from cache elsewhere.
-        TimedOut(TimedOutMode),
+        TimedOut(TimedOutMode<In>),
     }
 
-    pub struct TimedOutMode {
+    pub struct TimedOutMode<In> {
         timeout: Duration,
-        previous_request: Instant,
+        previous_request: HashMap<In, Instant>,
     }
 
-    impl Mode {
+    impl<In: Hash + PartialEq + Eq> Mode<In> {
         pub fn new_transparent() -> Self {
             Self::Transparent
         }
 
         pub fn new_timed_out(timeout: Duration) -> Self {
-            let now = Instant::now();
-
             Self::TimedOut(TimedOutMode {
                 timeout,
-                previous_request: now - timeout,
+                previous_request: Default::default(),
             })
         }
     }
@@ -43,10 +42,11 @@ mod cache_utils {
         request: In,
         cache: Entry<'_, In, Out>,
         api_result: Pin<Box<impl Future<Output = Out>>>,
-        mode: &mut Mode,
+        mode: &mut Mode<In>,
     ) -> Out
     where
         Out: Clone,
+        In: Hash + PartialEq + Eq + Clone,
     {
         match mode {
             Mode::Transparent => transparent_mode(request, cache, api_result).await,
@@ -63,33 +63,29 @@ mod cache_utils {
     }
 
     async fn timed_out_mode<In, Out>(
-        _request: In,
+        request: In,
         cache: Entry<'_, In, Out>,
         api_result: Pin<Box<impl Future<Output = Out>>>,
-        state: &mut TimedOutMode,
+        state: &mut TimedOutMode<In>,
     ) -> Out
     where
         Out: Clone,
+        In: Hash + PartialEq + Eq + Clone,
     {
-        if state.previous_request.elapsed() >= state.timeout || matches!(cache, Entry::Vacant(_)) {
-            let result = api_result.await;
-            state.previous_request = Instant::now();
-
-            match cache {
-                Entry::Occupied(mut entry) => {
-                    entry.insert(result.clone());
-                }
-                Entry::Vacant(entry) => {
-                    entry.insert(result.clone());
+        if let Entry::Occupied(cache) = &cache {
+            let previous_request_entry = state.previous_request.entry(request.clone());
+            if let Entry::Occupied(previous_request) = previous_request_entry {
+                if previous_request.get().elapsed() < state.timeout {
+                    return cache.get().clone();
                 }
             }
-
-            return result;
         }
 
-        match cache {
-            Entry::Occupied(entry) => entry.get().clone(),
-            _ => unreachable!("Entry is checked above to be Occupied"),
-        }
+        let result = api_result.await;
+        cache.insert_entry(result.clone());
+
+        state.previous_request.insert(request, Instant::now());
+
+        result
     }
 }
