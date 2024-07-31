@@ -13,7 +13,7 @@ use ratatui::{
 
 use crate::{
     api::{
-        coin_price::{cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock},
+        coin_price::{cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi},
         ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
     },
     screen::{
@@ -120,8 +120,9 @@ impl App {
 
 fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
     let ledger_api = LedgerApiMock::new(10, 3);
-    let coin_price_api = CoinPriceApiMock::new();
 
+    let _coin_price_api = CoinPriceApiMock::new();
+    let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
     let coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
 
     match screen {

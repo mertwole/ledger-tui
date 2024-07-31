@@ -72,9 +72,7 @@ impl CoinPriceApiT for CoinPriceApi {
 }
 
 pub mod cache {
-    use std::collections::HashMap;
-
-    use tokio::sync::Mutex;
+    use std::{cell::RefCell, collections::HashMap, time::Duration};
 
     use super::{super::cache_utils, *};
     use crate::api::cache_utils::Mode;
@@ -82,11 +80,11 @@ pub mod cache {
     pub struct Cache<C: CoinPriceApiT> {
         api: C,
 
-        get_price: Mutex<HashMap<(Coin, Coin), Option<Decimal>>>,
-        get_price_mode: Mutex<Mode>,
+        get_price: RefCell<HashMap<(Coin, Coin), Option<Decimal>>>,
+        get_price_mode: RefCell<Mode>,
 
-        get_price_history: Mutex<HashMap<(Coin, Coin), Option<PriceHistory>>>,
-        get_price_history_mode: Mutex<Mode>,
+        get_price_history: RefCell<HashMap<(Coin, Coin), Option<PriceHistory>>>,
+        get_price_history_mode: RefCell<Mode>,
     }
 
     impl<C: CoinPriceApiT> Cache<C> {
@@ -95,7 +93,7 @@ pub mod cache {
                 api,
 
                 get_price: Default::default(),
-                get_price_mode: Default::default(),
+                get_price_mode: RefCell::from(Mode::new_timed_out(Duration::from_secs(1))),
 
                 get_price_history: Default::default(),
                 get_price_history_mode: Default::default(),
@@ -108,10 +106,10 @@ pub mod cache {
             let api_result = self.api.get_price(from, to);
             let api_result = Box::pin(api_result);
 
-            let mut cache = self.get_price.lock().await;
+            let mut cache = self.get_price.borrow_mut();
             let cache = cache.entry((from, to));
 
-            let mut mode = self.get_price_mode.lock().await;
+            let mut mode = self.get_price_mode.borrow_mut();
 
             cache_utils::use_cache((from, to), cache, api_result, &mut *mode).await
         }
@@ -120,10 +118,10 @@ pub mod cache {
             let api_result = self.api.get_price_history(from, to);
             let api_result = Box::pin(api_result);
 
-            let mut cache = self.get_price_history.lock().await;
+            let mut cache = self.get_price_history.borrow_mut();
             let cache = cache.entry((from, to));
 
-            let mut mode = self.get_price_history_mode.lock().await;
+            let mut mode = self.get_price_history_mode.borrow_mut();
 
             cache_utils::use_cache((from, to), cache, api_result, &mut *mode).await
         }
