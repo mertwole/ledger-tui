@@ -5,10 +5,14 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 
-pub trait CoinPriceApiT {
-    async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
+use crate::impl_cache_for_api;
 
-    async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory>;
+impl_cache_for_api! {
+    pub trait CoinPriceApiT {
+        async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
+
+        async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory>;
+    }
 }
 
 pub type PriceHistory = Vec<(Instant, Decimal)>;

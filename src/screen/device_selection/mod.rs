@@ -41,7 +41,7 @@ impl<L: LedgerApiT> Model<L> {
             let mut devices_with_info = Vec::with_capacity(devices.len());
 
             for device in devices {
-                let info = block_on(self.ledger_api.get_device_info(&device));
+                let info = block_on(self.ledger_api.get_device_info(device.clone()));
                 if let Some(info) = info {
                     devices_with_info.push((device, info));
                 }

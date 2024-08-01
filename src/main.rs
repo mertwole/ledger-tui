@@ -1,3 +1,5 @@
+#![feature(entry_insert)]
+
 use log::LevelFilter;
 use pretty_env_logger::env_logger::fmt::{Target, TimestampPrecision};
 use std::fs::File;

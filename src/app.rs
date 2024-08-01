@@ -1,5 +1,6 @@
 use std::{io::stdout, marker::PhantomData, time::Duration};
 
+use futures::executor::block_on;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     crossterm::{
@@ -12,8 +13,12 @@ use ratatui::{
 
 use crate::{
     api::{
-        coin_price::mock::CoinPriceApiMock,
-        ledger::{mock::LedgerApiMock, Account, Device, DeviceInfo, Network},
+        cache_utils::ModePlan,
+        coin_price::{cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi},
+        ledger::{
+            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Account, Device, DeviceInfo,
+            Network,
+        },
     },
     screen::{
         asset::Model as AssetScreen, deposit::Model as DepositScreen,
@@ -119,7 +124,15 @@ impl App {
 
 fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
     let ledger_api = LedgerApiMock::new(10, 3);
-    let coin_price_api = CoinPriceApiMock::new();
+
+    let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
+    ledger_api.set_all_modes(ModePlan::Transparent);
+
+    let _coin_price_api = CoinPriceApiMock::new();
+    let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
+
+    let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+    coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
 
     match screen {
         ScreenName::Portfolio => Box::from(PortfolioScreen::new(ledger_api, coin_price_api)),
