@@ -55,9 +55,10 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
                     [Network::Bitcoin, Network::Ethereum]
                         .into_iter()
                         .filter_map(|network| {
-                            let accounts: Vec<_> =
-                                block_on(self.ledger_api.discover_accounts(active_device, network))
-                                    .collect();
+                            let accounts = block_on(
+                                self.ledger_api
+                                    .discover_accounts(active_device.clone(), network),
+                            );
 
                             if accounts.is_empty() {
                                 None

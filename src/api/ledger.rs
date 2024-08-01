@@ -3,23 +3,34 @@ use ledger_lib::{
     info::Model, Device as LedgerDevice, Filters, LedgerInfo, LedgerProvider, Transport,
     DEFAULT_TIMEOUT,
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, hash::Hash};
 
-pub trait LedgerApiT {
-    async fn discover_devices(&self) -> Vec<Device>;
+use crate::impl_cache_for_api;
 
-    async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
+impl_cache_for_api! {
+    pub trait LedgerApiT {
+        async fn discover_devices(&self, ) -> Vec<Device>;
 
-    async fn discover_accounts(
-        &self,
-        device: &Device,
-        network: Network,
-    ) -> impl Iterator<Item = Account>;
+        // TODO: Accept `Device` as ref.
+        async fn get_device_info(&self, device: Device) -> Option<DeviceInfo>;
+
+        // TODO: Return stream of accounts?
+        async fn discover_accounts(&self, device: Device, network: Network) -> Vec<Account>;
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Device {
     info: LedgerInfo,
+}
+
+impl Eq for Device {}
+
+impl Hash for Device {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.info.model.to_string().hash(state);
+        format!("{}", self.info.conn).hash(state);
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -94,7 +105,7 @@ impl LedgerApiT for LedgerApi {
         devices.into_iter().map(|info| Device { info }).collect()
     }
 
-    async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
+    async fn get_device_info(&self, device: Device) -> Option<DeviceInfo> {
         let mut handle = block_on(self.provider.borrow_mut().connect(device.info.clone())).ok()?;
 
         let info = handle.device_info(DEFAULT_TIMEOUT).await.ok()?;
@@ -108,15 +119,8 @@ impl LedgerApiT for LedgerApi {
         })
     }
 
-    async fn discover_accounts(
-        &self,
-        _device: &Device,
-        _network: Network,
-    ) -> impl Iterator<Item = Account> {
-        todo!();
-
-        #[allow(unreachable_code)]
-        None.into_iter()
+    async fn discover_accounts(&self, _device: Device, _network: Network) -> Vec<Account> {
+        todo!()
     }
 }
 
@@ -223,7 +227,7 @@ pub mod mock {
             self.devices.clone()
         }
 
-        async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
+        async fn get_device_info(&self, device: Device) -> Option<DeviceInfo> {
             Some(DeviceInfo {
                 model: model_to_string(&device.info.model),
                 se_version: "0.0.0".into(),
@@ -231,12 +235,13 @@ pub mod mock {
             })
         }
 
-        async fn discover_accounts(
-            &self,
-            _device: &Device,
-            network: Network,
-        ) -> impl Iterator<Item = Account> {
-            self.accounts.get(&network).cloned().into_iter().flatten()
+        async fn discover_accounts(&self, _device: Device, network: Network) -> Vec<Account> {
+            self.accounts
+                .get(&network)
+                .cloned()
+                .into_iter()
+                .flatten()
+                .collect()
         }
     }
 }
