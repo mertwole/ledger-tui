@@ -16,7 +16,7 @@ pub mod cache_utils {
             pub trait $api_trait: ident {
                 $(
                     $(#[$($attributes:tt)*])*
-                    async fn $method_name:ident(
+                    async fn $method_name:ident( // TODO: make async optional?
                         &self,
                         $($arg_name:ident : $arg_type:ty),*
                         $(,)?
@@ -36,21 +36,19 @@ pub mod cache_utils {
             }
 
             pub mod cache {
-                use std::{cell::RefCell, collections::HashMap};
-
+                use ::std::{cell::RefCell, collections::HashMap};
+                use $crate::api::cache_utils::{Mode, ModePlan};
                 use super::*;
-                use crate::api::cache_utils::Mode;
 
                 ::paste::paste! {
                     pub struct Cache<A: super::$api_trait> {
                         api: A,
 
                         $(
-                            $method_name: RefCell<HashMap<(Coin, Coin), $return_type>>,
-                            [<__ $method_name _mode>] : RefCell<Mode<(Coin, Coin)>>,
+                            $method_name: RefCell<HashMap<($($arg_type),*), $return_type>>,
+                            [<__ $method_name _mode>] : RefCell<Mode<($($arg_type),*)>>,
                         )*
                     }
-
 
                     impl<A: super::$api_trait> Cache<A> {
                         pub async fn new(api: A) -> Self {
@@ -64,9 +62,10 @@ pub mod cache_utils {
                             }
                         }
 
-                        // TODO: implement wrappers for all fields.
-                        pub fn set_get_price_mode(&mut self, mode: Mode<(Coin, Coin)>) {
-                            (*self.__get_price_mode.borrow_mut()) = mode;
+                        pub fn set_all_modes(&mut self, mode_plan: ModePlan) {
+                            $(
+                                (*self.[<__ $method_name _mode>].borrow_mut()) = mode_plan.into_mode();
+                            )*
                         }
                     }
 
@@ -78,7 +77,7 @@ pub mod cache_utils {
                                 $($arg_name : $arg_type),*
                             ) -> $return_type {
                                 let api_result = self.api.$method_name($($arg_name),*);
-                                let api_result = Box::pin(api_result);
+                                let api_result = ::std::boxed::Box::pin(api_result);
 
                                 let mut cache = self.$method_name.borrow_mut();
                                 let cache = cache.entry(($($arg_name),*));
@@ -94,7 +93,14 @@ pub mod cache_utils {
         };
     }
 
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy)]
+    pub enum ModePlan {
+        #[default]
+        Transparent,
+        TimedOut(Duration),
+    }
+
+    #[derive(Default, Clone)]
     pub enum Mode<In: Hash + PartialEq + Eq> {
         /// This type of cache will call API each time the corresponding method is called.
         #[default]
@@ -104,6 +110,16 @@ pub mod cache_utils {
         TimedOut(TimedOutMode<In>),
     }
 
+    impl ModePlan {
+        pub fn into_mode<In: Hash + PartialEq + Eq>(self) -> Mode<In> {
+            match self {
+                Self::Transparent => Mode::new_transparent(),
+                Self::TimedOut(timeout) => Mode::new_timed_out(timeout),
+            }
+        }
+    }
+
+    #[derive(Clone)]
     pub struct TimedOutMode<In> {
         timeout: Duration,
         previous_request: HashMap<In, Instant>,
