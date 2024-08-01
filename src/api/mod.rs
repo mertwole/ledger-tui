@@ -170,6 +170,7 @@ pub mod cache_utils {
                     impl<A: super::$api_trait> super::$api_trait for Cache<A> {
                         $(
                             $(#[$($attributes)*])*
+                            #[allow(clippy::await_holding_refcell_ref)]
                             async fn $method_name(
                                 &self,
                                 $($arg_name : $arg_type),*
