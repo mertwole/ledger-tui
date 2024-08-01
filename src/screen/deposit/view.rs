@@ -55,18 +55,27 @@ impl Widget for QrCodeWidget {
 
         let text = Text::raw(text).alignment(Alignment::Center);
 
+        const VERTICAL_BLOCK_PADDING: u16 = 2;
+        const HORIZONTAL_BLOCK_PADDING: u16 = 4;
+
         let block = Block::new()
             .borders(Borders::all())
             .border_type(BorderType::Thick)
-            .padding(Padding::uniform(2))
+            .padding(Padding::symmetric(
+                HORIZONTAL_BLOCK_PADDING,
+                VERTICAL_BLOCK_PADDING,
+            ))
             .black()
             .on_white();
 
         let address_text = Text::raw(&self.content).alignment(Alignment::Center);
 
+        let expected_block_height = text.height() as u16 + VERTICAL_BLOCK_PADDING * 2 + 2;
+        let expected_block_width = text.width() as u16 + HORIZONTAL_BLOCK_PADDING * 2 + 2;
+
         let areas = Layout::vertical([
             Constraint::Fill(1),
-            Constraint::Length(text.height() as u16 + 6),
+            Constraint::Length(expected_block_height),
             Constraint::Fill(1),
         ])
         .split(area);
@@ -82,7 +91,7 @@ impl Widget for QrCodeWidget {
 
         let areas = Layout::horizontal([
             Constraint::Fill(1),
-            Constraint::Length((text.height() as u16 + 6) * 2),
+            Constraint::Length(expected_block_width),
             Constraint::Fill(1),
         ])
         .split(areas[1]);
