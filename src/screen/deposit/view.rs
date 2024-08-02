@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use qrcode::{Color as QrCodeColor, QrCode};
 use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
@@ -9,6 +11,8 @@ use ratatui::{
 };
 
 use super::Model;
+
+const DISPLAY_COPIED_TEXT_FOR: Duration = Duration::from_secs(2);
 
 pub(super) fn render(model: &Model, frame: &mut Frame<'_>) {
     let state = model
@@ -26,13 +30,28 @@ pub(super) fn render(model: &Model, frame: &mut Frame<'_>) {
 
     let area = frame.size();
 
-    let qr_code = QrCodeWidget::new(pubkey).with_size(QrCodeSize::Small);
+    let display_copied_text = if let Some(last_copy) = model.last_address_copy {
+        last_copy.elapsed() <= DISPLAY_COPIED_TEXT_FOR
+    } else {
+        false
+    };
+
+    // TODO: Make `copied` label a different color.
+    let description = if display_copied_text {
+        "copied!"
+    } else {
+        "press `c` to copy"
+    };
+
+    let qr_code = QrCodeWidget::new(pubkey, description.to_string()).with_size(QrCodeSize::Small);
 
     frame.render_widget(qr_code, area);
 }
 
+// TODO: Make it contain only QR-code.
 struct QrCodeWidget {
     content: String,
+    description: String,
     size: QrCodeSize,
 }
 
@@ -68,7 +87,8 @@ impl Widget for QrCodeWidget {
             .black()
             .on_white();
 
-        let address_text = Text::raw(&self.content).alignment(Alignment::Center);
+        let address_text = format!("{}\n{}", self.content, self.description);
+        let address_text = Text::raw(&address_text).alignment(Alignment::Center);
 
         let expected_block_height = text.height() as u16 + VERTICAL_BLOCK_PADDING * 2 + 2;
         let expected_block_width = text.width() as u16 + HORIZONTAL_BLOCK_PADDING * 2 + 2;
@@ -107,9 +127,10 @@ impl Widget for QrCodeWidget {
 }
 
 impl QrCodeWidget {
-    fn new(content: String) -> QrCodeWidget {
+    fn new(content: String, description: String) -> QrCodeWidget {
         QrCodeWidget {
             content,
+            description,
             size: QrCodeSize::Big,
         }
     }

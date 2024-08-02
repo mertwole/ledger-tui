@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use ratatui::{crossterm::event::Event, Frame};
 
 use super::{OutgoingMessage, Screen};
@@ -7,12 +9,17 @@ mod controller;
 mod view;
 
 pub struct Model {
+    last_address_copy: Option<Instant>,
+
     state: Option<StateRegistry>,
 }
 
 impl Model {
     pub fn new() -> Self {
-        Self { state: None }
+        Self {
+            last_address_copy: None,
+            state: None,
+        }
     }
 }
 
@@ -26,7 +33,7 @@ impl Screen for Model {
     }
 
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
-        controller::process_input(event.as_ref()?)
+        controller::process_input(event.as_ref()?, self)
     }
 
     fn deconstruct(self: Box<Self>) -> StateRegistry {
