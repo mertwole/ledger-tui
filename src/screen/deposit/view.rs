@@ -30,13 +30,13 @@ pub(super) fn render(model: &Model, frame: &mut Frame<'_>) {
 
     let area = frame.size();
 
+    let address_text = Text::raw(&pubkey).alignment(Alignment::Center);
+
     let display_copied_text = if let Some(last_copy) = model.last_address_copy {
         last_copy.elapsed() <= DISPLAY_COPIED_TEXT_FOR
     } else {
         false
     };
-
-    let address_text = Text::raw(&pubkey).alignment(Alignment::Center);
 
     let description_text = if display_copied_text {
         Text::raw("copied!").green()
