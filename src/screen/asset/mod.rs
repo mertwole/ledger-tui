@@ -7,6 +7,7 @@ use rust_decimal::Decimal;
 use super::{OutgoingMessage, Screen};
 use crate::{
     api::{
+        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo},
         coin_price::{Coin, CoinPriceApiT},
         common::Network,
         ledger::LedgerApiT,
@@ -17,21 +18,27 @@ use crate::{
 mod controller;
 mod view;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT> {
+pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     _ledger_api: L, // TODO: Remove it.
     coin_price_api: C,
+    blockchain_monitoring_api: M,
 
     coin_price_history: Option<Vec<(Instant, Decimal)>>,
+    transactions: Option<Vec<TransactionInfo>>,
 
     state: Option<StateRegistry>,
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
-    pub fn new(ledger_api: L, coin_price_api: C) -> Self {
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
+    pub fn new(ledger_api: L, coin_price_api: C, blockchain_monitoring_api: M) -> Self {
         Self {
             _ledger_api: ledger_api,
             coin_price_api,
+            blockchain_monitoring_api,
+
             coin_price_history: None,
+            transactions: Default::default(),
+
             state: None,
         }
     }
@@ -61,7 +68,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Screen for Model<L, C> {
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<L, C, M> {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }

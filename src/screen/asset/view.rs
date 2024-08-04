@@ -6,11 +6,16 @@ use ratatui::{
     Frame,
 };
 
-use crate::api::{coin_price::CoinPriceApiT, ledger::LedgerApiT};
+use crate::api::{
+    blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT, ledger::LedgerApiT,
+};
 
 use super::Model;
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame: &mut Frame<'_>) {
+pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
+    frame: &mut Frame<'_>,
+) {
     let area = frame.size();
 
     let areas = Layout::default()
@@ -28,8 +33,8 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame
     frame.render_widget(txs_list_block, areas[1]);
 }
 
-fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT>(
-    model: &Model<L, C>,
+fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
