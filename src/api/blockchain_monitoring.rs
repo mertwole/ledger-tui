@@ -1,7 +1,6 @@
 #![allow(dead_code)] // TODO: Remove
 
-use std::time::Instant;
-
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 
 use super::common::{Account, Network};
@@ -22,13 +21,14 @@ impl_cache_for_api! {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TransactionUid {
-    uid: String,
+    // TODO: Make private.
+    pub uid: String,
 }
 
 #[derive(Clone)]
 pub struct TransactionInfo {
-    ty: TransactionType,
-    timestamp: Instant,
+    pub ty: TransactionType,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Clone)]
@@ -76,29 +76,41 @@ pub mod mock {
 
     impl BlockchainMonitoringApiMock {
         pub fn new(tx_count: usize) -> Self {
-            let txs: Vec<_> = vec![(
+            let txs =
+                vec![(
                 TransactionType::Withdraw {
                     to: Account {
                         pk: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
                             .to_string(),
                     },
-                    amount: Decimal::from_u64(1).unwrap(),
+                    amount: Decimal::from_u64(10).unwrap(),
                 },
-                Instant::now(),
-            )]
-            .into_iter()
-            .enumerate()
-            .map(|(idx, (ty, timestamp))| {
-                (
-                    TransactionUid {
-                        uid: format!("MOCK_TX_HASH_{}", idx),
+                Utc::now(),
+            ),
+            (
+                TransactionType::Deposit {
+                    from: Account {
+                        pk: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
+                            .to_string(),
                     },
-                    TransactionInfo { ty, timestamp },
-                )
-            })
-            .collect();
+                    amount: Decimal::from_i128_with_scale(12345, 3),
+                },
+                Utc::now(),
+            )];
 
-            let txs = iter::repeat(txs).flatten().take(tx_count).collect();
+            let txs = iter::repeat(txs)
+                .flatten()
+                .take(tx_count)
+                .enumerate()
+                .map(|(idx, (ty, timestamp))| {
+                    (
+                        TransactionUid {
+                            uid: format!("MOCK_TX_HASH_{}", idx),
+                        },
+                        TransactionInfo { ty, timestamp },
+                    )
+                })
+                .collect();
 
             Self { txs }
         }

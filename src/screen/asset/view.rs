@@ -1,35 +1,52 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
     symbols,
-    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType},
+    text::{Line, Span, Text},
+    widgets::{
+        Axis, Block, Borders, Chart, Dataset, GraphType, HighlightSpacing, Padding, Row, Table,
+    },
     Frame,
 };
 
-use crate::api::{coin_price::CoinPriceApiT, ledger::LedgerApiT};
+use crate::{
+    api::{
+        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
+        coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    screen::common::network_symbol,
+};
 
 use super::Model;
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame: &mut Frame<'_>) {
+pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
+    frame: &mut Frame<'_>,
+) {
     let area = frame.size();
 
-    let areas = Layout::default()
+    let [price_chart_area, txs_list_area] = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Fill(1), Constraint::Fill(1)])
-        .split(area);
+        .constraints([Constraint::Fill(1); 2])
+        .areas(area);
 
     let price_chart_block = Block::new().title("Price").borders(Borders::all());
-    let price_chart_area = price_chart_block.inner(areas[0]);
-    frame.render_widget(price_chart_block, areas[0]);
-    render_price_chart(model, frame, price_chart_area);
+    let inner_price_chart_area = price_chart_block.inner(price_chart_area);
+    frame.render_widget(price_chart_block, price_chart_area);
+    render_price_chart(model, frame, inner_price_chart_area);
 
-    // TODO: Display transactions here.
-    let txs_list_block = Block::new().title("Transactions").borders(Borders::all());
-    frame.render_widget(txs_list_block, areas[1]);
+    let txs_list_block = Block::new()
+        .title("Transactions")
+        .borders(Borders::all())
+        .padding(Padding::proportional(1));
+    let inner_txs_list_area = txs_list_block.inner(txs_list_area);
+    frame.render_widget(txs_list_block, txs_list_area);
+    render_tx_list(model, frame, inner_txs_list_area);
 }
 
-fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT>(
-    model: &Model<L, C>,
+fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
@@ -68,4 +85,84 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT>(
     let chart = Chart::new(datasets).x_axis(x_axis).y_axis(y_axis);
 
     frame.render_widget(chart, area);
+}
+
+fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
+    frame: &mut Frame<'_>,
+    area: Rect,
+) {
+    let Some(tx_list) = model.transactions.as_ref() else {
+        // TODO: Draw placeholder(fetching txs...)
+        return;
+    };
+
+    if tx_list.is_empty() {
+        // TODO: Draw placeholder(no txs yet...)
+        return;
+    }
+
+    let state = model
+        .state
+        .as_ref()
+        .expect("Construct should be called at the start of window lifetime");
+
+    let (selected_account_network, selected_account) = state
+        .selected_account
+        .as_ref()
+        .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
+
+    let selected_account_address = selected_account.get_info().pk;
+
+    let network_icon = network_symbol(*selected_account_network);
+
+    let rows = tx_list
+        .iter()
+        .map(|(uid, tx)| {
+            // TODO: Pretty-format.
+            let uid = &uid.uid;
+            let uid = Text::raw(uid).alignment(Alignment::Center);
+
+            let time = format!("{}", tx.timestamp.format("%Y-%m-%d %H:%M UTC%:z"));
+            let time = Text::raw(time).alignment(Alignment::Center);
+
+            let description = match &tx.ty {
+                TransactionType::Deposit { from, amount } => {
+                    // TODO: Pretty-format.
+                    let from = [&from.get_info().pk[..8], "..."].concat();
+                    let to = [&selected_account_address[..8], "..."].concat();
+
+                    vec![
+                        Span::raw(from),
+                        Span::raw(" -> "),
+                        Span::raw(to).green(),
+                        Span::raw(format!(" for {}{}", amount, network_icon)),
+                    ]
+                }
+                TransactionType::Withdraw { to, amount } => {
+                    // TODO: Pretty-format.
+                    let from = [&selected_account_address[..8], "..."].concat();
+                    let to = [&to.get_info().pk[..8], "..."].concat();
+
+                    vec![
+                        Span::raw(from).green(),
+                        Span::raw(" -> "),
+                        Span::raw(to),
+                        Span::raw(format!(" for {}{}", amount, network_icon)),
+                    ]
+                }
+            };
+            let line = Line::from_iter(description);
+            let description = Text::from(line).alignment(Alignment::Left);
+
+            Row::new(vec![description, time, uid])
+        })
+        .intersperse(Row::new(vec!["", "", ""]));
+
+    let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
+        .highlight_style(Style::new().reversed())
+        .highlight_spacing(HighlightSpacing::WhenSelected)
+        .highlight_symbol(">>");
+
+    frame.render_widget(table, area)
 }

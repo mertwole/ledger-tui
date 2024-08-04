@@ -12,11 +12,14 @@ use rust_decimal::Decimal;
 use tui_widget_list::PreRender;
 
 use super::Model;
-use crate::api::{
-    blockchain_monitoring::BlockchainMonitoringApiT,
-    coin_price::CoinPriceApiT,
-    common::{Account, Network},
-    ledger::LedgerApiT,
+use crate::{
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT,
+        coin_price::CoinPriceApiT,
+        common::{Account, Network},
+        ledger::LedgerApiT,
+    },
+    screen::common::network_symbol,
 };
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
@@ -108,10 +111,7 @@ impl Widget for NetworkAccountsTable {
     where
         Self: Sized,
     {
-        let icon = match self.network {
-            Network::Bitcoin => "₿",
-            Network::Ethereum => "⟠",
-        };
+        let icon = network_symbol(self.network);
 
         let price_label = format!(
             "1{} = {}₮",
@@ -145,7 +145,7 @@ impl Widget for NetworkAccountsTable {
                 .unwrap_or_else(|| "Fetching price...".to_string());
 
             let balance = balance
-                .map(|balance| [&balance.to_string(), icon].concat())
+                .map(|balance| [balance.to_string(), icon.clone()].concat())
                 .unwrap_or_else(|| "Fetching price...".to_string());
 
             let pk = Text::from(pk).alignment(Alignment::Left);
