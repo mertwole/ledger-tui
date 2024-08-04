@@ -31,4 +31,4 @@ cargo build --release
 
 ## License
 
-[MIT license](https://github.com/mertwole/ledger-tui/blob/main/LICENSE)
+[GNU General Public License](https://github.com/mertwole/ledger-tui/blob/main/LICENSE)
