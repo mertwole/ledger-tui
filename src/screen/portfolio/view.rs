@@ -13,12 +13,16 @@ use tui_widget_list::PreRender;
 
 use super::Model;
 use crate::api::{
+    blockchain_monitoring::BlockchainMonitoringApiT,
     coin_price::CoinPriceApiT,
     common::{Account, Network},
     ledger::LedgerApiT,
 };
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame: &mut Frame<'_>) {
+pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
+    frame: &mut Frame<'_>,
+) {
     let model_state = model
         .state
         .as_ref()
@@ -32,8 +36,8 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame
     }
 }
 
-fn render_account_table<L: LedgerApiT, C: CoinPriceApiT>(
-    model: &Model<L, C>,
+fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     accounts: &[(Network, Vec<Account>)],
 ) {
@@ -52,9 +56,19 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT>(
 
             let price = model.coin_prices.get(network).copied().unwrap_or_default();
 
+            let accounts_and_balances: Vec<_> = accounts
+                .iter()
+                .map(|account| {
+                    (
+                        account.clone(),
+                        model.balances.get(&(*network, account.clone())).copied(),
+                    )
+                })
+                .collect();
+
             NetworkAccountsTable {
                 network: *network,
-                accounts,
+                accounts_and_balances,
                 selected_account,
                 is_self_selected: false,
                 price,
@@ -71,9 +85,9 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT>(
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-struct NetworkAccountsTable<'a> {
+struct NetworkAccountsTable {
     network: Network,
-    accounts: &'a [Account],
+    accounts_and_balances: Vec<(Account, Option<Decimal>)>,
 
     selected_account: Option<usize>,
     is_self_selected: bool,
@@ -81,15 +95,15 @@ struct NetworkAccountsTable<'a> {
     price: Option<Decimal>,
 }
 
-impl PreRender for NetworkAccountsTable<'_> {
+impl PreRender for NetworkAccountsTable {
     fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
         self.is_self_selected = context.is_selected;
 
-        self.accounts.len() as u16 + 2
+        self.accounts_and_balances.len() as u16 + 2
     }
 }
 
-impl Widget for NetworkAccountsTable<'_> {
+impl Widget for NetworkAccountsTable {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
@@ -120,15 +134,28 @@ impl Widget for NetworkAccountsTable<'_> {
             block
         };
 
-        let rows = self.accounts.iter().map(|acc| {
+        let rows = self.accounts_and_balances.iter().map(|(account, balance)| {
             // TODO: Pretty formatting.
-            let pk = acc.get_info().pk[..8].to_string();
-            let balance = ["0.0000", icon].concat();
+            let pk = account.get_info().pk[..8].to_string();
 
-            Row::new(vec![pk, balance])
+            let price = balance
+                .zip(self.price)
+                .map(|(balance, price)| balance * price)
+                .map(|price| format!("{}₮", price))
+                .unwrap_or_else(|| "Fetching price...".to_string());
+
+            let balance = balance
+                .map(|balance| [&balance.to_string(), icon].concat())
+                .unwrap_or_else(|| "Fetching price...".to_string());
+
+            let pk = Text::from(pk).alignment(Alignment::Left);
+            let balance = Text::from(balance).alignment(Alignment::Center);
+            let price = Text::from(price).alignment(Alignment::Right);
+
+            Row::new(vec![pk, balance, price])
         });
 
-        let table = Table::new(rows, [Constraint::Ratio(1, 2); 2])
+        let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
             .column_spacing(1)
             .block(block)
             .highlight_style(Style::new().reversed())

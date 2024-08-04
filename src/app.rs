@@ -13,6 +13,7 @@ use ratatui::{
 
 use crate::{
     api::{
+        blockchain_monitoring::mock::BlockchainMonitoringApiMock,
         cache_utils::ModePlan,
         coin_price::{cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi},
         common::{Account, Network},
@@ -122,18 +123,22 @@ impl App {
 
 fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
     let ledger_api = LedgerApiMock::new(10, 3);
-
     let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
     ledger_api.set_all_modes(ModePlan::Transparent);
 
     let coin_price_api = CoinPriceApiMock::new();
     let _coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
-
     let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
     coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
 
+    let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
+
     match screen {
-        ScreenName::Portfolio => Box::from(PortfolioScreen::new(ledger_api, coin_price_api)),
+        ScreenName::Portfolio => Box::from(PortfolioScreen::new(
+            ledger_api,
+            coin_price_api,
+            blockchain_monitoring_api,
+        )),
         ScreenName::DeviceSelection => Box::from(DeviceSelectionScreen::new(ledger_api)),
         ScreenName::Asset => Box::from(AssetScreen::new(ledger_api, coin_price_api)),
         ScreenName::Deposit => Box::from(DepositScreen::new()),
