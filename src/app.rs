@@ -15,10 +15,8 @@ use crate::{
     api::{
         cache_utils::ModePlan,
         coin_price::{cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi},
-        ledger::{
-            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Account, Device, DeviceInfo,
-            Network,
-        },
+        common::{Account, Network},
+        ledger::{cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo},
     },
     screen::{
         asset::Model as AssetScreen, deposit::Model as DepositScreen,

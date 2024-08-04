@@ -1,4 +1,6 @@
+pub mod blockchain_monitoring;
 pub mod coin_price;
+pub mod common;
 pub mod ledger;
 
 pub mod cache_utils {
@@ -109,18 +111,20 @@ pub mod cache_utils {
     #[macro_export]
     macro_rules! impl_cache_for_api {
         (
+            $(#[$($trait_attributes:tt)*])*
             pub trait $api_trait: ident {
                 $(
                     $(#[$($attributes:tt)*])*
                     async fn $method_name:ident( // TODO: make async optional?
-                        &self,
-                        $($arg_name:ident : $arg_type:ty),*
+                        &self
+                        $(, $arg_name:ident : $arg_type:ty)*
                         $(,)?
                     ) -> $return_type:ty
                 );*
                 $(;)?
             }
         ) => {
+            $(#[$($trait_attributes)*])*
             pub trait $api_trait {
                 $(
                     $(#[$($attributes)*])*

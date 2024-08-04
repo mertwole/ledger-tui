@@ -8,7 +8,8 @@ use super::{OutgoingMessage, Screen};
 use crate::{
     api::{
         coin_price::{Coin, CoinPriceApiT},
-        ledger::{LedgerApiT, Network},
+        common::Network,
+        ledger::LedgerApiT,
     },
     app::StateRegistry,
 };
