@@ -138,14 +138,24 @@ impl Widget for NetworkAccountsTable {
             // TODO: Pretty formatting.
             let pk = account.get_info().pk[..8].to_string();
 
+            let price = balance
+                .zip(self.price)
+                .map(|(balance, price)| balance * price)
+                .map(|price| format!("{}₮", price))
+                .unwrap_or_else(|| "Fetching price...".to_string());
+
             let balance = balance
                 .map(|balance| [&balance.to_string(), icon].concat())
                 .unwrap_or_else(|| "Fetching price...".to_string());
 
-            Row::new(vec![pk, balance])
+            let pk = Text::from(pk).alignment(Alignment::Left);
+            let balance = Text::from(balance).alignment(Alignment::Center);
+            let price = Text::from(price).alignment(Alignment::Right);
+
+            Row::new(vec![pk, balance, price])
         });
 
-        let table = Table::new(rows, [Constraint::Ratio(1, 2); 2])
+        let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
             .column_spacing(1)
             .block(block)
             .highlight_style(Style::new().reversed())
