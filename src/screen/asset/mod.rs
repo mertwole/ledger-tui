@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use super::{OutgoingMessage, Screen};
 use crate::{
     api::{
-        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo},
+        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
         coin_price::{Coin, CoinPriceApiT},
         common::Network,
         ledger::LedgerApiT,
@@ -24,7 +24,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     blockchain_monitoring_api: M,
 
     coin_price_history: Option<Vec<(Instant, Decimal)>>,
-    transactions: Option<Vec<TransactionInfo>>,
+    transactions: Option<Vec<(TransactionUid, TransactionInfo)>>,
 
     state: Option<StateRegistry>,
 }
@@ -49,12 +49,12 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             .as_ref()
             .expect("Construct should be called at the start of window lifetime");
 
-        let selected_account = state
+        let (selected_network, selected_account) = state
             .selected_account
             .as_ref()
             .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
 
-        let coin = match selected_account.0 {
+        let coin = match selected_network {
             Network::Bitcoin => Coin::BTC,
             Network::Ethereum => Coin::ETH,
         };
@@ -65,6 +65,26 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         history.sort_by(|a, b| a.0.cmp(&b.0));
 
         self.coin_price_history = Some(history);
+
+        // TODO: Don't make requests to API each tick.
+        let tx_list = block_on(
+            self.blockchain_monitoring_api
+                .get_transactions(*selected_network, selected_account.clone()),
+        );
+        let txs = tx_list
+            .into_iter()
+            .map(|tx_uid| {
+                (
+                    tx_uid.clone(),
+                    block_on(
+                        self.blockchain_monitoring_api
+                            .get_transaction_info(*selected_network, tx_uid),
+                    ),
+                )
+            })
+            .collect();
+
+        self.transactions = Some(txs);
     }
 }
 

@@ -1,13 +1,16 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
     symbols,
-    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType},
+    text::{Line, Span, Text},
+    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, HighlightSpacing, Row, Table},
     Frame,
 };
 
 use crate::api::{
-    blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT, ledger::LedgerApiT,
+    blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
+    coin_price::CoinPriceApiT,
+    ledger::LedgerApiT,
 };
 
 use super::Model;
@@ -18,19 +21,20 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
 ) {
     let area = frame.size();
 
-    let areas = Layout::default()
+    let [price_chart_area, txs_list_area] = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Fill(1), Constraint::Fill(1)])
-        .split(area);
+        .constraints([Constraint::Fill(1); 2])
+        .areas(area);
 
     let price_chart_block = Block::new().title("Price").borders(Borders::all());
-    let price_chart_area = price_chart_block.inner(areas[0]);
-    frame.render_widget(price_chart_block, areas[0]);
-    render_price_chart(model, frame, price_chart_area);
+    let inner_price_chart_area = price_chart_block.inner(price_chart_area);
+    frame.render_widget(price_chart_block, price_chart_area);
+    render_price_chart(model, frame, inner_price_chart_area);
 
-    // TODO: Display transactions here.
     let txs_list_block = Block::new().title("Transactions").borders(Borders::all());
-    frame.render_widget(txs_list_block, areas[1]);
+    let inner_txs_list_area = txs_list_block.inner(txs_list_area);
+    frame.render_widget(txs_list_block, txs_list_area);
+    render_tx_list(model, frame, inner_txs_list_area);
 }
 
 fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
@@ -73,4 +77,69 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
     let chart = Chart::new(datasets).x_axis(x_axis).y_axis(y_axis);
 
     frame.render_widget(chart, area);
+}
+
+fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
+    frame: &mut Frame<'_>,
+    area: Rect,
+) {
+    let Some(tx_list) = model.transactions.as_ref() else {
+        // TODO: Draw placeholder(fetching txs...)
+        return;
+    };
+
+    if tx_list.is_empty() {
+        // TODO: Draw placeholder(no txs yet...)
+        return;
+    }
+
+    let state = model
+        .state
+        .as_ref()
+        .expect("Construct should be called at the start of window lifetime");
+
+    let (_, selected_account) = state
+        .selected_account
+        .as_ref()
+        .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
+
+    let selected_account_address = selected_account.get_info().pk;
+
+    let rows = tx_list.iter().map(|(uid, tx)| {
+        // TODO: Pretty-format.
+        let uid = [&uid.uid[..8], "..."].concat();
+        let uid = Text::raw(uid).alignment(Alignment::Right);
+
+        let description = match &tx.ty {
+            TransactionType::Deposit { from, amount } => {
+                vec![
+                    Span::raw("0x123...456"),
+                    Span::raw("->").green(),
+                    Span::raw("YOU"),
+                    Span::raw("for 0.1 BTC"),
+                ]
+            }
+            TransactionType::Withdraw { to, amount } => {
+                vec![
+                    Span::raw("0x123...456"),
+                    Span::raw("->").red(),
+                    Span::raw("YOU"),
+                    Span::raw("for 0.1 BTC"),
+                ]
+            }
+        };
+        let line = Line::from_iter(description.into_iter());
+        let description = Text::from(line).alignment(Alignment::Left);
+
+        Row::new(vec![description, uid])
+    });
+
+    let table = Table::new(rows, [Constraint::Ratio(1, 2); 2])
+        .column_spacing(1)
+        .highlight_style(Style::new().reversed())
+        .highlight_spacing(HighlightSpacing::WhenSelected)
+        .highlight_symbol(">>");
+
+    frame.render_widget(table, area)
 }

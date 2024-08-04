@@ -22,13 +22,14 @@ impl_cache_for_api! {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TransactionUid {
-    uid: String,
+    // TODO: Make private.
+    pub uid: String,
 }
 
 #[derive(Clone)]
 pub struct TransactionInfo {
-    ty: TransactionType,
-    timestamp: Instant,
+    pub ty: TransactionType,
+    pub timestamp: Instant,
 }
 
 #[derive(Clone)]
@@ -76,7 +77,7 @@ pub mod mock {
 
     impl BlockchainMonitoringApiMock {
         pub fn new(tx_count: usize) -> Self {
-            let txs: Vec<_> = vec![(
+            let txs = vec![(
                 TransactionType::Withdraw {
                     to: Account {
                         pk: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
@@ -85,20 +86,21 @@ pub mod mock {
                     amount: Decimal::from_u64(1).unwrap(),
                 },
                 Instant::now(),
-            )]
-            .into_iter()
-            .enumerate()
-            .map(|(idx, (ty, timestamp))| {
-                (
-                    TransactionUid {
-                        uid: format!("MOCK_TX_HASH_{}", idx),
-                    },
-                    TransactionInfo { ty, timestamp },
-                )
-            })
-            .collect();
+            )];
 
-            let txs = iter::repeat(txs).flatten().take(tx_count).collect();
+            let txs = iter::repeat(txs)
+                .flatten()
+                .take(tx_count)
+                .enumerate()
+                .map(|(idx, (ty, timestamp))| {
+                    (
+                        TransactionUid {
+                            uid: format!("MOCK_TX_HASH_{}", idx),
+                        },
+                        TransactionInfo { ty, timestamp },
+                    )
+                })
+                .collect();
 
             Self { txs }
         }
