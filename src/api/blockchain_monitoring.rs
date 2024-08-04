@@ -106,7 +106,7 @@ pub mod mock {
 
     impl BlockchainMonitoringApiT for BlockchainMonitoringApiMock {
         async fn get_balance(&self, _network: Network, _account: Account) -> Decimal {
-            Decimal::from_i128_with_scale(10_231_20, 3)
+            Decimal::from_i128_with_scale(102312, 1)
         }
 
         async fn get_transactions(
