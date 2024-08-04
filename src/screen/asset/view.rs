@@ -116,44 +116,50 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
 
     let network_icon = network_symbol(*selected_account_network);
 
-    let rows = tx_list.iter().map(|(uid, tx)| {
-        // TODO: Pretty-format.
-        let uid = [&uid.uid[..8], "..."].concat();
-        let uid = Text::raw(uid).alignment(Alignment::Center);
+    let rows = tx_list
+        .iter()
+        .map(|(uid, tx)| {
+            // TODO: Pretty-format.
+            let uid = &uid.uid;
+            let uid = Text::raw(uid).alignment(Alignment::Center);
 
-        let description = match &tx.ty {
-            TransactionType::Deposit { from, amount } => {
-                // TODO: Pretty-format.
-                let from = [&from.get_info().pk[..8], "..."].concat();
-                let to = [&selected_account_address[..8], "..."].concat();
+            let time = format!("{}", tx.timestamp.format("%Y-%m-%d %H:%M UTC%:z"));
+            let time = Text::raw(time).alignment(Alignment::Center);
 
-                vec![
-                    Span::raw(from),
-                    Span::raw(" -> "),
-                    Span::raw(to).green(),
-                    Span::raw(format!(" for {}{}", amount.to_string(), network_icon)),
-                ]
-            }
-            TransactionType::Withdraw { to, amount } => {
-                // TODO: Pretty-format.
-                let from = [&selected_account_address[..8], "..."].concat();
-                let to = [&to.get_info().pk[..8], "..."].concat();
+            let description = match &tx.ty {
+                TransactionType::Deposit { from, amount } => {
+                    // TODO: Pretty-format.
+                    let from = [&from.get_info().pk[..8], "..."].concat();
+                    let to = [&selected_account_address[..8], "..."].concat();
 
-                vec![
-                    Span::raw(from).green(),
-                    Span::raw(" -> "),
-                    Span::raw(to),
-                    Span::raw(format!(" for {}{}", amount.to_string(), network_icon)),
-                ]
-            }
-        };
-        let line = Line::from_iter(description.into_iter());
-        let description = Text::from(line).alignment(Alignment::Left);
+                    vec![
+                        Span::raw(from),
+                        Span::raw(" -> "),
+                        Span::raw(to).green(),
+                        Span::raw(format!(" for {}{}", amount, network_icon)),
+                    ]
+                }
+                TransactionType::Withdraw { to, amount } => {
+                    // TODO: Pretty-format.
+                    let from = [&selected_account_address[..8], "..."].concat();
+                    let to = [&to.get_info().pk[..8], "..."].concat();
 
-        Row::new(vec![description, uid])
-    });
+                    vec![
+                        Span::raw(from).green(),
+                        Span::raw(" -> "),
+                        Span::raw(to),
+                        Span::raw(format!(" for {}{}", amount, network_icon)),
+                    ]
+                }
+            };
+            let line = Line::from_iter(description);
+            let description = Text::from(line).alignment(Alignment::Left);
 
-    let table = Table::new(rows, [Constraint::Ratio(1, 2); 2])
+            Row::new(vec![description, time, uid])
+        })
+        .intersperse(Row::new(vec!["", "", ""]));
+
+    let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
         .highlight_style(Style::new().reversed())
         .highlight_spacing(HighlightSpacing::WhenSelected)
         .highlight_symbol(">>");

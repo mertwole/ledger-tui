@@ -1,4 +1,5 @@
 #![feature(entry_insert)]
+#![feature(iter_intersperse)]
 
 use log::LevelFilter;
 use pretty_env_logger::env_logger::fmt::{Target, TimestampPrecision};

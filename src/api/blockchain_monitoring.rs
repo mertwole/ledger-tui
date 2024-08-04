@@ -1,7 +1,6 @@
 #![allow(dead_code)] // TODO: Remove
 
-use std::time::Instant;
-
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 
 use super::common::{Account, Network};
@@ -29,7 +28,7 @@ pub struct TransactionUid {
 #[derive(Clone)]
 pub struct TransactionInfo {
     pub ty: TransactionType,
-    pub timestamp: Instant,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Clone)]
@@ -86,7 +85,7 @@ pub mod mock {
                     },
                     amount: Decimal::from_u64(10).unwrap(),
                 },
-                Instant::now(),
+                Utc::now(),
             ),
             (
                 TransactionType::Deposit {
@@ -96,7 +95,7 @@ pub mod mock {
                     },
                     amount: Decimal::from_i128_with_scale(12345, 3),
                 },
-                Instant::now(),
+                Utc::now(),
             )];
 
             let txs = iter::repeat(txs)

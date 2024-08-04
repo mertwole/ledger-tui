@@ -7,6 +7,7 @@ authors = ["mertwole"]
 [dependencies]
 binance_spot_connector_rust = "1.1.0"
 bs58 = "0.5.1"
+chrono = "0.4.38"
 copypasta = "0.10.1"
 futures = "0.3.30"
 ledger_bitcoin_client = "0.4.1"
