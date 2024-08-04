@@ -7,8 +7,9 @@ use rust_decimal::Decimal;
 use super::{OutgoingMessage, Screen};
 use crate::{
     api::{
+        blockchain_monitoring::BlockchainMonitoringApiT,
         coin_price::{Coin, CoinPriceApiT},
-        common::Network,
+        common::{Account, Network},
         ledger::LedgerApiT,
     },
     app::StateRegistry,
@@ -17,13 +18,15 @@ use crate::{
 mod controller;
 mod view;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT> {
+pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     ledger_api: L,
     coin_price_api: C,
+    blockchain_monitoring_api: M,
 
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
     coin_prices: HashMap<Network, Option<Decimal>>,
+    balances: HashMap<(Network, Account), Decimal>,
 
     state: Option<StateRegistry>,
 }
@@ -31,13 +34,16 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT> {
 type AccountIdx = usize;
 type NetworkIdx = usize;
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
-    pub fn new(ledger_api: L, coin_price_api: C) -> Self {
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
+    pub fn new(ledger_api: L, coin_price_api: C, blockchain_monitoring_api: M) -> Self {
         Self {
             ledger_api,
             coin_price_api,
+            blockchain_monitoring_api,
+
             selected_account: None,
             coin_prices: Default::default(),
+            balances: Default::default(),
             state: None,
         }
     }
@@ -88,10 +94,26 @@ impl<L: LedgerApiT, C: CoinPriceApiT> Model<L, C> {
                 )
             })
             .collect();
+
+        // TODO: Don't request balance each tick.
+        if let Some(accounts) = state.device_accounts.as_ref() {
+            for (network, accounts) in accounts {
+                for account in accounts {
+                    self.balances
+                        .entry((*network, account.clone()))
+                        .or_insert_with(|| {
+                            block_on(
+                                self.blockchain_monitoring_api
+                                    .get_balance(*network, account.clone()),
+                            )
+                        });
+                }
+            }
+        }
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT> Screen for Model<L, C> {
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<L, C, M> {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }

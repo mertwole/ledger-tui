@@ -4,12 +4,15 @@ use ratatui::crossterm::event::{Event, KeyCode};
 
 use super::Model;
 use crate::{
-    api::{coin_price::CoinPriceApiT, ledger::LedgerApiT},
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
     screen::{EventExt, OutgoingMessage, ScreenName},
 };
 
-pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
-    model: &mut Model<L, C>,
+pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &mut Model<L, C, M>,
     event: &Event,
 ) -> Option<OutgoingMessage> {
     if let Some(state) = model.state.as_mut() {
@@ -47,8 +50,8 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT>(
     None
 }
 
-fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT>(
-    model: &mut Model<L, C>,
+fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &mut Model<L, C, M>,
     event: &Event,
     accounts_per_network: &[NonZeroUsize],
 ) {
