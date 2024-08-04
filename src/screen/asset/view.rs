@@ -76,7 +76,7 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
 
     let x_axis = Axis::default()
         .style(Style::default().white())
-        .bounds([0.0, price_data.len() as f64]);
+        .bounds([0.0, (price_data.len() - 1) as f64]);
 
     let y_axis = Axis::default()
         .style(Style::default().white())
