@@ -14,7 +14,8 @@ use tui_widget_list::PreRender;
 use super::Model;
 use crate::api::{
     coin_price::CoinPriceApiT,
-    ledger::{Account, LedgerApiT, Network},
+    common::{Account, Network},
+    ledger::LedgerApiT,
 };
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT>(model: &Model<L, C>, frame: &mut Frame<'_>) {

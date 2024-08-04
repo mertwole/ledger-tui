@@ -1,5 +1,6 @@
 pub mod blockchain_monitoring;
 pub mod coin_price;
+pub mod common;
 pub mod ledger;
 
 pub mod cache_utils {

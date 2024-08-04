@@ -5,6 +5,7 @@ use ledger_lib::{
 };
 use std::{cell::RefCell, hash::Hash};
 
+use super::common::{Account, Network};
 use crate::impl_cache_for_api;
 
 impl_cache_for_api! {
@@ -38,53 +39,6 @@ pub struct DeviceInfo {
     pub model: String,
     pub se_version: String,
     pub mcu_version: String,
-}
-
-// TODO: Move it level up as it'll be shared between ledger and market APIs.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Network {
-    Bitcoin,
-    Ethereum,
-}
-
-pub struct NetworkInfo {
-    pub name: String,
-    #[allow(dead_code)]
-    pub symbol: String,
-}
-
-impl Network {
-    pub fn get_info(&self) -> NetworkInfo {
-        match self {
-            Self::Bitcoin => NetworkInfo {
-                name: "Bitcoin".into(),
-                symbol: "BTC".into(),
-            },
-            Self::Ethereum => NetworkInfo {
-                name: "Ethereum".into(),
-                symbol: "ETH".into(),
-            },
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct Account {
-    pub(self) pk: String,
-}
-
-impl Account {
-    pub fn get_info(&self) -> AccountInfo {
-        AccountInfo {
-            pk: self.pk.clone(),
-        }
-    }
-}
-
-pub struct AccountInfo {
-    #[allow(dead_code)]
-    /// Public key of account in encoding native for network,
-    pub pk: String,
 }
 
 pub struct LedgerApi {

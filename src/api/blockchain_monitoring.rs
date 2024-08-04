@@ -1,18 +1,13 @@
 use rust_decimal::Decimal;
 
+use super::common::{Account, Network};
 use crate::impl_cache_for_api;
 
 impl_cache_for_api! {
     pub trait BlockchainMonitoringApiT {
-        async fn get_balance(&self, network: Network) -> Decimal;
+        // TODO: Pass `Account` as a reference.
+        async fn get_balance(&self, network: Network, account: Account) -> Decimal;
     }
-}
-
-// TODO: Move it level up as it'll be shared between APIs?
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Network {
-    Bitcoin,
-    Ethereum,
 }
 
 pub struct BlockchainMonitoringApi {}
@@ -24,7 +19,7 @@ impl BlockchainMonitoringApi {
 }
 
 impl BlockchainMonitoringApiT for BlockchainMonitoringApi {
-    async fn get_balance(&self, network: Network) -> Decimal {
+    async fn get_balance(&self, _network: Network, _account: Account) -> Decimal {
         todo!()
     }
 }
@@ -41,7 +36,7 @@ pub mod mock {
     }
 
     impl BlockchainMonitoringApiT for BlockchainMonitoringApiMock {
-        async fn get_balance(&self, network: Network) -> Decimal {
+        async fn get_balance(&self, _network: Network, _account: Account) -> Decimal {
             todo!()
         }
     }
