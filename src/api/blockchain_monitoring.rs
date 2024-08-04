@@ -77,13 +77,24 @@ pub mod mock {
 
     impl BlockchainMonitoringApiMock {
         pub fn new(tx_count: usize) -> Self {
-            let txs = vec![(
+            let txs =
+                vec![(
                 TransactionType::Withdraw {
                     to: Account {
                         pk: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
                             .to_string(),
                     },
-                    amount: Decimal::from_u64(1).unwrap(),
+                    amount: Decimal::from_u64(10).unwrap(),
+                },
+                Instant::now(),
+            ),
+            (
+                TransactionType::Deposit {
+                    from: Account {
+                        pk: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
+                            .to_string(),
+                    },
+                    amount: Decimal::from_i128_with_scale(12345, 3),
                 },
                 Instant::now(),
             )];

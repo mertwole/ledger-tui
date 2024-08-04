@@ -6,6 +6,7 @@ use ratatui::{
 use crate::app::StateRegistry;
 
 pub mod asset;
+mod common;
 pub mod deposit;
 pub mod device_selection;
 pub mod portfolio;

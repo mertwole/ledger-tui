@@ -3,14 +3,19 @@ use ratatui::{
     style::{Style, Stylize},
     symbols,
     text::{Line, Span, Text},
-    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, HighlightSpacing, Row, Table},
+    widgets::{
+        Axis, Block, Borders, Chart, Dataset, GraphType, HighlightSpacing, Padding, Row, Table,
+    },
     Frame,
 };
 
-use crate::api::{
-    blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
-    coin_price::CoinPriceApiT,
-    ledger::LedgerApiT,
+use crate::{
+    api::{
+        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
+        coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    screen::common::network_symbol,
 };
 
 use super::Model;
@@ -31,7 +36,10 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     frame.render_widget(price_chart_block, price_chart_area);
     render_price_chart(model, frame, inner_price_chart_area);
 
-    let txs_list_block = Block::new().title("Transactions").borders(Borders::all());
+    let txs_list_block = Block::new()
+        .title("Transactions")
+        .borders(Borders::all())
+        .padding(Padding::proportional(1));
     let inner_txs_list_area = txs_list_block.inner(txs_list_area);
     frame.render_widget(txs_list_block, txs_list_area);
     render_tx_list(model, frame, inner_txs_list_area);
@@ -99,33 +107,43 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         .as_ref()
         .expect("Construct should be called at the start of window lifetime");
 
-    let (_, selected_account) = state
+    let (selected_account_network, selected_account) = state
         .selected_account
         .as_ref()
         .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
 
     let selected_account_address = selected_account.get_info().pk;
 
+    let network_icon = network_symbol(*selected_account_network);
+
     let rows = tx_list.iter().map(|(uid, tx)| {
         // TODO: Pretty-format.
         let uid = [&uid.uid[..8], "..."].concat();
-        let uid = Text::raw(uid).alignment(Alignment::Right);
+        let uid = Text::raw(uid).alignment(Alignment::Center);
 
         let description = match &tx.ty {
             TransactionType::Deposit { from, amount } => {
+                // TODO: Pretty-format.
+                let from = [&from.get_info().pk[..8], "..."].concat();
+                let to = [&selected_account_address[..8], "..."].concat();
+
                 vec![
-                    Span::raw("0x123...456"),
-                    Span::raw("->").green(),
-                    Span::raw("YOU"),
-                    Span::raw("for 0.1 BTC"),
+                    Span::raw(from),
+                    Span::raw(" -> "),
+                    Span::raw(to).green(),
+                    Span::raw(format!(" for {}{}", amount.to_string(), network_icon)),
                 ]
             }
             TransactionType::Withdraw { to, amount } => {
+                // TODO: Pretty-format.
+                let from = [&selected_account_address[..8], "..."].concat();
+                let to = [&to.get_info().pk[..8], "..."].concat();
+
                 vec![
-                    Span::raw("0x123...456"),
-                    Span::raw("->").red(),
-                    Span::raw("YOU"),
-                    Span::raw("for 0.1 BTC"),
+                    Span::raw(from).green(),
+                    Span::raw(" -> "),
+                    Span::raw(to),
+                    Span::raw(format!(" for {}{}", amount.to_string(), network_icon)),
                 ]
             }
         };
@@ -136,7 +154,6 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     });
 
     let table = Table::new(rows, [Constraint::Ratio(1, 2); 2])
-        .column_spacing(1)
         .highlight_style(Style::new().reversed())
         .highlight_spacing(HighlightSpacing::WhenSelected)
         .highlight_symbol(">>");
