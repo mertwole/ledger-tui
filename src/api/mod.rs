@@ -1,3 +1,4 @@
+pub mod blockchain_monitoring;
 pub mod coin_price;
 pub mod ledger;
 
@@ -113,8 +114,8 @@ pub mod cache_utils {
                 $(
                     $(#[$($attributes:tt)*])*
                     async fn $method_name:ident( // TODO: make async optional?
-                        &self,
-                        $($arg_name:ident : $arg_type:ty),*
+                        &self
+                        $(, $arg_name:ident : $arg_type:ty)*
                         $(,)?
                     ) -> $return_type:ty
                 );*

@@ -9,7 +9,7 @@ use crate::impl_cache_for_api;
 
 impl_cache_for_api! {
     pub trait LedgerApiT {
-        async fn discover_devices(&self, ) -> Vec<Device>;
+        async fn discover_devices(&self) -> Vec<Device>;
 
         // TODO: Accept `Device` as ref.
         async fn get_device_info(&self, device: Device) -> Option<DeviceInfo>;
