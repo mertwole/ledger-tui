@@ -111,6 +111,7 @@ pub mod cache_utils {
     #[macro_export]
     macro_rules! impl_cache_for_api {
         (
+            $(#[$($trait_attributes:tt)*])*
             pub trait $api_trait: ident {
                 $(
                     $(#[$($attributes:tt)*])*
@@ -123,6 +124,7 @@ pub mod cache_utils {
                 $(;)?
             }
         ) => {
+            $(#[$($trait_attributes)*])*
             pub trait $api_trait {
                 $(
                     $(#[$($attributes)*])*
