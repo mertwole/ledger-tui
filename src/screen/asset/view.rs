@@ -13,15 +13,14 @@ use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
         coin_price::CoinPriceApiT,
-        ledger::LedgerApiT,
     },
     screen::common::network_symbol,
 };
 
 use super::Model;
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
     frame: &mut Frame<'_>,
 ) {
     let area = frame.size();
@@ -45,8 +44,8 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     render_tx_list(model, frame, inner_txs_list_area);
 }
 
-fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_price_chart<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
@@ -91,8 +90,8 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
     frame.render_widget(chart, area);
 }
 
-fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_tx_list<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {

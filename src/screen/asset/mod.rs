@@ -10,7 +10,6 @@ use crate::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
         coin_price::{Coin, CoinPriceApiT, TimePeriod as ApiTimePeriod},
         common::Network,
-        ledger::LedgerApiT,
     },
     app::StateRegistry,
 };
@@ -20,8 +19,7 @@ mod view;
 
 const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    _ledger_api: L, // TODO: Remove it.
+pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_price_api: C,
     blockchain_monitoring_api: M,
 
@@ -46,10 +44,9 @@ struct PriceHistoryPoint {
     price: Decimal,
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(ledger_api: L, coin_price_api: C, blockchain_monitoring_api: M) -> Self {
+impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
+    pub fn new(coin_price_api: C, blockchain_monitoring_api: M) -> Self {
         Self {
-            _ledger_api: ledger_api,
             coin_price_api,
             blockchain_monitoring_api,
 
@@ -120,7 +117,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<L, C, M> {
+impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<C, M> {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }

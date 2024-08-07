@@ -140,11 +140,7 @@ fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
             blockchain_monitoring_api,
         )),
         ScreenName::DeviceSelection => Box::from(DeviceSelectionScreen::new(ledger_api)),
-        ScreenName::Asset => Box::from(AssetScreen::new(
-            ledger_api,
-            coin_price_api,
-            blockchain_monitoring_api,
-        )),
+        ScreenName::Asset => Box::from(AssetScreen::new(coin_price_api, blockchain_monitoring_api)),
         ScreenName::Deposit => Box::from(DepositScreen::new()),
     }
 }
