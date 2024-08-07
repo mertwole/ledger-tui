@@ -3,6 +3,7 @@ use std::time::Instant;
 use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
+use strum::EnumIter;
 
 use super::{OutgoingMessage, Screen};
 use crate::{
@@ -30,7 +31,7 @@ pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     state: Option<StateRegistry>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
 enum TimePeriod {
     Day,
     Week,
@@ -82,18 +83,21 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
             TimePeriod::All => ApiTimePeriod::All,
         };
 
-        let mut history: Vec<_> = block_on(self.coin_price_api.get_price_history(
+        self.coin_price_history = block_on(self.coin_price_api.get_price_history(
             coin,
             Coin::USDT,
             time_period,
         ))
-        .unwrap()
-        .into_iter()
-        .map(|(timestamp, price)| PriceHistoryPoint { timestamp, price })
-        .collect();
-        history.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        .map(|history| {
+            let mut history: Vec<_> = history
+                .into_iter()
+                .map(|(timestamp, price)| PriceHistoryPoint { timestamp, price })
+                .collect();
 
-        self.coin_price_history = Some(history);
+            history.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+            history
+        });
 
         // TODO: Don't make requests to API each tick.
         let tx_list = block_on(

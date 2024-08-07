@@ -8,6 +8,7 @@ use ratatui::{
     },
     Frame,
 };
+use strum::IntoEnumIterator;
 
 use crate::{
     api::{
@@ -17,7 +18,7 @@ use crate::{
     screen::common::network_symbol,
 };
 
-use super::Model;
+use super::{Model, TimePeriod};
 
 pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<C, M>,
@@ -66,9 +67,27 @@ fn render_price_chart<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         .map(|(idx, price)| (idx as f64, price.price.try_into().unwrap()))
         .collect();
 
+    let legend = TimePeriod::iter().map(|period| {
+        let label = match period {
+            TimePeriod::Day => " d[ay]",
+            TimePeriod::Week => " w[eek]",
+            TimePeriod::Month => " m[onth]",
+            TimePeriod::Year => " y[ear]",
+            TimePeriod::All => " a[ll] ",
+        };
+
+        if period == model.selected_time_period {
+            Span::raw(label).red()
+        } else {
+            Span::raw(label).green()
+        }
+    });
+
+    let legend = Line::from_iter(legend);
+
     let datasets = vec![Dataset::default()
         .marker(symbols::Marker::Bar)
-        .name(" D[day] W[week] M[month] Y[year] A[all time] ")
+        .name(legend)
         .graph_type(GraphType::Line)
         .style(Style::default().magenta())
         .data(&price_data)];
@@ -85,7 +104,8 @@ fn render_price_chart<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         .x_axis(x_axis)
         .y_axis(y_axis)
         .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
-        .hidden_legend_constraints((Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)));
+        // Always show a legend(see `hidden_legend_constraints` docs).
+        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)));
 
     frame.render_widget(chart, area);
 }
