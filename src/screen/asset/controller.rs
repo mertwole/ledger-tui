@@ -17,3 +17,24 @@ pub(super) fn process_input(event: &Event) -> Option<OutgoingMessage> {
 
     None
 }
+
+fn process_time_interval_selection(event: &Event) {
+    match () {
+        () if event.is_key_pressed(KeyCode::Char('d')) => {
+            // TODO
+        }
+        () if event.is_key_pressed(KeyCode::Char('w')) => {
+            // TODO
+        }
+        () if event.is_key_pressed(KeyCode::Char('m')) => {
+            // TODO
+        }
+        () if event.is_key_pressed(KeyCode::Char('y')) => {
+            // TODO
+        }
+        () if event.is_key_pressed(KeyCode::Char('a')) => {
+            // TODO
+        }
+        _ => {}
+    };
+}

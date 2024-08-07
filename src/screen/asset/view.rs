@@ -55,21 +55,21 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
         return;
     };
 
-    let mut price_bounds = [f64::MAX, f64::MIN];
-    for (_, price) in prices {
-        let price: f64 = (*price).try_into().unwrap();
-        price_bounds[0] = price_bounds[0].min(price);
-        price_bounds[1] = price_bounds[1].max(price);
-    }
+    let max_price = prices
+        .iter()
+        .map(|price| price.price)
+        .max()
+        .expect("Empty `prices` vector provided");
 
     let price_data: Vec<_> = prices
         .iter()
         .enumerate()
-        .map(|(idx, price)| (idx as f64, price.1.try_into().unwrap()))
+        .map(|(idx, price)| (idx as f64, price.price.try_into().unwrap()))
         .collect();
 
     let datasets = vec![Dataset::default()
         .marker(symbols::Marker::Bar)
+        .name(" D[day] W[week] M[month] Y[year] A[all time] ")
         .graph_type(GraphType::Line)
         .style(Style::default().magenta())
         .data(&price_data)];
@@ -80,9 +80,13 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
 
     let y_axis = Axis::default()
         .style(Style::default().white())
-        .bounds(price_bounds);
+        .bounds([0.0, max_price.try_into().unwrap()]);
 
-    let chart = Chart::new(datasets).x_axis(x_axis).y_axis(y_axis);
+    let chart = Chart::new(datasets)
+        .x_axis(x_axis)
+        .y_axis(y_axis)
+        .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
+        .hidden_legend_constraints((Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)));
 
     frame.render_widget(chart, area);
 }
