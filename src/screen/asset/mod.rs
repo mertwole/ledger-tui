@@ -129,7 +129,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<C, M> {
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         self.tick_logic();
 
-        controller::process_input(event.as_ref()?)
+        controller::process_input(event.as_ref()?, self)
     }
 
     fn deconstruct(self: Box<Self>) -> StateRegistry {
