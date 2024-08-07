@@ -8,20 +8,20 @@ use ratatui::{
     },
     Frame,
 };
+use strum::IntoEnumIterator;
 
 use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
         coin_price::CoinPriceApiT,
-        ledger::LedgerApiT,
     },
     screen::common::network_symbol,
 };
 
-use super::Model;
+use super::{Model, TimePeriod};
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
     frame: &mut Frame<'_>,
 ) {
     let area = frame.size();
@@ -45,8 +45,8 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     render_tx_list(model, frame, inner_txs_list_area);
 }
 
-fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_price_chart<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
@@ -55,40 +55,63 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
         return;
     };
 
-    let mut price_bounds = [f64::MAX, f64::MIN];
-    for (_, price) in prices {
-        let price: f64 = (*price).try_into().unwrap();
-        price_bounds[0] = price_bounds[0].min(price);
-        price_bounds[1] = price_bounds[1].max(price);
-    }
+    let max_price = prices
+        .iter()
+        .map(|price| price.price)
+        .max()
+        .expect("Empty `prices` vector provided");
 
     let price_data: Vec<_> = prices
         .iter()
         .enumerate()
-        .map(|(idx, price)| (idx as f64, price.1.try_into().unwrap()))
+        .map(|(idx, price)| (idx as f64, price.price.try_into().unwrap()))
         .collect();
+
+    let legend = TimePeriod::iter().map(|period| {
+        let label = match period {
+            TimePeriod::Day => " d[ay]",
+            TimePeriod::Week => " w[eek]",
+            TimePeriod::Month => " m[onth]",
+            TimePeriod::Year => " y[ear]",
+            TimePeriod::All => " a[ll] ",
+        };
+
+        if period == model.selected_time_period {
+            Span::raw(label).red()
+        } else {
+            Span::raw(label).green()
+        }
+    });
+
+    let legend = Line::from_iter(legend);
 
     let datasets = vec![Dataset::default()
         .marker(symbols::Marker::Bar)
+        .name(legend)
         .graph_type(GraphType::Line)
         .style(Style::default().magenta())
         .data(&price_data)];
 
     let x_axis = Axis::default()
         .style(Style::default().white())
-        .bounds([0.0, price_data.len() as f64]);
+        .bounds([0.0, (price_data.len() - 1) as f64]);
 
     let y_axis = Axis::default()
         .style(Style::default().white())
-        .bounds(price_bounds);
+        .bounds([0.0, max_price.try_into().unwrap()]);
 
-    let chart = Chart::new(datasets).x_axis(x_axis).y_axis(y_axis);
+    let chart = Chart::new(datasets)
+        .x_axis(x_axis)
+        .y_axis(y_axis)
+        .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
+        // Always show a legend(see `hidden_legend_constraints` docs).
+        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)));
 
     frame.render_widget(chart, area);
 }
 
-fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_tx_list<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {

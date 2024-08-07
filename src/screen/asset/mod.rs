@@ -3,14 +3,14 @@ use std::time::Instant;
 use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
+use strum::EnumIter;
 
 use super::{OutgoingMessage, Screen};
 use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
-        coin_price::{Coin, CoinPriceApiT},
+        coin_price::{Coin, CoinPriceApiT, TimePeriod as ApiTimePeriod},
         common::Network,
-        ledger::LedgerApiT,
     },
     app::StateRegistry,
 };
@@ -18,26 +18,42 @@ use crate::{
 mod controller;
 mod view;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    _ledger_api: L, // TODO: Remove it.
+const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
+
+pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_price_api: C,
     blockchain_monitoring_api: M,
 
-    coin_price_history: Option<Vec<(Instant, Decimal)>>,
+    coin_price_history: Option<Vec<PriceHistoryPoint>>,
     transactions: Option<Vec<(TransactionUid, TransactionInfo)>>,
+    selected_time_period: TimePeriod,
 
     state: Option<StateRegistry>,
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(ledger_api: L, coin_price_api: C, blockchain_monitoring_api: M) -> Self {
+#[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
+enum TimePeriod {
+    Day,
+    Week,
+    Month,
+    Year,
+    All,
+}
+
+struct PriceHistoryPoint {
+    timestamp: Instant,
+    price: Decimal,
+}
+
+impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
+    pub fn new(coin_price_api: C, blockchain_monitoring_api: M) -> Self {
         Self {
-            _ledger_api: ledger_api,
             coin_price_api,
             blockchain_monitoring_api,
 
-            coin_price_history: None,
+            coin_price_history: Default::default(),
             transactions: Default::default(),
+            selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
 
             state: None,
         }
@@ -59,12 +75,29 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             Network::Ethereum => Coin::ETH,
         };
 
-        // TODO: Don't make requests to API each tick.
-        let mut history =
-            block_on(self.coin_price_api.get_price_history(coin, Coin::USDT)).unwrap();
-        history.sort_by(|a, b| a.0.cmp(&b.0));
+        let time_period = match self.selected_time_period {
+            TimePeriod::Day => ApiTimePeriod::Day,
+            TimePeriod::Week => ApiTimePeriod::Week,
+            TimePeriod::Month => ApiTimePeriod::Month,
+            TimePeriod::Year => ApiTimePeriod::Year,
+            TimePeriod::All => ApiTimePeriod::All,
+        };
 
-        self.coin_price_history = Some(history);
+        self.coin_price_history = block_on(self.coin_price_api.get_price_history(
+            coin,
+            Coin::USDT,
+            time_period,
+        ))
+        .map(|history| {
+            let mut history: Vec<_> = history
+                .into_iter()
+                .map(|(timestamp, price)| PriceHistoryPoint { timestamp, price })
+                .collect();
+
+            history.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+            history
+        });
 
         // TODO: Don't make requests to API each tick.
         let tx_list = block_on(
@@ -88,7 +121,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<L, C, M> {
+impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<C, M> {
     fn construct(&mut self, state: StateRegistry) {
         self.state = Some(state);
     }
@@ -100,7 +133,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Mo
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         self.tick_logic();
 
-        controller::process_input(event.as_ref()?)
+        controller::process_input(event.as_ref()?, self)
     }
 
     fn deconstruct(self: Box<Self>) -> StateRegistry {

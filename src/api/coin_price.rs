@@ -11,8 +11,17 @@ impl_cache_for_api! {
     pub trait CoinPriceApiT {
         async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
 
-        async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory>;
+        async fn get_price_history(&self, from: Coin, to: Coin, interval: TimePeriod) -> Option<PriceHistory>;
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TimePeriod {
+    Day,
+    Week,
+    Month,
+    Year,
+    All,
 }
 
 pub type PriceHistory = Vec<(Instant, Decimal)>;
@@ -70,7 +79,12 @@ impl CoinPriceApiT for CoinPriceApi {
         Some(price.price)
     }
 
-    async fn get_price_history(&self, _from: Coin, _to: Coin) -> Option<PriceHistory> {
+    async fn get_price_history(
+        &self,
+        _from: Coin,
+        _to: Coin,
+        _interval: TimePeriod,
+    ) -> Option<PriceHistory> {
         todo!()
     }
 }
@@ -103,12 +117,25 @@ pub mod mock {
             self.prices.get(&(from, to)).cloned()
         }
 
-        async fn get_price_history(&self, from: Coin, to: Coin) -> Option<PriceHistory> {
+        async fn get_price_history(
+            &self,
+            from: Coin,
+            to: Coin,
+            interval: TimePeriod,
+        ) -> Option<PriceHistory> {
             const RESULTS: usize = 100;
+
+            let line_angle = match interval {
+                TimePeriod::Day => 2,
+                TimePeriod::Week => 3,
+                TimePeriod::Month => 4,
+                TimePeriod::Year => 5,
+                TimePeriod::All => 6,
+            };
 
             let mut price = self.get_price(from, to).await?;
             let price_interval = price
-                .checked_div(Decimal::from_usize(2 * RESULTS).unwrap())
+                .checked_div(Decimal::from_usize(line_angle * RESULTS).unwrap())
                 .unwrap();
 
             let mut time = Instant::now();
