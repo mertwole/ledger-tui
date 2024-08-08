@@ -125,7 +125,7 @@ pub mod cache_utils {
     macro_rules! impl_cache_for_api_inner {
         (
             $(#[$($trait_attributes:tt)*])*
-            pub trait $api_trait: ident {
+            $trait_vis:vis trait $api_trait:ident {
                 $(
                     $(#[$($attributes:tt)*])*
                     async fn $method_name:ident(
@@ -137,7 +137,7 @@ pub mod cache_utils {
                 $(;)?
             }
         ) => {
-            pub mod cache {
+            $trait_vis mod cache {
                 use ::std::{cell::RefCell, collections::HashMap};
                 use $crate::api::cache_utils::{Mode, ModePlan};
                 use super::*;
