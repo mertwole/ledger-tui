@@ -111,11 +111,24 @@ pub mod cache_utils {
     #[macro_export]
     macro_rules! impl_cache_for_api {
         (
+            $($trait_impl:tt)*
+        ) => {
+            $($trait_impl)*
+
+            $crate::impl_cache_for_api_inner! {
+                $($trait_impl)*
+            }
+        };
+    }
+
+    #[macro_export]
+    macro_rules! impl_cache_for_api_inner {
+        (
             $(#[$($trait_attributes:tt)*])*
             pub trait $api_trait: ident {
                 $(
                     $(#[$($attributes:tt)*])*
-                    async fn $method_name:ident( // TODO: make async optional?
+                    async fn $method_name:ident(
                         &self
                         $(, $arg_name:ident : $arg_type:ty)*
                         $(,)?
@@ -124,17 +137,6 @@ pub mod cache_utils {
                 $(;)?
             }
         ) => {
-            $(#[$($trait_attributes)*])*
-            pub trait $api_trait {
-                $(
-                    $(#[$($attributes)*])*
-                    async fn $method_name(
-                        &self,
-                        $($arg_name : $arg_type),*
-                    ) -> $return_type
-                );*;
-            }
-
             pub mod cache {
                 use ::std::{cell::RefCell, collections::HashMap};
                 use $crate::api::cache_utils::{Mode, ModePlan};
