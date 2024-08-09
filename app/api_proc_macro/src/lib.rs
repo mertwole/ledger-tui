@@ -56,6 +56,7 @@ impl TraitInfo {
 
     fn generate_cache_impl(&self) -> TokenStream {
         let trait_name = &self.name;
+        let vis = &self.visibility;
 
         let cache_fields: TokenStream = self
             .methods
@@ -82,8 +83,7 @@ impl TraitInfo {
             .collect();
 
         quote! {
-            // TODO: Parse `visibility`.
-            pub mod cache {
+            #vis mod cache {
                 use ::std::{cell::RefCell, collections::HashMap};
                 use crate::api::cache_utils::{Mode, ModePlan};
                 use super::*;
