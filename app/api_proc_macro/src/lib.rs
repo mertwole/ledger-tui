@@ -58,33 +58,22 @@ impl TraitInfo {
         let trait_name = &self.name;
         let vis = &self.visibility;
 
-        let cache_fields: TokenStream = self
-            .methods
-            .iter()
-            .map(TraitMethodInfo::generate_cache_fields)
-            .collect();
-
-        let cache_field_default_assigns: TokenStream = self
-            .methods
-            .iter()
-            .map(TraitMethodInfo::generate_cache_field_default_assign)
-            .collect();
-
-        let mode_setters: TokenStream = self
-            .methods
-            .iter()
-            .map(TraitMethodInfo::generate_mode_setter)
-            .collect();
-
-        let api_method_wrappers: TokenStream = self
-            .methods
-            .iter()
-            .map(TraitMethodInfo::generate_api_method_wrapper)
-            .collect();
+        let (cache_fields, cache_field_default_assigns, mode_setters, api_method_wrappers): (
+            TokenStream,
+            TokenStream,
+            TokenStream,
+            TokenStream,
+        ) = itertools::multiunzip(self.methods.iter().map(|method| {
+            (
+                method.generate_cache_fields(),
+                method.generate_cache_field_default_assign(),
+                method.generate_mode_setter(),
+                method.generate_api_method_wrapper(),
+            )
+        }));
 
         quote! {
             #vis mod cache {
-                use ::std::{cell::RefCell, collections::HashMap};
                 use crate::api::cache_utils::{Mode, ModePlan};
                 use super::*;
 
