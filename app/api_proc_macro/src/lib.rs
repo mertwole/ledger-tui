@@ -17,7 +17,7 @@ pub fn implement_cache(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     let trait_info = TraitInfo::from_item_trait(trait_info);
 
     let cache_impl = trait_info.generate_cache_impl();
-    proc_macro_2_input.extend(cache_impl.into_iter());
+    proc_macro_2_input.extend(cache_impl);
 
     proc_macro::TokenStream::from(proc_macro_2_input)
 }
@@ -102,7 +102,6 @@ impl TraitInfo {
                 }
             }
         }
-        .into()
     }
 }
 
@@ -144,7 +143,7 @@ impl TraitMethodInfo {
         let return_type = &self.return_type;
 
         let arg_types = self.arguments.iter().map(|arg| arg.ty.clone());
-        let args_tuple: TokenStream = quote! { ( #(#arg_types),* ) }.into();
+        let args_tuple = quote! { ( #(#arg_types),* ) };
 
         quote! {
             #[allow(unused_parens)]
@@ -152,7 +151,6 @@ impl TraitMethodInfo {
             #[allow(unused_parens)]
             #mode_field_name : ::std::cell::RefCell<Mode<#args_tuple>>,
         }
-        .into()
     }
 
     fn generate_cache_field_default_assign(&self) -> TokenStream {
@@ -211,7 +209,6 @@ impl TraitMethodInfo {
                 ).await
             }
         }
-        .into()
     }
 
     fn generate_arg_tuple(&self) -> TokenStream {
