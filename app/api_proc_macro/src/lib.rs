@@ -150,7 +150,7 @@ impl TraitMethodInfo {
 
     fn generate_cache_fields(&self) -> TokenStream {
         let name = &self.name;
-        let mode_field_name = format_ident!("__{}_mode", name);
+        let mode_field_name = make_mode_field_name(&self.name);
 
         let return_type = &self.return_type;
 
@@ -168,7 +168,7 @@ impl TraitMethodInfo {
 
     fn generate_cache_field_default_assign(&self) -> TokenStream {
         let name = &self.name;
-        let mode_field_name = format_ident!("__{}_mode", name);
+        let mode_field_name = make_mode_field_name(&self.name);
 
         quote! {
             #name: ::std::default::Default::default(),
@@ -177,7 +177,7 @@ impl TraitMethodInfo {
     }
 
     fn generate_mode_setter(&self) -> TokenStream {
-        let mode_field_name = format_ident!("__{}_mode", &self.name);
+        let mode_field_name = make_mode_field_name(&self.name);
 
         quote! {
             (*self. #mode_field_name .borrow_mut()) = mode_plan.into_mode();
@@ -186,7 +186,10 @@ impl TraitMethodInfo {
 
     fn generate_api_method_wrapper(&self) -> TokenStream {
         let name = &self.name;
+        let mode_field_name = make_mode_field_name(&self.name);
         let ret = &self.return_type;
+        let arg_tuple = self.generate_arg_tuple();
+        let api_call_args = self.generate_api_call_args();
 
         let args: TokenStream = self
             .arguments
@@ -203,25 +206,37 @@ impl TraitMethodInfo {
             // TODO: Attributes
             #[allow(clippy::await_holding_refcell_ref)]
             async fn #name(&self, #args) -> #ret {
-                //let api_result = self.api.#name($($arg_name.clone()),*);
-                // let api_result = ::std::boxed::Box::pin(api_result);
+                let api_result = self.api.#name(#api_call_args);
+                let api_result = ::std::boxed::Box::pin(api_result);
 
-                //let mut cache = self.#name.borrow_mut();
-                // let cache = cache.entry(($($arg_name.clone()),*));
+                let mut cache = self.#name.borrow_mut();
+                let cache = cache.entry(#arg_tuple);
 
-                // let mut mode = self.[<__ $method_name _mode>].borrow_mut();
+                let mut mode = self.#mode_field_name.borrow_mut();
 
-                // $crate::api::cache_utils::use_cache(
-                //     ($($arg_name.clone()),*),
-                //     cache,
-                //     api_result,
-                //     &mut *mode
-                // ).await
-
-                todo!()
+                crate::api::cache_utils::use_cache(
+                    #arg_tuple,
+                    cache,
+                    api_result,
+                    &mut *mode
+                ).await
             }
         }
         .into()
+    }
+
+    fn generate_arg_tuple(&self) -> TokenStream {
+        let args = self.arguments.iter().map(ArgumentInfo::generate_name);
+        quote! {
+            ( #(#args.clone()),* )
+        }
+    }
+
+    fn generate_api_call_args(&self) -> TokenStream {
+        let args = self.arguments.iter().map(ArgumentInfo::generate_name);
+        quote! {
+            #(#args.clone()),*
+        }
     }
 }
 
@@ -241,9 +256,15 @@ impl ArgumentInfo {
     fn generate_argument(&self) -> TokenStream {
         let name = &self.name;
         let ty = &self.ty;
-
-        quote! {
-            #name : #ty
-        }
+        quote! { #name : #ty }
     }
+
+    fn generate_name(&self) -> TokenStream {
+        let name = &self.name;
+        quote! { #name }
+    }
+}
+
+fn make_mode_field_name(ident: &Ident) -> Ident {
+    format_ident!("__{}_mode", ident)
 }
