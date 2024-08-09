@@ -74,6 +74,7 @@ dependencies = [
 name = "api-proc-macro"
 version = "0.1.0"
 dependencies = [
+ "proc-macro2",
  "quote",
  "syn 2.0.72",
 ]
@@ -1434,6 +1435,7 @@ dependencies = [
 name = "ledger-tui"
 version = "0.1.0"
 dependencies = [
+ "api-proc-macro",
  "binance_spot_connector_rust",
  "bs58",
  "chrono",

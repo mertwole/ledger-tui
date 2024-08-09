@@ -5,6 +5,8 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+api-proc-macro.workspace = true
+
 binance_spot_connector_rust.workspace = true
 bs58.workspace = true
 chrono.workspace = true

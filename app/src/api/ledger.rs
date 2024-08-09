@@ -1,14 +1,15 @@
+use std::{cell::RefCell, hash::Hash};
+
+use api_proc_macro::implement_cache;
 use futures::executor::block_on;
 use ledger_lib::{
     info::Model, Device as LedgerDevice, Filters, LedgerInfo, LedgerProvider, Transport,
     DEFAULT_TIMEOUT,
 };
-use std::{cell::RefCell, hash::Hash};
 
 use super::common::{Account, Network};
-use crate::impl_cache_for_api;
 
-impl_cache_for_api! {
+implement_cache!(
     pub trait LedgerApiT {
         async fn discover_devices(&self) -> Vec<Device>;
 
@@ -18,7 +19,7 @@ impl_cache_for_api! {
         // TODO: Return stream of accounts?
         async fn discover_accounts(&self, device: Device, network: Network) -> Vec<Account>;
     }
-}
+);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Device {
