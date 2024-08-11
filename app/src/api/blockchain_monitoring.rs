@@ -1,21 +1,19 @@
 #![allow(dead_code)] // TODO: Remove
 
+use api_proc_macro::implement_cache;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 
 use super::common::{Account, Network};
-use crate::impl_cache_for_api;
 
 // TODO: This API will be fallible (return `Result<...>`) in future.
-impl_cache_for_api! {
+implement_cache! {
     pub trait BlockchainMonitoringApiT {
-        // TODO: Pass `Account` as a reference.
-        async fn get_balance(&self, network: Network, account: Account) -> Decimal;
+        async fn get_balance(&self, network: Network, account: &Account) -> Decimal;
 
-        async fn get_transactions(&self, network: Network, account: Account) -> Vec<TransactionUid>;
+        async fn get_transactions(&self, network: Network, account: &Account) -> Vec<TransactionUid>;
 
-        // TODO: Pass `TransactionUid` as a reference.
-        async fn get_transaction_info(&self, network: Network, tx_uid: TransactionUid) -> TransactionInfo;
+        async fn get_transaction_info(&self, network: Network, tx_uid: &TransactionUid) -> TransactionInfo;
     }
 }
 
@@ -46,18 +44,18 @@ impl BlockchainMonitoringApi {
 }
 
 impl BlockchainMonitoringApiT for BlockchainMonitoringApi {
-    async fn get_balance(&self, _network: Network, _account: Account) -> Decimal {
+    async fn get_balance(&self, _network: Network, _account: &Account) -> Decimal {
         todo!()
     }
 
-    async fn get_transactions(&self, _network: Network, _account: Account) -> Vec<TransactionUid> {
+    async fn get_transactions(&self, _network: Network, _account: &Account) -> Vec<TransactionUid> {
         todo!()
     }
 
     async fn get_transaction_info(
         &self,
         _network: Network,
-        _tx_uid: TransactionUid,
+        _tx_uid: &TransactionUid,
     ) -> TransactionInfo {
         todo!()
     }
@@ -117,14 +115,14 @@ pub mod mock {
     }
 
     impl BlockchainMonitoringApiT for BlockchainMonitoringApiMock {
-        async fn get_balance(&self, _network: Network, _account: Account) -> Decimal {
+        async fn get_balance(&self, _network: Network, _account: &Account) -> Decimal {
             Decimal::from_i128_with_scale(102312, 1)
         }
 
         async fn get_transactions(
             &self,
             _network: Network,
-            _account: Account,
+            _account: &Account,
         ) -> Vec<TransactionUid> {
             self.txs.keys().cloned().collect()
         }
@@ -132,9 +130,9 @@ pub mod mock {
         async fn get_transaction_info(
             &self,
             _network: Network,
-            tx_uid: TransactionUid,
+            tx_uid: &TransactionUid,
         ) -> TransactionInfo {
-            self.txs.get(&tx_uid).cloned().unwrap()
+            self.txs.get(tx_uid).cloned().unwrap()
         }
     }
 }
