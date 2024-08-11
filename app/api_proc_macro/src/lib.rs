@@ -181,22 +181,15 @@ impl TraitMethodInfo {
         let arg_tuple = self.generate_arg_tuple();
         let api_call_args = self.generate_api_call_args();
 
-        // TODO: Use repetition.
-        let args: TokenStream = self
+        let args: Vec<_> = self
             .arguments
             .iter()
-            .map(|arg| {
-                let arg = arg.generate_argument();
-                quote! {
-                    #arg ,
-                }
-            })
+            .map(ArgumentInfo::generate_argument)
             .collect();
 
         quote! {
-            // TODO: Attributes
             #[allow(clippy::await_holding_refcell_ref)]
-            async fn #name(&self, #args) -> #ret {
+            async fn #name(&self, #(#args),*) -> #ret {
                 let api_result = self.api.#name(#api_call_args);
                 let api_result = ::std::boxed::Box::pin(api_result);
 
