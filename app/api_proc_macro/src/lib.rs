@@ -142,7 +142,10 @@ impl TraitMethodInfo {
 
         let return_type = &self.return_type;
 
-        let arg_types = self.arguments.iter().map(|arg| arg.ty.clone());
+        let arg_types = self
+            .arguments
+            .iter()
+            .map(|arg| remove_type_reference(arg.ty.clone()));
         let args_tuple = quote! { ( #(#arg_types),* ) };
 
         quote! {
@@ -178,6 +181,7 @@ impl TraitMethodInfo {
         let arg_tuple = self.generate_arg_tuple();
         let api_call_args = self.generate_api_call_args();
 
+        // TODO: Use repetition.
         let args: TokenStream = self
             .arguments
             .iter()
@@ -219,10 +223,19 @@ impl TraitMethodInfo {
     }
 
     fn generate_api_call_args(&self) -> TokenStream {
-        let args = self.arguments.iter().map(ArgumentInfo::generate_name);
-        quote! {
-            #(#args.clone()),*
-        }
+        self.arguments
+            .iter()
+            .map(|info| {
+                let arg = info.generate_name();
+                let add_clone = !matches!(info.ty, Type::Reference(_));
+
+                if add_clone {
+                    quote! { #arg.clone(), }
+                } else {
+                    quote! { #arg, }
+                }
+            })
+            .collect()
     }
 }
 
@@ -248,6 +261,13 @@ impl ArgumentInfo {
     fn generate_name(&self) -> TokenStream {
         let name = &self.name;
         quote! { #name }
+    }
+}
+
+fn remove_type_reference(ty: Type) -> Type {
+    match ty {
+        Type::Reference(reference) => *reference.elem,
+        _ => ty,
     }
 }
 

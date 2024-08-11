@@ -13,8 +13,7 @@ implement_cache!(
     pub trait LedgerApiT {
         async fn discover_devices(&self) -> Vec<Device>;
 
-        // TODO: Accept `Device` as ref.
-        async fn get_device_info(&self, device: Device) -> Option<DeviceInfo>;
+        async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
 
         // TODO: Return stream of accounts?
         async fn discover_accounts(&self, device: Device, network: Network) -> Vec<Account>;
@@ -60,7 +59,7 @@ impl LedgerApiT for LedgerApi {
         devices.into_iter().map(|info| Device { info }).collect()
     }
 
-    async fn get_device_info(&self, device: Device) -> Option<DeviceInfo> {
+    async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
         let mut handle = block_on(self.provider.borrow_mut().connect(device.info.clone())).ok()?;
 
         let info = handle.device_info(DEFAULT_TIMEOUT).await.ok()?;
@@ -182,7 +181,7 @@ pub mod mock {
             self.devices.clone()
         }
 
-        async fn get_device_info(&self, device: Device) -> Option<DeviceInfo> {
+        async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
             Some(DeviceInfo {
                 model: model_to_string(&device.info.model),
                 se_version: "0.0.0".into(),
