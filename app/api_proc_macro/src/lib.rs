@@ -132,7 +132,7 @@ impl TraitMethodInfo {
                     return_type,
                 }
             }
-            _ => panic!(),
+            _ => unimplemented!(),
         }
     }
 
