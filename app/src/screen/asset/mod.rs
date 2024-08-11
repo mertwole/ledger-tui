@@ -102,7 +102,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
         // TODO: Don't make requests to API each tick.
         let tx_list = block_on(
             self.blockchain_monitoring_api
-                .get_transactions(*selected_network, selected_account.clone()),
+                .get_transactions(*selected_network, selected_account),
         );
         let txs = tx_list
             .into_iter()
@@ -111,7 +111,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
                     tx_uid.clone(),
                     block_on(
                         self.blockchain_monitoring_api
-                            .get_transaction_info(*selected_network, tx_uid),
+                            .get_transaction_info(*selected_network, &tx_uid),
                     ),
                 )
             })

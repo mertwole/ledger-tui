@@ -1,13 +1,12 @@
 use std::time::Instant;
 
+use api_proc_macro::implement_cache;
 use binance_spot_connector_rust::{market, ureq::BinanceHttpClient};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 
-use crate::impl_cache_for_api;
-
-impl_cache_for_api! {
+implement_cache! {
     pub trait CoinPriceApiT {
         async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
 

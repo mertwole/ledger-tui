@@ -62,10 +62,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                     [Network::Bitcoin, Network::Ethereum]
                         .into_iter()
                         .filter_map(|network| {
-                            let accounts = block_on(
-                                self.ledger_api
-                                    .discover_accounts(active_device.clone(), network),
-                            );
+                            let accounts =
+                                block_on(self.ledger_api.discover_accounts(active_device, network));
 
                             if accounts.is_empty() {
                                 None
@@ -104,7 +102,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                         .or_insert_with(|| {
                             block_on(
                                 self.blockchain_monitoring_api
-                                    .get_balance(*network, account.clone()),
+                                    .get_balance(*network, account),
                             )
                         });
                 }

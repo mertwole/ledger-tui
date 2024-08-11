@@ -16,7 +16,7 @@ implement_cache!(
         async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
 
         // TODO: Return stream of accounts?
-        async fn discover_accounts(&self, device: Device, network: Network) -> Vec<Account>;
+        async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account>;
     }
 );
 
@@ -73,7 +73,7 @@ impl LedgerApiT for LedgerApi {
         })
     }
 
-    async fn discover_accounts(&self, _device: Device, _network: Network) -> Vec<Account> {
+    async fn discover_accounts(&self, _device: &Device, _network: Network) -> Vec<Account> {
         todo!()
     }
 }
@@ -189,7 +189,7 @@ pub mod mock {
             })
         }
 
-        async fn discover_accounts(&self, _device: Device, network: Network) -> Vec<Account> {
+        async fn discover_accounts(&self, _device: &Device, network: Network) -> Vec<Account> {
             self.accounts
                 .get(&network)
                 .cloned()
