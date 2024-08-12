@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use api_proc_macro::implement_cache;
 use binance_spot_connector_rust::{
     market::{self, klines::KlineInterval},
@@ -27,7 +25,8 @@ pub enum TimePeriod {
     All,
 }
 
-pub type PriceHistory = Vec<(Instant, Decimal)>;
+/// Uniformly distributed prices for given period of time, arranged from historical to most recent.
+pub type PriceHistory = Vec<Decimal>;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -137,24 +136,34 @@ impl CoinPriceApiT for CoinPriceApi {
         &self,
         from: Coin,
         to: Coin,
-        _interval: TimePeriod,
+        interval: TimePeriod,
     ) -> Option<PriceHistory> {
         let pair = [from.to_api_string(), to.to_api_string()].concat();
-        let history = self
-            .client
-            .send(market::klines(&pair, KlineInterval::Minutes1))
-            .unwrap()
-            .into_body_str()
-            .unwrap();
 
-        let _history: Vec<BinanceApiKline> = serde_json::from_str(&history).unwrap();
+        let (kline_interval, limit) = match interval {
+            TimePeriod::Day => (KlineInterval::Hours1, 24),
+            TimePeriod::Week => (KlineInterval::Hours6, 28),
+            TimePeriod::Month => (KlineInterval::Days1, 30),
+            TimePeriod::Year => (KlineInterval::Weeks1, 52),
+            TimePeriod::All => (KlineInterval::Months1, 300),
+        };
 
-        todo!()
+        let request = market::klines(&pair, kline_interval).limit(limit);
+
+        let history = self.client.send(request).unwrap().into_body_str().unwrap();
+        let history: Vec<BinanceApiKline> = serde_json::from_str(&history).unwrap();
+
+        Some(
+            history
+                .into_iter()
+                .map(|kline| (kline.open_price + kline.close_price) / Decimal::TWO)
+                .collect(),
+        )
     }
 }
 
 pub mod mock {
-    use std::{collections::HashMap, time::Duration};
+    use std::collections::HashMap;
 
     use rust_decimal::prelude::FromPrimitive;
 
@@ -202,16 +211,11 @@ pub mod mock {
                 .checked_div(Decimal::from_usize(line_angle * RESULTS).unwrap())
                 .unwrap();
 
-            let mut time = Instant::now();
-            let time_interval = Duration::new(10, 0);
-
             let mut prices = vec![];
 
             for _ in 0..RESULTS {
-                prices.push((time, price));
-
+                prices.push(price);
                 price = price.saturating_sub(price_interval);
-                time -= time_interval;
             }
 
             Some(prices)

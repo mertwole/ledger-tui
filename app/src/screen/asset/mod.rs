@@ -40,10 +40,7 @@ enum TimePeriod {
     All,
 }
 
-struct PriceHistoryPoint {
-    timestamp: Instant,
-    price: Decimal,
-}
+type PriceHistoryPoint = Decimal;
 
 impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
     pub fn new(coin_price_api: C, blockchain_monitoring_api: M) -> Self {
@@ -87,17 +84,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
             coin,
             Coin::USDT,
             time_period,
-        ))
-        .map(|history| {
-            let mut history: Vec<_> = history
-                .into_iter()
-                .map(|(timestamp, price)| PriceHistoryPoint { timestamp, price })
-                .collect();
-
-            history.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-
-            history
-        });
+        ));
 
         // TODO: Don't make requests to API each tick.
         let tx_list = block_on(
