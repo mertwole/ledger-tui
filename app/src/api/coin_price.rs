@@ -52,6 +52,7 @@ pub struct CoinPriceApi {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[allow(unused)]
 struct BinanceApiMarketAvgPriceResponse {
     mins: u32,
     price: Decimal,
@@ -60,6 +61,7 @@ struct BinanceApiMarketAvgPriceResponse {
 
 #[derive(Deserialize, Debug)]
 #[serde(from = "BinanceApiKlineSerde")]
+#[allow(unused)]
 struct BinanceApiKline {
     open_time: DateTime<Utc>,
     open_price: Decimal,
@@ -141,11 +143,12 @@ impl CoinPriceApiT for CoinPriceApi {
         let pair = [from.to_api_string(), to.to_api_string()].concat();
 
         let (kline_interval, limit) = match interval {
-            TimePeriod::Day => (KlineInterval::Hours1, 24),
-            TimePeriod::Week => (KlineInterval::Hours6, 28),
-            TimePeriod::Month => (KlineInterval::Days1, 30),
-            TimePeriod::Year => (KlineInterval::Weeks1, 52),
-            TimePeriod::All => (KlineInterval::Months1, 300),
+            TimePeriod::Day => (KlineInterval::Minutes3, 24 * (60 / 3)), // 480
+            TimePeriod::Week => (KlineInterval::Minutes15, 7 * 24 * (60 / 15)), // 672
+            TimePeriod::Month => (KlineInterval::Hours1, 30 * 24),       // 720
+            TimePeriod::Year => (KlineInterval::Hours12, 365 * 2),       // 730
+            // TODO: Adjust KLineInterval to get 500-1000 klines in response.
+            TimePeriod::All => (KlineInterval::Months1, 500),
         };
 
         let request = market::klines(&pair, kline_interval).limit(limit);

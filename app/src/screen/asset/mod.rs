@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
