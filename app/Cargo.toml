@@ -9,7 +9,7 @@ api-proc-macro.workspace = true
 
 binance_spot_connector_rust.workspace = true
 bs58.workspace = true
-chrono.workspace = true
+chrono = { workspace = true, features = ["serde"] }
 copypasta.workspace = true
 futures.workspace = true
 ledger_bitcoin_client.workspace = true

@@ -1,7 +1,9 @@
-use std::time::Instant;
-
 use api_proc_macro::implement_cache;
-use binance_spot_connector_rust::{market, ureq::BinanceHttpClient};
+use binance_spot_connector_rust::{
+    market::{self, klines::KlineInterval},
+    ureq::BinanceHttpClient,
+};
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
@@ -23,7 +25,8 @@ pub enum TimePeriod {
     All,
 }
 
-pub type PriceHistory = Vec<(Instant, Decimal)>;
+/// Uniformly distributed prices for given period of time, arranged from historical to most recent.
+pub type PriceHistory = Vec<Decimal>;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -47,13 +50,66 @@ pub struct CoinPriceApi {
     client: BinanceHttpClient,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
+#[allow(unused)]
 struct BinanceApiMarketAvgPriceResponse {
     mins: u32,
     price: Decimal,
     close_time: u64,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(from = "BinanceApiKlineSerde")]
+#[allow(unused)]
+struct BinanceApiKline {
+    open_time: DateTime<Utc>,
+    open_price: Decimal,
+    high_price: Decimal,
+    low_price: Decimal,
+    close_price: Decimal,
+    volume: Decimal,
+    close_time: DateTime<Utc>,
+    quote_asset_volume: Decimal,
+    number_of_trades: u32,
+    taker_buy_base_asset_volume: Decimal,
+    taker_buy_quote_asset_volume: Decimal,
+    unused_field: String,
+}
+
+#[derive(Deserialize)]
+struct BinanceApiKlineSerde(
+    #[serde(with = "chrono::serde::ts_milliseconds")] DateTime<Utc>,
+    Decimal,
+    Decimal,
+    Decimal,
+    Decimal,
+    Decimal,
+    #[serde(with = "chrono::serde::ts_milliseconds")] DateTime<Utc>,
+    Decimal,
+    u32,
+    Decimal,
+    Decimal,
+    String,
+);
+
+impl From<BinanceApiKlineSerde> for BinanceApiKline {
+    fn from(value: BinanceApiKlineSerde) -> Self {
+        BinanceApiKline {
+            open_time: value.0,
+            open_price: value.1,
+            high_price: value.2,
+            low_price: value.3,
+            close_price: value.4,
+            volume: value.5,
+            close_time: value.6,
+            quote_asset_volume: value.7,
+            number_of_trades: value.8,
+            taker_buy_base_asset_volume: value.9,
+            taker_buy_quote_asset_volume: value.10,
+            unused_field: value.11,
+        }
+    }
 }
 
 impl CoinPriceApi {
@@ -80,16 +136,37 @@ impl CoinPriceApiT for CoinPriceApi {
 
     async fn get_price_history(
         &self,
-        _from: Coin,
-        _to: Coin,
-        _interval: TimePeriod,
+        from: Coin,
+        to: Coin,
+        interval: TimePeriod,
     ) -> Option<PriceHistory> {
-        todo!()
+        let pair = [from.to_api_string(), to.to_api_string()].concat();
+
+        let (kline_interval, limit) = match interval {
+            TimePeriod::Day => (KlineInterval::Minutes3, 24 * (60 / 3)), // 480
+            TimePeriod::Week => (KlineInterval::Minutes15, 7 * 24 * (60 / 15)), // 672
+            TimePeriod::Month => (KlineInterval::Hours1, 30 * 24),       // 720
+            TimePeriod::Year => (KlineInterval::Hours12, 365 * 2),       // 730
+            // TODO: Adjust KLineInterval to get 500-1000 klines in response.
+            TimePeriod::All => (KlineInterval::Months1, 500),
+        };
+
+        let request = market::klines(&pair, kline_interval).limit(limit);
+
+        let history = self.client.send(request).unwrap().into_body_str().unwrap();
+        let history: Vec<BinanceApiKline> = serde_json::from_str(&history).unwrap();
+
+        Some(
+            history
+                .into_iter()
+                .map(|kline| (kline.open_price + kline.close_price) / Decimal::TWO)
+                .collect(),
+        )
     }
 }
 
 pub mod mock {
-    use std::{collections::HashMap, time::Duration};
+    use std::collections::HashMap;
 
     use rust_decimal::prelude::FromPrimitive;
 
@@ -137,16 +214,11 @@ pub mod mock {
                 .checked_div(Decimal::from_usize(line_angle * RESULTS).unwrap())
                 .unwrap();
 
-            let mut time = Instant::now();
-            let time_interval = Duration::new(10, 0);
-
             let mut prices = vec![];
 
             for _ in 0..RESULTS {
-                prices.push((time, price));
-
+                prices.push(price);
                 price = price.saturating_sub(price_interval);
-                time -= time_interval;
             }
 
             Some(prices)

@@ -55,16 +55,12 @@ fn render_price_chart<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         return;
     };
 
-    let max_price = prices
-        .iter()
-        .map(|price| price.price)
-        .max()
-        .expect("Empty `prices` vector provided");
+    let max_price = *prices.iter().max().expect("Empty `prices` vector provided");
 
     let price_data: Vec<_> = prices
         .iter()
         .enumerate()
-        .map(|(idx, price)| (idx as f64, price.price.try_into().unwrap()))
+        .map(|(idx, &price)| (idx as f64, price.try_into().unwrap()))
         .collect();
 
     let legend = TimePeriod::iter().map(|period| {
