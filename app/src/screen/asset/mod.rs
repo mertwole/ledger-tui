@@ -9,8 +9,9 @@ use crate::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
         coin_price::{Coin, CoinPriceApiT, TimePeriod as ApiTimePeriod},
         common::Network,
+        ledger::LedgerApiT,
     },
-    app::StateRegistry,
+    app::{ApiRegistry, StateRegistry},
 };
 
 mod controller;
@@ -41,10 +42,15 @@ enum TimePeriod {
 type PriceHistoryPoint = Decimal;
 
 impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
-    pub fn new(coin_price_api: C, blockchain_monitoring_api: M) -> Self {
+    pub fn new<L>(api_registry: ApiRegistry<L, C, M>) -> Self
+    where
+        L: LedgerApiT,
+        C: CoinPriceApiT,
+        M: BlockchainMonitoringApiT,
+    {
         Self {
-            coin_price_api,
-            blockchain_monitoring_api,
+            coin_price_api: api_registry.coin_price_api,
+            blockchain_monitoring_api: api_registry.blockchain_monitoring_api,
 
             coin_price_history: Default::default(),
             transactions: Default::default(),

@@ -3,7 +3,13 @@ use std::time::Instant;
 use ratatui::{crossterm::event::Event, Frame};
 
 use super::{OutgoingMessage, Screen};
-use crate::app::StateRegistry;
+use crate::{
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    app::{ApiRegistry, StateRegistry},
+};
 
 mod controller;
 mod view;
@@ -15,7 +21,12 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new() -> Self {
+    pub fn new<L, C, M>(_api_registry: ApiRegistry<L, C, M>) -> Self
+    where
+        L: LedgerApiT,
+        C: CoinPriceApiT,
+        M: BlockchainMonitoringApiT,
+    {
         Self {
             last_address_copy: None,
             state: None,

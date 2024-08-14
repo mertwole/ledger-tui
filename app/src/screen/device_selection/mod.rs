@@ -5,8 +5,12 @@ use ratatui::{crossterm::event::Event, Frame};
 
 use super::{OutgoingMessage, Screen};
 use crate::{
-    api::ledger::{Device, DeviceInfo, LedgerApiT},
-    app::StateRegistry,
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT,
+        coin_price::CoinPriceApiT,
+        ledger::{Device, DeviceInfo, LedgerApiT},
+    },
+    app::{ApiRegistry, StateRegistry},
 };
 
 mod controller;
@@ -25,13 +29,17 @@ pub struct Model<L: LedgerApiT> {
 }
 
 impl<L: LedgerApiT> Model<L> {
-    pub fn new(ledger_api: L) -> Self {
+    pub fn new<C, M>(api_registry: ApiRegistry<L, C, M>) -> Self
+    where
+        C: CoinPriceApiT,
+        M: BlockchainMonitoringApiT,
+    {
         Self {
             devices: vec![],
             previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
             selected_device: None,
             state: None,
-            ledger_api,
+            ledger_api: api_registry.ledger_api,
         }
     }
 

@@ -13,11 +13,15 @@ use ratatui::{
 
 use crate::{
     api::{
-        blockchain_monitoring::mock::BlockchainMonitoringApiMock,
+        blockchain_monitoring::{mock::BlockchainMonitoringApiMock, BlockchainMonitoringApiT},
         cache_utils::ModePlan,
-        coin_price::{cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi},
+        coin_price::{
+            cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT,
+        },
         common::{Account, Network},
-        ledger::{cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo},
+        ledger::{
+            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApiT,
+        },
     },
     screen::{
         asset::Model as AssetScreen, deposit::Model as DepositScreen,
@@ -35,6 +39,18 @@ pub(crate) struct StateRegistry {
     pub active_device: Option<(Device, DeviceInfo)>,
     pub device_accounts: Option<Vec<(Network, Vec<Account>)>>,
     pub selected_account: Option<(Network, Account)>,
+    _phantom: PhantomData<()>,
+}
+
+pub(crate) struct ApiRegistry<L, C, M>
+where
+    L: LedgerApiT,
+    C: CoinPriceApiT,
+    M: BlockchainMonitoringApiT,
+{
+    pub ledger_api: L,
+    pub coin_price_api: C,
+    pub blockchain_monitoring_api: M,
     _phantom: PhantomData<()>,
 }
 
@@ -133,14 +149,17 @@ fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
 
     let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 
+    let api_registry = ApiRegistry {
+        ledger_api,
+        coin_price_api,
+        blockchain_monitoring_api,
+        _phantom: PhantomData,
+    };
+
     match screen {
-        ScreenName::Portfolio => Box::from(PortfolioScreen::new(
-            ledger_api,
-            coin_price_api,
-            blockchain_monitoring_api,
-        )),
-        ScreenName::DeviceSelection => Box::from(DeviceSelectionScreen::new(ledger_api)),
-        ScreenName::Asset => Box::from(AssetScreen::new(coin_price_api, blockchain_monitoring_api)),
-        ScreenName::Deposit => Box::from(DepositScreen::new()),
+        ScreenName::Portfolio => Box::from(PortfolioScreen::new(api_registry)),
+        ScreenName::DeviceSelection => Box::from(DeviceSelectionScreen::new(api_registry)),
+        ScreenName::Asset => Box::from(AssetScreen::new(api_registry)),
+        ScreenName::Deposit => Box::from(DepositScreen::new(api_registry)),
     }
 }

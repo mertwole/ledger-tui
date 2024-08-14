@@ -7,12 +7,13 @@ use rust_decimal::Decimal;
 use super::{OutgoingMessage, Screen};
 use crate::{
     api::{
+        self,
         blockchain_monitoring::BlockchainMonitoringApiT,
         coin_price::{Coin, CoinPriceApiT},
         common::{Account, Network},
         ledger::LedgerApiT,
     },
-    app::StateRegistry,
+    app::{ApiRegistry, StateRegistry},
 };
 
 mod controller;
@@ -35,11 +36,11 @@ type AccountIdx = usize;
 type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(ledger_api: L, coin_price_api: C, blockchain_monitoring_api: M) -> Self {
+    pub fn new(api_registry: ApiRegistry<L, C, M>) -> Self {
         Self {
-            ledger_api,
-            coin_price_api,
-            blockchain_monitoring_api,
+            ledger_api: api_registry.ledger_api,
+            coin_price_api: api_registry.coin_price_api,
+            blockchain_monitoring_api: api_registry.blockchain_monitoring_api,
 
             selected_account: None,
             coin_prices: Default::default(),
