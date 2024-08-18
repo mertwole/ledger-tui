@@ -15,28 +15,25 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
     model: &mut Model<L, C, M>,
     event: &Event,
 ) -> Option<OutgoingMessage> {
-    if let Some(state) = model.state.as_mut() {
-        if let Some(accounts) = state.device_accounts.as_ref() {
-            if event.is_key_pressed(KeyCode::Enter) {
-                if let Some((selected_network_idx, selected_account_idx)) = model.selected_account {
-                    let (selected_network, accounts) = &accounts[selected_network_idx];
-                    let selected_account = accounts[selected_account_idx].clone();
+    if let Some(accounts) = model.state.device_accounts.as_ref() {
+        if event.is_key_pressed(KeyCode::Enter) {
+            if let Some((selected_network_idx, selected_account_idx)) = model.selected_account {
+                let (selected_network, accounts) = &accounts[selected_network_idx];
+                let selected_account = accounts[selected_account_idx].clone();
 
-                    state.selected_account = Some((*selected_network, selected_account));
+                model.state.selected_account = Some((*selected_network, selected_account));
 
-                    return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
-                }
+                return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
             }
-
-            let accounts_per_network: Vec<_> = accounts
-                .iter()
-                .map(|(_, accounts)| {
-                    NonZeroUsize::new(accounts.len())
-                        .expect("No accounts for provided network found")
-                })
-                .collect();
-            process_table_navigation(model, event, &accounts_per_network);
         }
+
+        let accounts_per_network: Vec<_> = accounts
+            .iter()
+            .map(|(_, accounts)| {
+                NonZeroUsize::new(accounts.len()).expect("No accounts for provided network found")
+            })
+            .collect();
+        process_table_navigation(model, event, &accounts_per_network);
     }
 
     if event.is_key_pressed(KeyCode::Char('d')) {

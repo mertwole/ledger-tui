@@ -17,7 +17,7 @@ mod view;
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     last_address_copy: Option<Instant>,
 
-    state: Option<StateRegistry>,
+    state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
 }
 
@@ -28,7 +28,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         Self {
             last_address_copy: None,
 
-            state: Some(state),
+            state,
             apis: api_registry,
         }
     }
@@ -42,6 +42,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     }
 
     fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state.unwrap(), self.apis)
+        (self.state, self.apis)
     }
 }

@@ -24,7 +24,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     transactions: Option<Vec<(TransactionUid, TransactionInfo)>>,
     selected_time_period: TimePeriod,
 
-    state: Option<StateRegistry>,
+    state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
 }
 
@@ -41,12 +41,8 @@ type PriceHistoryPoint = Decimal;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
     fn tick_logic(&mut self) {
-        let state = self
+        let (selected_network, selected_account) = self
             .state
-            .as_ref()
-            .expect("Construct should be called at the start of window lifetime");
-
-        let (selected_network, selected_account) = state
             .selected_account
             .as_ref()
             .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
@@ -103,7 +99,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             transactions: Default::default(),
             selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
 
-            state: Some(state),
+            state,
             apis: api_registry,
         }
     }
@@ -119,6 +115,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     }
 
     fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state.unwrap(), self.apis)
+        (self.state, self.apis)
     }
 }

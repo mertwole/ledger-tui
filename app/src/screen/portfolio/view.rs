@@ -26,12 +26,7 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
 ) {
-    let model_state = model
-        .state
-        .as_ref()
-        .expect("Construct should be called at the start of window lifetime");
-
-    if let Some(accounts) = model_state.device_accounts.as_ref() {
+    if let Some(accounts) = model.state.device_accounts.as_ref() {
         render_account_table(model, frame, accounts);
     } else {
         // TODO: Process case when device is connected but accounts haven't been loaded yet.

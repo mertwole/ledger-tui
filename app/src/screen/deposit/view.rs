@@ -22,12 +22,8 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
 ) {
-    let state = model
+    let pubkey = model
         .state
-        .as_ref()
-        .expect("Construct should be called at the start of window lifetime");
-
-    let pubkey = state
         .selected_account
         .as_ref()
         .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?

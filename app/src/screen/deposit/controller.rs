@@ -27,12 +27,8 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
     if event.is_key_pressed(KeyCode::Char('c')) {
         model.last_address_copy = Some(Instant::now());
 
-        let state = model
+        let pubkey = model
             .state
-            .as_ref()
-            .expect("Construct should be called at the start of window lifetime");
-
-        let pubkey = state
             .selected_account
             .as_ref()
             .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?

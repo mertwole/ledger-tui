@@ -23,7 +23,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     previous_poll: Instant,
     selected_device: Option<usize>,
 
-    state: Option<StateRegistry>,
+    state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
 }
 
@@ -66,7 +66,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
             selected_device: None,
 
-            state: Some(state),
+            state,
             apis: api_registry,
         }
     }
@@ -82,6 +82,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     }
 
     fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state.unwrap(), self.apis)
+        (self.state, self.apis)
     }
 }

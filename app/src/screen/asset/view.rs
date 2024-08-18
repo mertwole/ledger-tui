@@ -122,12 +122,8 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         return;
     }
 
-    let state = model
+    let (selected_account_network, selected_account) = model
         .state
-        .as_ref()
-        .expect("Construct should be called at the start of window lifetime");
-
-    let (selected_account_network, selected_account) = state
         .selected_account
         .as_ref()
         .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?

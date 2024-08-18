@@ -24,7 +24,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_prices: HashMap<Network, Option<Decimal>>,
     balances: HashMap<(Network, Account), Decimal>,
 
-    state: Option<StateRegistry>,
+    state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
 }
 
@@ -33,16 +33,11 @@ type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
     fn tick_logic(&mut self) {
-        let state = self
-            .state
-            .as_mut()
-            .expect("Construct should be called at the start of window lifetime");
-
-        if state.device_accounts.is_none() {
-            if let Some((active_device, _)) = state.active_device.as_ref() {
+        if self.state.device_accounts.is_none() {
+            if let Some((active_device, _)) = self.state.active_device.as_ref() {
                 // TODO: Load at startup from config and add only on user request.
                 // TODO: Filter accounts based on balance.
-                state.device_accounts = Some(
+                self.state.device_accounts = Some(
                     [Network::Bitcoin, Network::Ethereum]
                         .into_iter()
                         .filter_map(|network| {
@@ -81,7 +76,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             .collect();
 
         // TODO: Don't request balance each tick.
-        if let Some(accounts) = state.device_accounts.as_ref() {
+        if let Some(accounts) = self.state.device_accounts.as_ref() {
             for (network, accounts) in accounts {
                 for account in accounts {
                     self.balances
@@ -108,7 +103,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             coin_prices: Default::default(),
             balances: Default::default(),
 
-            state: Some(state),
+            state,
             apis: api_registry,
         }
     }
@@ -124,6 +119,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     }
 
     fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state.unwrap(), self.apis)
+        (self.state, self.apis)
     }
 }

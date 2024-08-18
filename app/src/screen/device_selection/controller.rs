@@ -33,11 +33,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
     if event.is_key_pressed(KeyCode::Enter) {
         if let Some(device_idx) = model.selected_device {
             let (device, info) = model.devices[device_idx].clone();
-            model
-                .state
-                .as_mut()
-                .expect("Construct should be called at the start of window lifetime")
-                .active_device = Some((device, info));
+            model.state.active_device = Some((device, info));
             // TODO: Add mechanism to return one window back.
             return Some(OutgoingMessage::SwitchScreen(ScreenName::Portfolio));
         }
