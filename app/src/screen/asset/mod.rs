@@ -40,17 +40,6 @@ enum TimePeriod {
 type PriceHistoryPoint = Decimal;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(api_registry: ApiRegistry<L, C, M>) -> Self {
-        Self {
-            coin_price_history: Default::default(),
-            transactions: Default::default(),
-            selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
-
-            state: None,
-            apis: api_registry,
-        }
-    }
-
     fn tick_logic(&mut self) {
         let state = self
             .state

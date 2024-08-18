@@ -32,17 +32,6 @@ type AccountIdx = usize;
 type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(api_registry: ApiRegistry<L, C, M>) -> Self {
-        Self {
-            selected_account: None,
-            coin_prices: Default::default(),
-            balances: Default::default(),
-
-            state: None,
-            apis: api_registry,
-        }
-    }
-
     fn tick_logic(&mut self) {
         let state = self
             .state

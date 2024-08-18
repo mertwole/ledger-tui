@@ -21,17 +21,6 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     apis: ApiRegistry<L, C, M>,
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(api_registry: ApiRegistry<L, C, M>) -> Self {
-        Self {
-            last_address_copy: None,
-
-            state: None,
-            apis: api_registry,
-        }
-    }
-}
-
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
     for Model<L, C, M>
 {

@@ -28,17 +28,6 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(api_registry: ApiRegistry<L, C, M>) -> Self {
-        Self {
-            devices: vec![],
-            previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
-            selected_device: None,
-
-            state: None,
-            apis: api_registry,
-        }
-    }
-
     fn tick_logic(&mut self) {
         if self.previous_poll.elapsed() >= DEVICE_POLL_PERIOD {
             let devices = block_on(self.apis.ledger_api.discover_devices());
