@@ -4,10 +4,9 @@ use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
 
-use super::{OutgoingMessage, Screen};
+use super::{OutgoingMessage, ScreenT};
 use crate::{
     api::{
-        self,
         blockchain_monitoring::BlockchainMonitoringApiT,
         coin_price::{Coin, CoinPriceApiT},
         common::{Account, Network},
@@ -20,16 +19,13 @@ mod controller;
 mod view;
 
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    ledger_api: L,
-    coin_price_api: C,
-    blockchain_monitoring_api: M,
-
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
     coin_prices: HashMap<Network, Option<Decimal>>,
     balances: HashMap<(Network, Account), Decimal>,
 
     state: Option<StateRegistry>,
+    apis: ApiRegistry<L, C, M>,
 }
 
 type AccountIdx = usize;
@@ -38,14 +34,12 @@ type NetworkIdx = usize;
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
     pub fn new(api_registry: ApiRegistry<L, C, M>) -> Self {
         Self {
-            ledger_api: api_registry.ledger_api,
-            coin_price_api: api_registry.coin_price_api,
-            blockchain_monitoring_api: api_registry.blockchain_monitoring_api,
-
             selected_account: None,
             coin_prices: Default::default(),
             balances: Default::default(),
+
             state: None,
+            apis: api_registry,
         }
     }
 
@@ -63,8 +57,11 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                     [Network::Bitcoin, Network::Ethereum]
                         .into_iter()
                         .filter_map(|network| {
-                            let accounts =
-                                block_on(self.ledger_api.discover_accounts(active_device, network));
+                            let accounts = block_on(
+                                self.apis
+                                    .ledger_api
+                                    .discover_accounts(active_device, network),
+                            );
 
                             if accounts.is_empty() {
                                 None
@@ -89,7 +86,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
 
                 (
                     network,
-                    block_on(self.coin_price_api.get_price(coin, Coin::USDT)),
+                    block_on(self.apis.coin_price_api.get_price(coin, Coin::USDT)),
                 )
             })
             .collect();
@@ -102,7 +99,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                         .entry((*network, account.clone()))
                         .or_insert_with(|| {
                             block_on(
-                                self.blockchain_monitoring_api
+                                self.apis
+                                    .blockchain_monitoring_api
                                     .get_balance(*network, account),
                             )
                         });
@@ -112,9 +110,18 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<L, C, M> {
-    fn construct(&mut self, state: StateRegistry) {
-        self.state = Some(state);
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
+    for Model<L, C, M>
+{
+    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
+        Self {
+            selected_account: None,
+            coin_prices: Default::default(),
+            balances: Default::default(),
+
+            state: Some(state),
+            apis: api_registry,
+        }
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
@@ -127,8 +134,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Mo
         controller::process_input(self, event.as_ref()?)
     }
 
-    fn deconstruct(self: Box<Self>) -> StateRegistry {
-        self.state
-            .expect("Construct should be called at the start of window lifetime")
+    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        (self.state.unwrap(), self.apis)
     }
 }

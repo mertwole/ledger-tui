@@ -1,15 +1,18 @@
 use ratatui::crossterm::event::{Event, KeyCode};
 
 use crate::{
-    api::{blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT},
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
     screen::{EventExt, OutgoingMessage, ScreenName},
 };
 
 use super::{Model, TimePeriod};
 
-pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     event: &Event,
-    model: &mut Model<C, M>,
+    model: &mut Model<L, C, M>,
 ) -> Option<OutgoingMessage> {
     if event.is_key_pressed(KeyCode::Char('q')) {
         return Some(OutgoingMessage::Exit);
@@ -28,9 +31,9 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     None
 }
 
-fn process_time_interval_selection<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+fn process_time_interval_selection<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     event: &Event,
-    model: &mut Model<C, M>,
+    model: &mut Model<L, C, M>,
 ) {
     match () {
         () if event.is_key_pressed(KeyCode::Char('d')) => {

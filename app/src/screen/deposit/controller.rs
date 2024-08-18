@@ -4,9 +4,18 @@ use copypasta::{ClipboardContext, ClipboardProvider};
 use ratatui::crossterm::event::{Event, KeyCode};
 
 use super::Model;
-use crate::screen::{EventExt, OutgoingMessage};
+use crate::{
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    screen::{EventExt, OutgoingMessage},
+};
 
-pub(super) fn process_input(event: &Event, model: &mut Model) -> Option<OutgoingMessage> {
+pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    event: &Event,
+    model: &mut Model<L, C, M>,
+) -> Option<OutgoingMessage> {
     if event.is_key_pressed(KeyCode::Char('q')) {
         return Some(OutgoingMessage::Exit);
     }

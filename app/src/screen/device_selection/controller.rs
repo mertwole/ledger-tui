@@ -1,14 +1,17 @@
 use ratatui::crossterm::event::{Event, KeyCode};
 
 use crate::{
-    api::ledger::LedgerApiT,
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
     screen::{EventExt, OutgoingMessage, ScreenName},
 };
 
 use super::Model;
 
-pub(super) fn process_input<L: LedgerApiT>(
-    model: &mut Model<L>,
+pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &mut Model<L, C, M>,
     event: &Event,
 ) -> Option<OutgoingMessage> {
     if event.is_key_pressed(KeyCode::Down) && !model.devices.is_empty() {
