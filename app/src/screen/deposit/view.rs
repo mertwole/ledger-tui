@@ -10,17 +10,20 @@ use ratatui::{
     Frame,
 };
 
+use crate::api::{
+    blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT, ledger::LedgerApiT,
+};
+
 use super::Model;
 
 const DISPLAY_COPIED_TEXT_FOR: Duration = Duration::from_secs(2);
 
-pub(super) fn render(model: &Model, frame: &mut Frame<'_>) {
-    let state = model
+pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
+    frame: &mut Frame<'_>,
+) {
+    let pubkey = model
         .state
-        .as_ref()
-        .expect("Construct should be called at the start of window lifetime");
-
-    let pubkey = state
         .selected_account
         .as_ref()
         .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?

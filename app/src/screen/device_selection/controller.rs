@@ -1,14 +1,17 @@
 use ratatui::crossterm::event::{Event, KeyCode};
 
 use crate::{
-    api::ledger::LedgerApiT,
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
     screen::{EventExt, OutgoingMessage, ScreenName},
 };
 
 use super::Model;
 
-pub(super) fn process_input<L: LedgerApiT>(
-    model: &mut Model<L>,
+pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &mut Model<L, C, M>,
     event: &Event,
 ) -> Option<OutgoingMessage> {
     if event.is_key_pressed(KeyCode::Down) && !model.devices.is_empty() {
@@ -30,11 +33,7 @@ pub(super) fn process_input<L: LedgerApiT>(
     if event.is_key_pressed(KeyCode::Enter) {
         if let Some(device_idx) = model.selected_device {
             let (device, info) = model.devices[device_idx].clone();
-            model
-                .state
-                .as_mut()
-                .expect("Construct should be called at the start of window lifetime")
-                .active_device = Some((device, info));
+            model.state.active_device = Some((device, info));
             // TODO: Add mechanism to return one window back.
             return Some(OutgoingMessage::SwitchScreen(ScreenName::Portfolio));
         }

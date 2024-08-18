@@ -2,30 +2,35 @@ use std::time::Instant;
 
 use ratatui::{crossterm::event::Event, Frame};
 
-use super::{OutgoingMessage, Screen};
-use crate::app::StateRegistry;
+use super::{OutgoingMessage, ScreenT};
+use crate::{
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    app::{ApiRegistry, StateRegistry},
+};
 
 mod controller;
 mod view;
 
-pub struct Model {
+pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     last_address_copy: Option<Instant>,
 
-    state: Option<StateRegistry>,
+    state: StateRegistry,
+    apis: ApiRegistry<L, C, M>,
 }
 
-impl Model {
-    pub fn new() -> Self {
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
+    for Model<L, C, M>
+{
+    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
         Self {
             last_address_copy: None,
-            state: None,
-        }
-    }
-}
 
-impl Screen for Model {
-    fn construct(&mut self, state: StateRegistry) {
-        self.state = Some(state);
+            state,
+            apis: api_registry,
+        }
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
@@ -36,8 +41,7 @@ impl Screen for Model {
         controller::process_input(event.as_ref()?, self)
     }
 
-    fn deconstruct(self: Box<Self>) -> StateRegistry {
-        self.state
-            .expect("Construct should be called at the start of window lifetime")
+    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        (self.state, self.apis)
     }
 }

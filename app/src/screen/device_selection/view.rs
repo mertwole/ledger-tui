@@ -7,9 +7,14 @@ use ratatui::{
 };
 
 use super::Model;
-use crate::api::ledger::LedgerApiT;
+use crate::api::{
+    blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT, ledger::LedgerApiT,
+};
 
-pub(super) fn render<L: LedgerApiT>(model: &Model<L>, frame: &mut Frame<'_>) {
+pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
+    frame: &mut Frame<'_>,
+) {
     let area = frame.size();
 
     let list_block = Block::new()

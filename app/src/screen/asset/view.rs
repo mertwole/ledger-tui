@@ -14,14 +14,15 @@ use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
         coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
     },
     screen::common::network_symbol,
 };
 
 use super::{Model, TimePeriod};
 
-pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<C, M>,
+pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
 ) {
     let area = frame.size();
@@ -45,8 +46,8 @@ pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     render_tx_list(model, frame, inner_txs_list_area);
 }
 
-fn render_price_chart<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<C, M>,
+fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
@@ -106,8 +107,8 @@ fn render_price_chart<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     frame.render_widget(chart, area);
 }
 
-fn render_tx_list<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<C, M>,
+fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
@@ -121,12 +122,8 @@ fn render_tx_list<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         return;
     }
 
-    let state = model
+    let (selected_account_network, selected_account) = model
         .state
-        .as_ref()
-        .expect("Construct should be called at the start of window lifetime");
-
-    let (selected_account_network, selected_account) = state
         .selected_account
         .as_ref()
         .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?

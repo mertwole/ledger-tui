@@ -4,7 +4,7 @@ use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
 
-use super::{OutgoingMessage, Screen};
+use super::{OutgoingMessage, ScreenT};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT,
@@ -12,58 +12,40 @@ use crate::{
         common::{Account, Network},
         ledger::LedgerApiT,
     },
-    app::StateRegistry,
+    app::{ApiRegistry, StateRegistry},
 };
 
 mod controller;
 mod view;
 
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    ledger_api: L,
-    coin_price_api: C,
-    blockchain_monitoring_api: M,
-
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
     coin_prices: HashMap<Network, Option<Decimal>>,
     balances: HashMap<(Network, Account), Decimal>,
 
-    state: Option<StateRegistry>,
+    state: StateRegistry,
+    apis: ApiRegistry<L, C, M>,
 }
 
 type AccountIdx = usize;
 type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    pub fn new(ledger_api: L, coin_price_api: C, blockchain_monitoring_api: M) -> Self {
-        Self {
-            ledger_api,
-            coin_price_api,
-            blockchain_monitoring_api,
-
-            selected_account: None,
-            coin_prices: Default::default(),
-            balances: Default::default(),
-            state: None,
-        }
-    }
-
     fn tick_logic(&mut self) {
-        let state = self
-            .state
-            .as_mut()
-            .expect("Construct should be called at the start of window lifetime");
-
-        if state.device_accounts.is_none() {
-            if let Some((active_device, _)) = state.active_device.as_ref() {
+        if self.state.device_accounts.is_none() {
+            if let Some((active_device, _)) = self.state.active_device.as_ref() {
                 // TODO: Load at startup from config and add only on user request.
                 // TODO: Filter accounts based on balance.
-                state.device_accounts = Some(
+                self.state.device_accounts = Some(
                     [Network::Bitcoin, Network::Ethereum]
                         .into_iter()
                         .filter_map(|network| {
-                            let accounts =
-                                block_on(self.ledger_api.discover_accounts(active_device, network));
+                            let accounts = block_on(
+                                self.apis
+                                    .ledger_api
+                                    .discover_accounts(active_device, network),
+                            );
 
                             if accounts.is_empty() {
                                 None
@@ -88,20 +70,21 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
 
                 (
                     network,
-                    block_on(self.coin_price_api.get_price(coin, Coin::USDT)),
+                    block_on(self.apis.coin_price_api.get_price(coin, Coin::USDT)),
                 )
             })
             .collect();
 
         // TODO: Don't request balance each tick.
-        if let Some(accounts) = state.device_accounts.as_ref() {
+        if let Some(accounts) = self.state.device_accounts.as_ref() {
             for (network, accounts) in accounts {
                 for account in accounts {
                     self.balances
                         .entry((*network, account.clone()))
                         .or_insert_with(|| {
                             block_on(
-                                self.blockchain_monitoring_api
+                                self.apis
+                                    .blockchain_monitoring_api
                                     .get_balance(*network, account),
                             )
                         });
@@ -111,9 +94,18 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<L, C, M> {
-    fn construct(&mut self, state: StateRegistry) {
-        self.state = Some(state);
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
+    for Model<L, C, M>
+{
+    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
+        Self {
+            selected_account: None,
+            coin_prices: Default::default(),
+            balances: Default::default(),
+
+            state,
+            apis: api_registry,
+        }
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
@@ -126,8 +118,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Mo
         controller::process_input(self, event.as_ref()?)
     }
 
-    fn deconstruct(self: Box<Self>) -> StateRegistry {
-        self.state
-            .expect("Construct should be called at the start of window lifetime")
+    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        (self.state, self.apis)
     }
 }

@@ -13,17 +13,17 @@ use ratatui::{
 
 use crate::{
     api::{
-        blockchain_monitoring::mock::BlockchainMonitoringApiMock,
+        blockchain_monitoring::{mock::BlockchainMonitoringApiMock, BlockchainMonitoringApiT},
         cache_utils::ModePlan,
-        coin_price::{cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi},
+        coin_price::{
+            cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT,
+        },
         common::{Account, Network},
-        ledger::{cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo},
+        ledger::{
+            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApiT,
+        },
     },
-    screen::{
-        asset::Model as AssetScreen, deposit::Model as DepositScreen,
-        device_selection::Model as DeviceSelectionScreen, portfolio::Model as PortfolioScreen,
-        OutgoingMessage, Screen, ScreenName,
-    },
+    screen::{OutgoingMessage, Screen, ScreenName},
 };
 
 pub struct App {
@@ -35,6 +35,18 @@ pub(crate) struct StateRegistry {
     pub active_device: Option<(Device, DeviceInfo)>,
     pub device_accounts: Option<Vec<(Network, Vec<Account>)>>,
     pub selected_account: Option<(Network, Account)>,
+    _phantom: PhantomData<()>,
+}
+
+pub(crate) struct ApiRegistry<L, C, M>
+where
+    L: LedgerApiT,
+    C: CoinPriceApiT,
+    M: BlockchainMonitoringApiT,
+{
+    pub ledger_api: L,
+    pub coin_price_api: C,
+    pub blockchain_monitoring_api: M,
     _phantom: PhantomData<()>,
 }
 
@@ -71,15 +83,39 @@ impl App {
     async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
         let mut state = Some(StateRegistry::new());
 
+        let api_registry = {
+            let ledger_api = LedgerApiMock::new(10, 3);
+            let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
+            ledger_api.set_all_modes(ModePlan::Transparent);
+
+            let _coin_price_api = CoinPriceApiMock::new();
+            let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
+            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+            coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
+
+            let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
+
+            ApiRegistry {
+                ledger_api,
+                coin_price_api,
+                blockchain_monitoring_api,
+                _phantom: PhantomData,
+            }
+        };
+
+        let mut api_registry = Some(api_registry);
+
         loop {
             let screen = self
                 .screens
                 .last()
                 .expect("At least one screen should be present");
-            let screen = create_screen(*screen);
 
-            let (new_state, msg) = Self::screen_loop(screen, &mut terminal, state.take().unwrap());
+            let screen = Screen::new(*screen, state.take().unwrap(), api_registry.take().unwrap());
+
+            let (new_state, new_api_registry, msg) = Self::screen_loop(screen, &mut terminal);
             state = Some(new_state);
+            api_registry = Some(new_api_registry);
 
             match msg {
                 OutgoingMessage::Exit => {
@@ -97,13 +133,10 @@ impl App {
         }
     }
 
-    fn screen_loop<B: Backend>(
-        mut screen: Box<dyn Screen>,
+    fn screen_loop<B: Backend, L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+        mut screen: Screen<L, C, M>,
         terminal: &mut Terminal<B>,
-        state: StateRegistry,
-    ) -> (StateRegistry, OutgoingMessage) {
-        screen.construct(state);
-
+    ) -> (StateRegistry, ApiRegistry<L, C, M>, OutgoingMessage) {
         loop {
             terminal.draw(|frame| screen.render(frame)).unwrap();
 
@@ -114,33 +147,9 @@ impl App {
             let msg = screen.tick(event);
 
             if let Some(msg) = msg {
-                let state = screen.deconstruct();
-                return (state, msg);
+                let (state, api_registry) = screen.deconstruct();
+                return (state, api_registry, msg);
             }
         }
-    }
-}
-
-fn create_screen(screen: ScreenName) -> Box<dyn Screen> {
-    let ledger_api = LedgerApiMock::new(10, 3);
-    let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
-    ledger_api.set_all_modes(ModePlan::Transparent);
-
-    let _coin_price_api = CoinPriceApiMock::new();
-    let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
-    let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-    coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
-
-    let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
-
-    match screen {
-        ScreenName::Portfolio => Box::from(PortfolioScreen::new(
-            ledger_api,
-            coin_price_api,
-            blockchain_monitoring_api,
-        )),
-        ScreenName::DeviceSelection => Box::from(DeviceSelectionScreen::new(ledger_api)),
-        ScreenName::Asset => Box::from(AssetScreen::new(coin_price_api, blockchain_monitoring_api)),
-        ScreenName::Deposit => Box::from(DepositScreen::new()),
     }
 }

@@ -3,14 +3,15 @@ use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
 use strum::EnumIter;
 
-use super::{OutgoingMessage, Screen};
+use super::{OutgoingMessage, ScreenT};
 use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
         coin_price::{Coin, CoinPriceApiT, TimePeriod as ApiTimePeriod},
         common::Network,
+        ledger::LedgerApiT,
     },
-    app::StateRegistry,
+    app::{ApiRegistry, StateRegistry},
 };
 
 mod controller;
@@ -18,15 +19,13 @@ mod view;
 
 const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
 
-pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    coin_price_api: C,
-    blockchain_monitoring_api: M,
-
+pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_price_history: Option<Vec<PriceHistoryPoint>>,
     transactions: Option<Vec<(TransactionUid, TransactionInfo)>>,
     selected_time_period: TimePeriod,
 
-    state: Option<StateRegistry>,
+    state: StateRegistry,
+    apis: ApiRegistry<L, C, M>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
@@ -40,27 +39,10 @@ enum TimePeriod {
 
 type PriceHistoryPoint = Decimal;
 
-impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
-    pub fn new(coin_price_api: C, blockchain_monitoring_api: M) -> Self {
-        Self {
-            coin_price_api,
-            blockchain_monitoring_api,
-
-            coin_price_history: Default::default(),
-            transactions: Default::default(),
-            selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
-
-            state: None,
-        }
-    }
-
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
     fn tick_logic(&mut self) {
-        let state = self
+        let (selected_network, selected_account) = self
             .state
-            .as_ref()
-            .expect("Construct should be called at the start of window lifetime");
-
-        let (selected_network, selected_account) = state
             .selected_account
             .as_ref()
             .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
@@ -78,7 +60,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
             TimePeriod::All => ApiTimePeriod::All,
         };
 
-        self.coin_price_history = block_on(self.coin_price_api.get_price_history(
+        self.coin_price_history = block_on(self.apis.coin_price_api.get_price_history(
             coin,
             Coin::USDT,
             time_period,
@@ -86,7 +68,8 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
 
         // TODO: Don't make requests to API each tick.
         let tx_list = block_on(
-            self.blockchain_monitoring_api
+            self.apis
+                .blockchain_monitoring_api
                 .get_transactions(*selected_network, selected_account),
         );
         let txs = tx_list
@@ -95,7 +78,8 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
                 (
                     tx_uid.clone(),
                     block_on(
-                        self.blockchain_monitoring_api
+                        self.apis
+                            .blockchain_monitoring_api
                             .get_transaction_info(*selected_network, &tx_uid),
                     ),
                 )
@@ -106,9 +90,18 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
     }
 }
 
-impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<C, M> {
-    fn construct(&mut self, state: StateRegistry) {
-        self.state = Some(state);
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
+    for Model<L, C, M>
+{
+    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
+        Self {
+            coin_price_history: Default::default(),
+            transactions: Default::default(),
+            selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
+
+            state,
+            apis: api_registry,
+        }
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
@@ -121,8 +114,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen for Model<C, M> {
         controller::process_input(event.as_ref()?, self)
     }
 
-    fn deconstruct(self: Box<Self>) -> StateRegistry {
-        self.state
-            .expect("Construct should be called at the start of window lifetime")
+    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        (self.state, self.apis)
     }
 }
