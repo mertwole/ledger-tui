@@ -84,7 +84,7 @@ impl App {
         let mut state = Some(StateRegistry::new());
 
         let api_registry = {
-            let ledger_api = LedgerApiMock::new(10, 3);
+            let ledger_api = LedgerApiMock::new(2, 3);
             let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
             ledger_api.set_all_modes(ModePlan::Transparent);
 

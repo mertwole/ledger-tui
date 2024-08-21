@@ -13,8 +13,11 @@ use strum::IntoEnumIterator;
 
 use crate::{
     api::{
-        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
+        blockchain_monitoring::{
+            BlockchainMonitoringApiT, TransactionInfo, TransactionType, TransactionUid,
+        },
         coin_price::CoinPriceApiT,
+        common_types::{Account, Network},
         ledger::LedgerApiT,
     },
     screen::common::{network_symbol, render_centered_text},
@@ -54,7 +57,29 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         .padding(Padding::proportional(1));
     let inner_txs_list_area = txs_list_block.inner(txs_list_area);
     frame.render_widget(txs_list_block, txs_list_area);
-    render_tx_list(model, frame, inner_txs_list_area);
+
+    match model.transactions.as_ref() {
+        Some(tx_list) if tx_list.is_empty() => {
+            render_empty_tx_list(frame, inner_txs_list_area);
+        }
+        Some(tx_list) => {
+            let selected_account = model
+                .state
+                .selected_account
+                .as_ref()
+                .expect("Selected accounmodelt should be present in state"); // TODO: Enforce this rule at `app` level?
+
+            render_tx_list(
+                selected_account.clone(),
+                &tx_list[..],
+                frame,
+                inner_txs_list_area,
+            );
+        }
+        None => {
+            render_tx_list_placeholder(frame, inner_txs_list_area);
+        }
+    }
 }
 
 fn render_price_chart(
@@ -136,30 +161,17 @@ fn render_chart_legend(selected_time_period: TimePeriod) -> Line<'static> {
     Line::from_iter(legend)
 }
 
-fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_tx_list(
+    selected_account: (Network, Account),
+    tx_list: &[(TransactionUid, TransactionInfo)],
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
-    let Some(tx_list) = model.transactions.as_ref() else {
-        // TODO: Draw placeholder(fetching txs...)
-        return;
-    };
-
-    if tx_list.is_empty() {
-        // TODO: Draw placeholder(no txs yet...)
-        return;
-    }
-
-    let (selected_account_network, selected_account) = model
-        .state
-        .selected_account
-        .as_ref()
-        .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
+    let (selected_account_network, selected_account) = selected_account;
 
     let selected_account_address = selected_account.get_info().pk;
 
-    let network_icon = network_symbol(*selected_account_network);
+    let network_icon = network_symbol(selected_account_network);
 
     let rows = tx_list
         .iter()
@@ -210,4 +222,14 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         .highlight_symbol(">>");
 
     frame.render_widget(table, area)
+}
+
+fn render_empty_tx_list(frame: &mut Frame<'_>, area: Rect) {
+    let text = Text::raw("No transactions here yet");
+    render_centered_text(frame, area, text)
+}
+
+fn render_tx_list_placeholder(frame: &mut Frame<'_>, area: Rect) {
+    let text = Text::raw("Fetching transactions...");
+    render_centered_text(frame, area, text)
 }
