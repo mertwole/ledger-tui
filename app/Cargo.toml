@@ -12,6 +12,7 @@ bs58.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 copypasta.workspace = true
 futures.workspace = true
+itertools.workspace = true
 ledger_bitcoin_client.workspace = true
 ledger-lib.workspace = true
 ledger-proto.workspace = true

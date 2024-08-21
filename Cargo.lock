@@ -1443,6 +1443,7 @@ dependencies = [
  "chrono",
  "copypasta",
  "futures",
+ "itertools 0.13.0",
  "ledger-lib",
  "ledger-proto",
  "ledger_bitcoin_client",
