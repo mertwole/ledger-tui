@@ -36,7 +36,7 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings $(cat .lints | cut -f1 -d"#" | tr '\n' ' ')
       - name: Run rustfmt
         run: cargo fmt -- --check
-  lints:
+  tests:
     runs-on: self-hosted
     steps:
       - name: Checkout
@@ -45,4 +45,3 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Run tests
         run: cargo test --release --all-targets
-        
