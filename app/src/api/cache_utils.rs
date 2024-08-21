@@ -5,12 +5,14 @@ use std::{
     pin::Pin,
     time::{Duration, Instant},
 };
+use tokio::time::sleep;
 
 #[derive(Default, Clone, Copy)]
 pub enum ModePlan {
     #[default]
     Transparent,
     TimedOut(Duration),
+    Slow(Duration),
 }
 
 impl ModePlan {
@@ -18,6 +20,7 @@ impl ModePlan {
         match self {
             Self::Transparent => Mode::new_transparent(),
             Self::TimedOut(timeout) => Mode::new_timed_out(timeout),
+            Self::Slow(delay) => Mode::new_slow(delay),
         }
     }
 }
@@ -30,6 +33,8 @@ pub enum Mode<In: Hash + PartialEq + Eq> {
     /// This type of cache will call API only if some specified time have passed after previous call.
     /// It will return value from cache elsewhere.
     TimedOut(TimedOutMode<In>),
+    /// This type of cache will delay calls to API to simulate network or i/o delays.
+    Slow(Duration),
 }
 
 #[derive(Clone)]
@@ -49,6 +54,10 @@ impl<In: Hash + PartialEq + Eq> Mode<In> {
             previous_request: Default::default(),
         })
     }
+
+    pub fn new_slow(delay: Duration) -> Self {
+        Self::Slow(delay)
+    }
 }
 
 pub(super) async fn use_cache<In, Out>(
@@ -64,6 +73,7 @@ where
     match mode {
         Mode::Transparent => transparent_mode(request, cache, api_result).await,
         Mode::TimedOut(state) => timed_out_mode(request, cache, api_result, state).await,
+        Mode::Slow(delay) => slow_mode(request, cache, api_result, *delay).await,
     }
 }
 
@@ -100,4 +110,15 @@ where
     state.previous_request.insert(request, Instant::now());
 
     result
+}
+
+async fn slow_mode<In, Out>(
+    _request: In,
+    _cache: Entry<'_, In, Out>,
+    api_result: Pin<Box<impl Future<Output = Out>>>,
+    delay: Duration,
+) -> Out {
+    sleep(delay).await;
+
+    api_result.await
 }

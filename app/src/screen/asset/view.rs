@@ -8,18 +8,25 @@ use ratatui::{
     },
     Frame,
 };
+use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 
 use crate::{
     api::{
-        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionType},
+        blockchain_monitoring::{
+            BlockchainMonitoringApiT, TransactionInfo, TransactionType, TransactionUid,
+        },
         coin_price::CoinPriceApiT,
+        common_types::{Account, Network},
         ledger::LedgerApiT,
     },
-    screen::common::network_symbol,
+    screen::common::{format_address, network_symbol, render_centered_text},
 };
 
 use super::{Model, TimePeriod};
+
+const ADDRESSES_MAX_LEN: usize = 12;
+const TX_UID_MAX_LEN: usize = 16;
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
@@ -35,7 +42,17 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     let price_chart_block = Block::new().title("Price").borders(Borders::all());
     let inner_price_chart_area = price_chart_block.inner(price_chart_area);
     frame.render_widget(price_chart_block, price_chart_area);
-    render_price_chart(model, frame, inner_price_chart_area);
+
+    if let Some(prices) = model.coin_price_history.as_ref() {
+        render_price_chart(
+            &prices[..],
+            model.selected_time_period,
+            frame,
+            inner_price_chart_area,
+        );
+    } else {
+        render_price_chart_placeholder(model.selected_time_period, frame, inner_price_chart_area);
+    }
 
     let txs_list_block = Block::new()
         .title("Transactions")
@@ -43,18 +60,38 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         .padding(Padding::proportional(1));
     let inner_txs_list_area = txs_list_block.inner(txs_list_area);
     frame.render_widget(txs_list_block, txs_list_area);
-    render_tx_list(model, frame, inner_txs_list_area);
+
+    match model.transactions.as_ref() {
+        Some(tx_list) if tx_list.is_empty() => {
+            render_empty_tx_list(frame, inner_txs_list_area);
+        }
+        Some(tx_list) => {
+            let selected_account = model
+                .state
+                .selected_account
+                .as_ref()
+                .expect("Selected accounmodelt should be present in state"); // TODO: Enforce this rule at `app` level?
+
+            render_tx_list(
+                selected_account.clone(),
+                &tx_list[..],
+                frame,
+                inner_txs_list_area,
+            );
+        }
+        None => {
+            render_tx_list_placeholder(frame, inner_txs_list_area);
+        }
+    }
 }
 
-fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_price_chart(
+    prices: &[Decimal],
+    selected_time_period: TimePeriod,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
-    let Some(prices) = model.coin_price_history.as_ref() else {
-        // TODO: Draw some placeholder.
-        return;
-    };
+    let legend = render_chart_legend(selected_time_period);
 
     let max_price = *prices.iter().max().expect("Empty `prices` vector provided");
 
@@ -63,24 +100,6 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
         .enumerate()
         .map(|(idx, &price)| (idx as f64, price.try_into().unwrap()))
         .collect();
-
-    let legend = TimePeriod::iter().map(|period| {
-        let label = match period {
-            TimePeriod::Day => " d[ay]",
-            TimePeriod::Week => " w[eek]",
-            TimePeriod::Month => " m[onth]",
-            TimePeriod::Year => " y[ear]",
-            TimePeriod::All => " a[ll] ",
-        };
-
-        if period == model.selected_time_period {
-            Span::raw(label).red()
-        } else {
-            Span::raw(label).green()
-        }
-    });
-
-    let legend = Line::from_iter(legend);
 
     let datasets = vec![Dataset::default()
         .marker(symbols::Marker::Bar)
@@ -107,36 +126,60 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
     frame.render_widget(chart, area);
 }
 
-fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_price_chart_placeholder(
+    selected_time_period: TimePeriod,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
-    let Some(tx_list) = model.transactions.as_ref() else {
-        // TODO: Draw placeholder(fetching txs...)
-        return;
-    };
+    let legend = render_chart_legend(selected_time_period);
 
-    if tx_list.is_empty() {
-        // TODO: Draw placeholder(no txs yet...)
-        return;
-    }
+    let chart = Chart::new(vec![Dataset::default().name(legend)])
+        .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
+        // Always show a legend(see `hidden_legend_constraints` docs).
+        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)));
 
-    let (selected_account_network, selected_account) = model
-        .state
-        .selected_account
-        .as_ref()
-        .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
+    frame.render_widget(chart, area);
+
+    let text = Text::raw("Price is loading...");
+    render_centered_text(frame, area, text);
+}
+
+fn render_chart_legend(selected_time_period: TimePeriod) -> Line<'static> {
+    let legend = TimePeriod::iter().map(|period| {
+        let label = match period {
+            TimePeriod::Day => " d[ay]",
+            TimePeriod::Week => " w[eek]",
+            TimePeriod::Month => " m[onth]",
+            TimePeriod::Year => " y[ear]",
+            TimePeriod::All => " a[ll] ",
+        };
+
+        if period == selected_time_period {
+            Span::raw(label).red()
+        } else {
+            Span::raw(label).green()
+        }
+    });
+
+    Line::from_iter(legend)
+}
+
+fn render_tx_list(
+    selected_account: (Network, Account),
+    tx_list: &[(TransactionUid, TransactionInfo)],
+    frame: &mut Frame<'_>,
+    area: Rect,
+) {
+    let (selected_account_network, selected_account) = selected_account;
 
     let selected_account_address = selected_account.get_info().pk;
 
-    let network_icon = network_symbol(*selected_account_network);
+    let network_icon = network_symbol(selected_account_network);
 
     let rows = tx_list
         .iter()
         .map(|(uid, tx)| {
-            // TODO: Pretty-format.
-            let uid = &uid.uid;
+            let uid = format_address(&uid.uid, TX_UID_MAX_LEN);
             let uid = Text::raw(uid).alignment(Alignment::Center);
 
             let time = format!("{}", tx.timestamp.format("%Y-%m-%d %H:%M UTC%:z"));
@@ -144,9 +187,8 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
 
             let description = match &tx.ty {
                 TransactionType::Deposit { from, amount } => {
-                    // TODO: Pretty-format.
-                    let from = [&from.get_info().pk[..8], "..."].concat();
-                    let to = [&selected_account_address[..8], "..."].concat();
+                    let from = format_address(&from.get_info().pk, ADDRESSES_MAX_LEN);
+                    let to = format_address(&selected_account_address, ADDRESSES_MAX_LEN);
 
                     vec![
                         Span::raw(from),
@@ -156,9 +198,8 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
                     ]
                 }
                 TransactionType::Withdraw { to, amount } => {
-                    // TODO: Pretty-format.
-                    let from = [&selected_account_address[..8], "..."].concat();
-                    let to = [&to.get_info().pk[..8], "..."].concat();
+                    let from = format_address(&selected_account_address, ADDRESSES_MAX_LEN);
+                    let to = format_address(&to.get_info().pk, ADDRESSES_MAX_LEN);
 
                     vec![
                         Span::raw(from).green(),
@@ -181,4 +222,14 @@ fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         .highlight_symbol(">>");
 
     frame.render_widget(table, area)
+}
+
+fn render_empty_tx_list(frame: &mut Frame<'_>, area: Rect) {
+    let text = Text::raw("No transactions here yet");
+    render_centered_text(frame, area, text)
+}
+
+fn render_tx_list_placeholder(frame: &mut Frame<'_>, area: Rect) {
+    let text = Text::raw("Fetching transactions...");
+    render_centered_text(frame, area, text)
 }

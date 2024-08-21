@@ -16,7 +16,7 @@ use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT,
         coin_price::CoinPriceApiT,
-        common::{Account, Network},
+        common_types::{Account, Network},
         ledger::LedgerApiT,
     },
     screen::common::network_symbol,

@@ -7,7 +7,7 @@ use ledger_lib::{
     DEFAULT_TIMEOUT,
 };
 
-use super::common::{Account, Network};
+use super::common_types::{Account, Network};
 
 implement_cache!(
     pub trait LedgerApiT {
