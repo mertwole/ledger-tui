@@ -34,8 +34,8 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
         if let Some(device_idx) = model.selected_device {
             let (device, info) = model.devices[device_idx].clone();
             model.state.active_device = Some((device, info));
-            // TODO: Add mechanism to return one window back.
-            return Some(OutgoingMessage::SwitchScreen(ScreenName::Portfolio));
+
+            return Some(OutgoingMessage::Back);
         }
     }
 

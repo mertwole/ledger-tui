@@ -64,7 +64,7 @@ impl StateRegistry {
 impl App {
     pub async fn new() -> Self {
         Self {
-            screens: vec![ScreenName::DeviceSelection],
+            screens: vec![ScreenName::Portfolio, ScreenName::DeviceSelection],
         }
     }
 
