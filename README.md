@@ -5,6 +5,8 @@ Ledger-tui is an application for managing crypto assets on a [ledger](https://ww
 > [!NOTE]
 > This software is not guaranteed to work properly. Any usage can lead to funds loss and `ledger` device corruption.
 
+[![CI](https://github.com/mertwole/ledger-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/mertwole/ledger-tui/actions/workflows/ci.yml)
+
 ## Build
 
 ### Ubuntu 24.0
