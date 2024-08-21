@@ -20,10 +20,13 @@ use crate::{
         common_types::{Account, Network},
         ledger::LedgerApiT,
     },
-    screen::common::{network_symbol, render_centered_text},
+    screen::common::{format_address, network_symbol, render_centered_text},
 };
 
 use super::{Model, TimePeriod};
+
+const ADDRESSES_MAX_LEN: usize = 12;
+const TX_UID_MAX_LEN: usize = 16;
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
@@ -176,8 +179,7 @@ fn render_tx_list(
     let rows = tx_list
         .iter()
         .map(|(uid, tx)| {
-            // TODO: Pretty-format.
-            let uid = &uid.uid;
+            let uid = format_address(&uid.uid, TX_UID_MAX_LEN);
             let uid = Text::raw(uid).alignment(Alignment::Center);
 
             let time = format!("{}", tx.timestamp.format("%Y-%m-%d %H:%M UTC%:z"));
@@ -185,9 +187,8 @@ fn render_tx_list(
 
             let description = match &tx.ty {
                 TransactionType::Deposit { from, amount } => {
-                    // TODO: Pretty-format.
-                    let from = [&from.get_info().pk[..8], "..."].concat();
-                    let to = [&selected_account_address[..8], "..."].concat();
+                    let from = format_address(&from.get_info().pk, ADDRESSES_MAX_LEN);
+                    let to = format_address(&selected_account_address, ADDRESSES_MAX_LEN);
 
                     vec![
                         Span::raw(from),
@@ -197,9 +198,8 @@ fn render_tx_list(
                     ]
                 }
                 TransactionType::Withdraw { to, amount } => {
-                    // TODO: Pretty-format.
-                    let from = [&selected_account_address[..8], "..."].concat();
-                    let to = [&to.get_info().pk[..8], "..."].concat();
+                    let from = format_address(&selected_account_address, ADDRESSES_MAX_LEN);
+                    let to = format_address(&to.get_info().pk, ADDRESSES_MAX_LEN);
 
                     vec![
                         Span::raw(from).green(),
