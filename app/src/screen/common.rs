@@ -50,8 +50,6 @@ pub fn format_address(address: &str, max_symbols: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::iter;
-
     use itertools::Itertools;
 
     use super::format_address;
@@ -62,7 +60,7 @@ mod tests {
         let max_lengths = [0, 3, 5, 6, 8, 10, 100].into_iter();
 
         for (addr_len, max_len) in address_lengths.cartesian_product(max_lengths) {
-            let address: String = iter::repeat('0').take(addr_len).collect();
+            let address = "0".repeat(addr_len);
             assert!(format_address(&address, max_len).len() <= max_len);
         }
     }
