@@ -8,6 +8,7 @@ use ratatui::{
     },
     Frame,
 };
+use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 
 use crate::{
@@ -16,7 +17,7 @@ use crate::{
         coin_price::CoinPriceApiT,
         ledger::LedgerApiT,
     },
-    screen::common::network_symbol,
+    screen::common::{network_symbol, render_centered_text},
 };
 
 use super::{Model, TimePeriod};
@@ -35,7 +36,17 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     let price_chart_block = Block::new().title("Price").borders(Borders::all());
     let inner_price_chart_area = price_chart_block.inner(price_chart_area);
     frame.render_widget(price_chart_block, price_chart_area);
-    render_price_chart(model, frame, inner_price_chart_area);
+
+    if let Some(prices) = model.coin_price_history.as_ref() {
+        render_price_chart(
+            &prices[..],
+            model.selected_time_period,
+            frame,
+            inner_price_chart_area,
+        );
+    } else {
+        render_price_chart_placeholder(model.selected_time_period, frame, inner_price_chart_area);
+    }
 
     let txs_list_block = Block::new()
         .title("Transactions")
@@ -46,15 +57,13 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     render_tx_list(model, frame, inner_txs_list_area);
 }
 
-fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+fn render_price_chart(
+    prices: &[Decimal],
+    selected_time_period: TimePeriod,
     frame: &mut Frame<'_>,
     area: Rect,
 ) {
-    let Some(prices) = model.coin_price_history.as_ref() else {
-        // TODO: Draw some placeholder.
-        return;
-    };
+    let legend = render_chart_legend(selected_time_period);
 
     let max_price = *prices.iter().max().expect("Empty `prices` vector provided");
 
@@ -63,24 +72,6 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
         .enumerate()
         .map(|(idx, &price)| (idx as f64, price.try_into().unwrap()))
         .collect();
-
-    let legend = TimePeriod::iter().map(|period| {
-        let label = match period {
-            TimePeriod::Day => " d[ay]",
-            TimePeriod::Week => " w[eek]",
-            TimePeriod::Month => " m[onth]",
-            TimePeriod::Year => " y[ear]",
-            TimePeriod::All => " a[ll] ",
-        };
-
-        if period == model.selected_time_period {
-            Span::raw(label).red()
-        } else {
-            Span::raw(label).green()
-        }
-    });
-
-    let legend = Line::from_iter(legend);
 
     let datasets = vec![Dataset::default()
         .marker(symbols::Marker::Bar)
@@ -105,6 +96,44 @@ fn render_price_chart<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringAp
         .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)));
 
     frame.render_widget(chart, area);
+}
+
+fn render_price_chart_placeholder(
+    selected_time_period: TimePeriod,
+    frame: &mut Frame<'_>,
+    area: Rect,
+) {
+    let legend = render_chart_legend(selected_time_period);
+
+    let chart = Chart::new(vec![Dataset::default().name(legend)])
+        .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
+        // Always show a legend(see `hidden_legend_constraints` docs).
+        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)));
+
+    frame.render_widget(chart, area);
+
+    let text = Text::raw("Price is loading...");
+    render_centered_text(frame, area, text);
+}
+
+fn render_chart_legend(selected_time_period: TimePeriod) -> Line<'static> {
+    let legend = TimePeriod::iter().map(|period| {
+        let label = match period {
+            TimePeriod::Day => " d[ay]",
+            TimePeriod::Week => " w[eek]",
+            TimePeriod::Month => " m[onth]",
+            TimePeriod::Year => " y[ear]",
+            TimePeriod::All => " a[ll] ",
+        };
+
+        if period == selected_time_period {
+            Span::raw(label).red()
+        } else {
+            Span::raw(label).green()
+        }
+    });
+
+    Line::from_iter(legend)
 }
 
 fn render_tx_list<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(

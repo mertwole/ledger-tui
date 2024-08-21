@@ -8,7 +8,7 @@ use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
         coin_price::{Coin, CoinPriceApiT, TimePeriod as ApiTimePeriod},
-        common::Network,
+        common_types::Network,
         ledger::LedgerApiT,
     },
     app::{ApiRegistry, StateRegistry},

@@ -4,7 +4,7 @@ use api_proc_macro::implement_cache;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 
-use super::common::{Account, Network};
+use super::common_types::{Account, Network};
 
 // TODO: This API will be fallible (return `Result<...>`) in future.
 implement_cache! {
