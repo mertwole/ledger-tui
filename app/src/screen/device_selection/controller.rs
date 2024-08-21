@@ -5,7 +5,7 @@ use crate::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
         ledger::LedgerApiT,
     },
-    screen::{EventExt, OutgoingMessage, ScreenName},
+    screen::{EventExt, OutgoingMessage},
 };
 
 use super::Model;
