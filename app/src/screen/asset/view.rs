@@ -201,9 +201,7 @@ fn render_tx_list(
             let uid = Text::raw(uid).alignment(Alignment::Center);
 
             let time = format!("{}", tx.timestamp.format("%Y-%m-%d %H:%M UTC%:z"));
-            let time = Text::raw(time)
-                .alignment(Alignment::Center)
-                .fg(resources.secondary_color);
+            let time = Text::raw(time).alignment(Alignment::Center);
 
             let description = match &tx.ty {
                 TransactionType::Deposit { from, amount } => {
@@ -214,8 +212,7 @@ fn render_tx_list(
                         Span::raw(from),
                         Span::raw(" -> "),
                         Span::raw(to).fg(resources.accent_color),
-                        Span::raw(" for ").fg(resources.secondary_color),
-                        Span::raw(format!("{}{}", amount, network_icon)),
+                        Span::raw(format!(" for {}{}", amount, network_icon)),
                     ]
                 }
                 TransactionType::Withdraw { to, amount } => {
@@ -226,8 +223,7 @@ fn render_tx_list(
                         Span::raw(from).fg(resources.accent_color),
                         Span::raw(" -> "),
                         Span::raw(to),
-                        Span::raw(" for ").fg(resources.secondary_color),
-                        Span::raw(format!("{}{}", amount, network_icon)),
+                        Span::raw(format!(" for {}{}", amount, network_icon)),
                     ]
                 }
             };
