@@ -48,7 +48,8 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     let price_chart_block = Block::new()
         .title("Price")
         .borders(Borders::all())
-        .fg(resources.main_color);
+        .fg(resources.main_color)
+        .bg(resources.background_color);
 
     let inner_price_chart_area = price_chart_block.inner(price_chart_area);
     frame.render_widget(price_chart_block, price_chart_area);
@@ -153,7 +154,8 @@ fn render_price_chart_placeholder(
     let chart = Chart::new(vec![Dataset::default().name(legend)])
         .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
         // Always show a legend(see `hidden_legend_constraints` docs).
-        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)));
+        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)))
+        .bg(resources.background_color);
 
     frame.render_widget(chart, area);
 
