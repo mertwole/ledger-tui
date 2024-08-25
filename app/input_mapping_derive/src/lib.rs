@@ -17,22 +17,21 @@ pub fn derive_mapping(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
 // TODO: Add check that mappings don't overlap.
 fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
-    let mapping_entries = item_enum
+    let (unit, to_be_flattened): (Vec<_>, Vec<_>) = item_enum
         .variants
-        .iter()
-        .filter(|variant| matches!(variant.fields, Fields::Unit))
-        .map(generate_mapping_entry);
+        .into_iter()
+        .partition(|variant| matches!(variant.fields, Fields::Unit));
+
+    let mapping_entries = unit.into_iter().map(generate_mapping_entry);
 
     let mapping_constructors = mapping_entries.clone().map(|entry| {
         let key = entry.key;
         let description = entry.description;
-        let event = entry.event;
 
         quote! {
             ::input_mapping_common::MappingEntry {
                 key: ::ratatui::crossterm::event::KeyCode::Char(#key),
                 description: (#description).to_string(),
-                event: Self:: #event
             }
         }
     });
@@ -42,7 +41,48 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
         let event = entry.event;
 
         quote! {
-            () if event.is_key_pressed(::ratatui::crossterm::event::KeyCode::Char(#key)) => ::std::option::Option::Some(Self:: #event)
+            () if event.is_key_pressed(::ratatui::crossterm::event::KeyCode::Char(#key)) =>
+                ::std::option::Option::Some(Self:: #event)
+        }
+    });
+
+    let get_mapping_flattening = to_be_flattened.iter().map(|variant| {
+        let field_ty = match &variant.fields {
+            Fields::Unnamed(fields) => {
+                let fields = &fields.unnamed;
+                if fields.len() != 1 {
+                    panic!("Multiple unnamed fields are not supported");
+                }
+                &fields.first().expect("fields.len() checked to be = 1").ty
+            }
+            Fields::Unit => panic!("Unit fields have been filtered above"),
+            Fields::Named(_) => panic!("Named variant fields are not supported"),
+        };
+
+        quote! {
+            .merge(#field_ty ::get_mapping())
+        }
+    });
+
+    let map_event_flattening = to_be_flattened.iter().map(|variant| {
+        let field_ty = match &variant.fields {
+            Fields::Unnamed(fields) => {
+                let fields = &fields.unnamed;
+                if fields.len() != 1 {
+                    panic!("Multiple unnamed fields are not supported");
+                }
+                &fields.first().expect("fields.len() checked to be = 1").ty
+            }
+            Fields::Unit => panic!("Unit fields have been filtered above"),
+            Fields::Named(_) => panic!("Named variant fields are not supported"),
+        };
+
+        let ident = &variant.ident;
+
+        quote! {
+            .or_else(|| {
+                #field_ty ::map_event(event).map(Self:: #ident)
+            })
         }
     });
 
@@ -50,21 +90,23 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
 
     quote! {
         impl ::input_mapping_common::InputMappingT for #ident {
-            fn get_mapping(&self) -> ::input_mapping_common::InputMapping<Self> {
+            fn get_mapping() -> ::input_mapping_common::InputMapping {
                 ::input_mapping_common::InputMapping {
-                    // TODO: Concat flattened
                     mapping: vec![
                         #(#mapping_constructors,)*
                     ]
                 }
+
+                #(#get_mapping_flattening)*
             }
 
-            fn map_event(&self, event: ::ratatui::crossterm::event::Event) -> ::std::option::Option<Self> {
-                // TODO: Concat flattened
+            fn map_event(event: ::ratatui::crossterm::event::Event) -> ::std::option::Option<Self> {
                 match () {
                     #(#mapping_matchers,)*
                     _ => None,
                 }
+
+                #(#map_event_flattening)*
             }
         }
     }
@@ -76,7 +118,7 @@ struct MappingEntry {
     event: TokenStream,
 }
 
-fn generate_mapping_entry(variant: &Variant) -> MappingEntry {
+fn generate_mapping_entry(variant: Variant) -> MappingEntry {
     let mut key: Option<TokenStream> = None;
     let mut description: Option<TokenStream> = None;
 

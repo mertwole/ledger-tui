@@ -1,17 +1,23 @@
 use ratatui::crossterm::event::{Event, KeyCode};
 
 pub trait InputMappingT: Sized {
-    fn get_mapping(&self) -> InputMapping<Self>;
+    fn get_mapping() -> InputMapping;
 
-    fn map_event(&self, event: Event) -> Option<Self>;
+    fn map_event(event: Event) -> Option<Self>;
 }
 
-pub struct InputMapping<M: InputMappingT> {
-    pub mapping: Vec<MappingEntry<M>>,
+pub struct InputMapping {
+    pub mapping: Vec<MappingEntry>,
 }
 
-pub struct MappingEntry<M: InputMappingT> {
+impl InputMapping {
+    pub fn merge(mut self, mut other: InputMapping) -> Self {
+        self.mapping.append(&mut other.mapping);
+        self
+    }
+}
+
+pub struct MappingEntry {
     pub key: KeyCode,
     pub description: String,
-    pub event: M,
 }
