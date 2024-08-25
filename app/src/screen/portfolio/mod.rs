@@ -115,7 +115,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         self.tick_logic();
 
-        controller::process_input(self, event.as_ref()?)
+        controller::process_input(event.as_ref()?, self)
     }
 
     fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {

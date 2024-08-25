@@ -1,3 +1,5 @@
+use input_mapping_common::InputMappingT;
+use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::{Event, KeyCode};
 
 use crate::{
@@ -5,42 +7,64 @@ use crate::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
         ledger::LedgerApiT,
     },
-    screen::{EventExt, OutgoingMessage},
+    screen::OutgoingMessage,
 };
 
 use super::Model;
 
+#[derive(InputMapping)]
+pub enum InputEvent {
+    #[key = 'q']
+    #[description = "Quit application"]
+    Quit,
+
+    #[key = "KeyCode::Down"]
+    #[description = "Navigate down in list"]
+    Down,
+
+    #[key = "KeyCode::Up"]
+    #[description = "Navigate up in list"]
+    Up,
+
+    #[key = "KeyCode::Enter"]
+    #[description = "Select device"]
+    Select,
+}
+
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &mut Model<L, C, M>,
     event: &Event,
+    model: &mut Model<L, C, M>,
 ) -> Option<OutgoingMessage> {
-    if event.is_key_pressed(KeyCode::Down) && !model.devices.is_empty() {
-        if let Some(selected) = model.selected_device.as_mut() {
-            *selected = (model.devices.len() - 1).min(*selected + 1);
-        } else {
-            model.selected_device = Some(0);
+    let event = InputEvent::map_event(event.clone())?;
+
+    match event {
+        InputEvent::Quit => return Some(OutgoingMessage::Exit),
+        InputEvent::Down => {
+            if !model.devices.is_empty() {
+                if let Some(selected) = model.selected_device.as_mut() {
+                    *selected = (model.devices.len() - 1).min(*selected + 1);
+                } else {
+                    model.selected_device = Some(0);
+                }
+            }
         }
-    }
-
-    if event.is_key_pressed(KeyCode::Up) && !model.devices.is_empty() {
-        if let Some(selected) = model.selected_device.as_mut() {
-            *selected = if *selected == 0 { 0 } else { *selected - 1 };
-        } else {
-            model.selected_device = Some(model.devices.len() - 1);
+        InputEvent::Up => {
+            if !model.devices.is_empty() {
+                if let Some(selected) = model.selected_device.as_mut() {
+                    *selected = if *selected == 0 { 0 } else { *selected - 1 };
+                } else {
+                    model.selected_device = Some(model.devices.len() - 1);
+                }
+            }
         }
-    }
+        InputEvent::Select => {
+            if let Some(device_idx) = model.selected_device {
+                let (device, info) = model.devices[device_idx].clone();
+                model.state.active_device = Some((device, info));
 
-    if event.is_key_pressed(KeyCode::Enter) {
-        if let Some(device_idx) = model.selected_device {
-            let (device, info) = model.devices[device_idx].clone();
-            model.state.active_device = Some((device, info));
-
-            return Some(OutgoingMessage::Back);
+                return Some(OutgoingMessage::Back);
+            }
         }
-    }
-
-    if event.is_key_pressed(KeyCode::Char('q')) {
-        return Some(OutgoingMessage::Exit);
     }
 
     None
