@@ -2,6 +2,7 @@ use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind},
     Frame,
 };
+use resources::Resources;
 
 use crate::{
     api::{
@@ -16,6 +17,7 @@ mod common;
 pub mod deposit;
 pub mod device_selection;
 pub mod portfolio;
+pub mod resources;
 
 pub enum Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     Asset(asset::Model<L, C, M>),
@@ -44,12 +46,12 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
         }
     }
 
-    pub fn render(&self, frame: &mut Frame<'_>) {
+    pub fn render(&self, frame: &mut Frame<'_>, resources: &Resources) {
         match self {
-            Self::Asset(screen) => screen.render(frame),
-            Self::Deposit(screen) => screen.render(frame),
-            Self::DeviceSelection(screen) => screen.render(frame),
-            Self::Portfolio(screen) => screen.render(frame),
+            Self::Asset(screen) => screen.render(frame, resources),
+            Self::Deposit(screen) => screen.render(frame, resources),
+            Self::DeviceSelection(screen) => screen.render(frame, resources),
+            Self::Portfolio(screen) => screen.render(frame, resources),
         }
     }
 
@@ -75,7 +77,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
 trait ScreenT<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self;
 
-    fn render(&self, frame: &mut Frame<'_>);
+    fn render(&self, frame: &mut Frame<'_>, resources: &Resources);
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage>;
 
     fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>);

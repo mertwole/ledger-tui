@@ -4,14 +4,18 @@ use qrcode::{Color as QrCodeColor, QrCode};
 use ratatui::{
     layout::{Alignment, Constraint, Flex, Layout, Rect},
     prelude::Buffer,
-    style::Stylize,
+    style::{Color, Stylize},
     text::Text,
     widgets::{Block, BorderType, Borders, Padding, Widget},
     Frame,
 };
 
-use crate::api::{
-    blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT, ledger::LedgerApiT,
+use crate::{
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    screen::{common::BackgroundWidget, resources::Resources},
 };
 
 use super::Model;
@@ -21,7 +25,12 @@ const DISPLAY_COPIED_TEXT_FOR: Duration = Duration::from_secs(2);
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
+    resources: &Resources,
 ) {
+    let area = frame.size();
+
+    frame.render_widget(BackgroundWidget::new(resources.background_color), area);
+
     let pubkey = model
         .state
         .selected_account
@@ -31,9 +40,9 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         .get_info()
         .pk;
 
-    let area = frame.size();
-
-    let address_text = Text::raw(&pubkey).alignment(Alignment::Center);
+    let address_text = Text::raw(&pubkey)
+        .alignment(Alignment::Center)
+        .fg(resources.main_color);
 
     let display_copied_text = if let Some(last_copy) = model.last_address_copy {
         last_copy.elapsed() <= DISPLAY_COPIED_TEXT_FOR
@@ -42,9 +51,9 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     };
 
     let description_text = if display_copied_text {
-        Text::raw("copied!").green()
+        Text::raw("copied!").fg(resources.accent_color)
     } else {
-        Text::raw("press `c` to copy")
+        Text::raw("press `c` to copy").fg(resources.main_color)
     }
     .alignment(Alignment::Center);
 
@@ -58,7 +67,10 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     .flex(Flex::Center)
     .areas(address_with_description_area);
 
-    let qr_code = QrCodeWidget::new(pubkey.clone()).with_size(QrCodeSize::Small);
+    let qr_code = QrCodeWidget::new(pubkey.clone())
+        .size(QrCodeSize::Small)
+        .dark_color(resources.qr_code_dark_color)
+        .light_color(resources.qr_code_light_color);
 
     frame.render_widget(qr_code, qr_code_area);
     frame.render_widget(address_text, address_area);
@@ -68,6 +80,9 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
 struct QrCodeWidget {
     content: String,
     size: QrCodeSize,
+
+    dark_color: Color,
+    light_color: Color,
 }
 
 enum QrCodeSize {
@@ -97,8 +112,8 @@ impl Widget for QrCodeWidget {
                 HORIZONTAL_BLOCK_PADDING,
                 VERTICAL_BLOCK_PADDING,
             ))
-            .black()
-            .on_white();
+            .bg(self.light_color)
+            .fg(self.dark_color);
 
         let expected_block_height = code.height() as u16 + VERTICAL_BLOCK_PADDING * 2 + 2;
         let expected_block_width = code.width() as u16 + HORIZONTAL_BLOCK_PADDING * 2 + 2;
@@ -122,11 +137,24 @@ impl QrCodeWidget {
         QrCodeWidget {
             content,
             size: QrCodeSize::Big,
+
+            dark_color: Color::Black,
+            light_color: Color::White,
         }
     }
 
-    fn with_size(mut self, size: QrCodeSize) -> Self {
+    fn size(mut self, size: QrCodeSize) -> Self {
         self.size = size;
+        self
+    }
+
+    fn dark_color(mut self, color: Color) -> Self {
+        self.dark_color = color;
+        self
+    }
+
+    fn light_color(mut self, color: Color) -> Self {
+        self.light_color = color;
         self
     }
 

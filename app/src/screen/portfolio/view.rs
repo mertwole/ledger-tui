@@ -1,6 +1,7 @@
 use ratatui::{
-    layout::{Alignment, Constraint},
-    style::{Color, Style, Stylize},
+    buffer::Buffer,
+    layout::{Alignment, Constraint, Rect},
+    style::{Style, Stylize},
     text::Text,
     widgets::{
         block::Title, Block, BorderType, Borders, HighlightSpacing, Padding, Row, StatefulWidget,
@@ -19,18 +20,27 @@ use crate::{
         common_types::{Account, Network},
         ledger::LedgerApiT,
     },
-    screen::common::network_symbol,
+    screen::{
+        common::{network_symbol, BackgroundWidget},
+        resources::Resources,
+    },
 };
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
+    resources: &Resources,
 ) {
+    frame.render_widget(
+        BackgroundWidget::new(resources.background_color),
+        frame.size(),
+    );
+
     if let Some(accounts) = model.state.device_accounts.as_ref() {
-        render_account_table(model, frame, accounts);
+        render_account_table(model, frame, accounts, resources);
     } else {
         // TODO: Process case when device is connected but accounts haven't been loaded yet.
-        render_account_table_placeholder(frame);
+        render_account_table_placeholder(frame, resources);
     }
 }
 
@@ -38,6 +48,7 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     accounts: &[(Network, Vec<Account>)],
+    resources: &Resources,
 ) {
     let area = frame.size();
 
@@ -70,6 +81,7 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
                 selected_account,
                 is_self_selected: false,
                 price,
+                resources,
             }
         })
         .collect();
@@ -83,7 +95,7 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-struct NetworkAccountsTable {
+struct NetworkAccountsTable<'a> {
     network: Network,
     accounts_and_balances: Vec<(Account, Option<Decimal>)>,
 
@@ -91,9 +103,11 @@ struct NetworkAccountsTable {
     is_self_selected: bool,
 
     price: Option<Decimal>,
+
+    resources: &'a Resources,
 }
 
-impl PreRender for NetworkAccountsTable {
+impl<'a> PreRender for NetworkAccountsTable<'a> {
     fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
         self.is_self_selected = context.is_selected;
 
@@ -101,8 +115,8 @@ impl PreRender for NetworkAccountsTable {
     }
 }
 
-impl Widget for NetworkAccountsTable {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+impl<'a> Widget for NetworkAccountsTable<'a> {
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {
@@ -119,7 +133,7 @@ impl Widget for NetworkAccountsTable {
         let block = Block::new()
             .border_type(BorderType::Rounded)
             .borders(Borders::all())
-            .border_style(Color::Yellow)
+            .border_style(self.resources.main_color)
             .title(Title::from(self.network.get_info().name).alignment(Alignment::Left))
             .title(Title::from(price_label).alignment(Alignment::Right));
 
@@ -147,13 +161,17 @@ impl Widget for NetworkAccountsTable {
             let balance = Text::from(balance).alignment(Alignment::Center);
             let price = Text::from(price).alignment(Alignment::Right);
 
-            Row::new(vec![pk, balance, price])
+            Row::new(vec![pk, balance, price]).fg(self.resources.main_color)
         });
 
         let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
             .column_spacing(1)
             .block(block)
-            .highlight_style(Style::new().reversed())
+            .highlight_style(
+                Style::new()
+                    .bg(self.resources.accent_color)
+                    .fg(self.resources.background_color),
+            )
             .highlight_spacing(HighlightSpacing::Always)
             .highlight_symbol(">>");
 
@@ -162,21 +180,22 @@ impl Widget for NetworkAccountsTable {
     }
 }
 
-fn render_account_table_placeholder(frame: &mut Frame<'_>) {
+fn render_account_table_placeholder(frame: &mut Frame<'_>, resources: &Resources) {
     let area = frame.size();
 
     let block = Block::new()
         .border_type(BorderType::Double)
         .borders(Borders::all())
-        .border_style(Color::Yellow)
+        .border_style(resources.main_color)
         .padding(Padding::uniform(1))
         .title("Portfolio")
         .title_alignment(Alignment::Center);
 
     let text_area = block.inner(area);
 
-    let text =
-        Text::raw("Device is not selected. Please select device(`d`)").alignment(Alignment::Center);
+    let text = Text::raw("Device is not selected. Please select device(`d`)")
+        .alignment(Alignment::Center)
+        .fg(resources.main_color);
 
     frame.render_widget(block, area);
     frame.render_widget(text, text_area);

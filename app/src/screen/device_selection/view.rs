@@ -1,26 +1,33 @@
 use ratatui::{
     layout::{Alignment, Margin},
-    style::{Color, Stylize},
+    style::Stylize,
     text::Text,
     widgets::{Block, BorderType, Borders, List, Padding},
     Frame,
 };
 
 use super::Model;
-use crate::api::{
-    blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT, ledger::LedgerApiT,
+use crate::{
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    screen::{common::BackgroundWidget, resources::Resources},
 };
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
+    resources: &Resources,
 ) {
     let area = frame.size();
+
+    frame.render_widget(BackgroundWidget::new(resources.background_color), area);
 
     let list_block = Block::new()
         .border_type(BorderType::Double)
         .borders(Borders::all())
-        .border_style(Color::Green)
+        .border_style(resources.main_color)
         .padding(Padding::uniform(1))
         .title("Select a device")
         .title_alignment(Alignment::Center);
@@ -32,11 +39,15 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
             info.model, info.mcu_version, info.se_version
         );
 
-        let mut item = Text::centered(label.into());
+        let item = Text::centered(label.into());
 
-        if Some(idx) == model.selected_device {
-            item = item.bold().bg(Color::DarkGray);
-        }
+        let item = if Some(idx) == model.selected_device {
+            item.bold()
+                .bg(resources.accent_color)
+                .fg(resources.background_color)
+        } else {
+            item.fg(resources.main_color)
+        };
 
         list_height += item.height();
 

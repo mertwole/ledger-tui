@@ -4,7 +4,7 @@ use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
 
-use super::{OutgoingMessage, ScreenT};
+use super::{resources::Resources, OutgoingMessage, ScreenT};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT,
@@ -108,8 +108,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         }
     }
 
-    fn render(&self, frame: &mut Frame<'_>) {
-        view::render(self, frame);
+    fn render(&self, frame: &mut Frame<'_>, resources: &Resources) {
+        view::render(self, frame, resources);
     }
 
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
