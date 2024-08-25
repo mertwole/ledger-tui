@@ -21,7 +21,7 @@ use crate::{
         ledger::LedgerApiT,
     },
     screen::{
-        common::{format_address, network_symbol, render_centered_text},
+        common::{format_address, network_symbol, render_centered_text, BackgroundWidget},
         resources::Resources,
     },
 };
@@ -34,16 +34,22 @@ const TX_UID_MAX_LEN: usize = 16;
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
-    _resources: &Resources,
+    resources: &Resources,
 ) {
     let area = frame.size();
+
+    frame.render_widget(BackgroundWidget::new(resources.background_color), area);
 
     let [price_chart_area, txs_list_area] = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Fill(1); 2])
         .areas(area);
 
-    let price_chart_block = Block::new().title("Price").borders(Borders::all());
+    let price_chart_block = Block::new()
+        .title("Price")
+        .borders(Borders::all())
+        .fg(resources.main_color);
+
     let inner_price_chart_area = price_chart_block.inner(price_chart_area);
     frame.render_widget(price_chart_block, price_chart_area);
 
@@ -53,15 +59,23 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
             model.selected_time_period,
             frame,
             inner_price_chart_area,
+            resources,
         );
     } else {
-        render_price_chart_placeholder(model.selected_time_period, frame, inner_price_chart_area);
+        render_price_chart_placeholder(
+            model.selected_time_period,
+            frame,
+            inner_price_chart_area,
+            resources,
+        );
     }
 
     let txs_list_block = Block::new()
         .title("Transactions")
         .borders(Borders::all())
-        .padding(Padding::proportional(1));
+        .padding(Padding::proportional(1))
+        .fg(resources.main_color);
+
     let inner_txs_list_area = txs_list_block.inner(txs_list_area);
     frame.render_widget(txs_list_block, txs_list_area);
 
@@ -81,6 +95,7 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
                 &tx_list[..],
                 frame,
                 inner_txs_list_area,
+                resources,
             );
         }
         None => {
@@ -94,8 +109,9 @@ fn render_price_chart(
     selected_time_period: TimePeriod,
     frame: &mut Frame<'_>,
     area: Rect,
+    resources: &Resources,
 ) {
-    let legend = render_chart_legend(selected_time_period);
+    let legend = render_chart_legend(selected_time_period, resources);
 
     let max_price = *prices.iter().max().expect("Empty `prices` vector provided");
 
@@ -109,23 +125,19 @@ fn render_price_chart(
         .marker(symbols::Marker::Bar)
         .name(legend)
         .graph_type(GraphType::Line)
-        .style(Style::default().magenta())
         .data(&price_data)];
 
-    let x_axis = Axis::default()
-        .style(Style::default().white())
-        .bounds([0.0, (price_data.len() - 1) as f64]);
+    let x_axis = Axis::default().bounds([0.0, (price_data.len() - 1) as f64]);
 
-    let y_axis = Axis::default()
-        .style(Style::default().white())
-        .bounds([0.0, max_price.try_into().unwrap()]);
+    let y_axis = Axis::default().bounds([0.0, max_price.try_into().unwrap()]);
 
     let chart = Chart::new(datasets)
         .x_axis(x_axis)
         .y_axis(y_axis)
         .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
         // Always show a legend(see `hidden_legend_constraints` docs).
-        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)));
+        .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)))
+        .bg(resources.background_color);
 
     frame.render_widget(chart, area);
 }
@@ -134,8 +146,9 @@ fn render_price_chart_placeholder(
     selected_time_period: TimePeriod,
     frame: &mut Frame<'_>,
     area: Rect,
+    resources: &Resources,
 ) {
-    let legend = render_chart_legend(selected_time_period);
+    let legend = render_chart_legend(selected_time_period, resources);
 
     let chart = Chart::new(vec![Dataset::default().name(legend)])
         .legend_position(Some(ratatui::widgets::LegendPosition::BottomRight))
@@ -148,7 +161,7 @@ fn render_price_chart_placeholder(
     render_centered_text(frame, area, text);
 }
 
-fn render_chart_legend(selected_time_period: TimePeriod) -> Line<'static> {
+fn render_chart_legend(selected_time_period: TimePeriod, resources: &Resources) -> Line<'static> {
     let legend = TimePeriod::iter().map(|period| {
         let label = match period {
             TimePeriod::Day => " d[ay]",
@@ -159,9 +172,9 @@ fn render_chart_legend(selected_time_period: TimePeriod) -> Line<'static> {
         };
 
         if period == selected_time_period {
-            Span::raw(label).red()
+            Span::raw(label).fg(resources.accent_color)
         } else {
-            Span::raw(label).green()
+            Span::raw(label).fg(resources.main_color)
         }
     });
 
@@ -173,6 +186,7 @@ fn render_tx_list(
     tx_list: &[(TransactionUid, TransactionInfo)],
     frame: &mut Frame<'_>,
     area: Rect,
+    resources: &Resources,
 ) {
     let (selected_account_network, selected_account) = selected_account;
 
@@ -187,7 +201,9 @@ fn render_tx_list(
             let uid = Text::raw(uid).alignment(Alignment::Center);
 
             let time = format!("{}", tx.timestamp.format("%Y-%m-%d %H:%M UTC%:z"));
-            let time = Text::raw(time).alignment(Alignment::Center);
+            let time = Text::raw(time)
+                .alignment(Alignment::Center)
+                .fg(resources.secondary_color);
 
             let description = match &tx.ty {
                 TransactionType::Deposit { from, amount } => {
@@ -197,8 +213,9 @@ fn render_tx_list(
                     vec![
                         Span::raw(from),
                         Span::raw(" -> "),
-                        Span::raw(to).green(),
-                        Span::raw(format!(" for {}{}", amount, network_icon)),
+                        Span::raw(to).fg(resources.accent_color),
+                        Span::raw(" for ").fg(resources.secondary_color),
+                        Span::raw(format!("{}{}", amount, network_icon)),
                     ]
                 }
                 TransactionType::Withdraw { to, amount } => {
@@ -206,10 +223,11 @@ fn render_tx_list(
                     let to = format_address(&to.get_info().pk, ADDRESSES_MAX_LEN);
 
                     vec![
-                        Span::raw(from).green(),
+                        Span::raw(from).fg(resources.accent_color),
                         Span::raw(" -> "),
                         Span::raw(to),
-                        Span::raw(format!(" for {}{}", amount, network_icon)),
+                        Span::raw(" for ").fg(resources.secondary_color),
+                        Span::raw(format!("{}{}", amount, network_icon)),
                     ]
                 }
             };
