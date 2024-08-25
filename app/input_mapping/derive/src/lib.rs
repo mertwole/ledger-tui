@@ -1,6 +1,6 @@
 use proc_macro2::{Literal, TokenStream};
 use quote::ToTokens;
-use syn::{parse_macro_input, Fields, ItemEnum, Meta, MetaNameValue, Variant};
+use syn::{parse_macro_input, Expr, Fields, ItemEnum, Lit, Meta, MetaNameValue, Variant};
 
 #[macro_use]
 extern crate quote;
@@ -30,7 +30,7 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
 
         quote! {
             ::input_mapping_common::MappingEntry {
-                key: ::ratatui::crossterm::event::KeyCode::Char(#key),
+                key: #key.convert(),
                 description: (#description).to_string(),
             }
         }
@@ -43,9 +43,9 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
         quote! {
             ::ratatui::crossterm::event::Event::Key(::ratatui::crossterm::event::KeyEvent {
                 kind: ::ratatui::crossterm::event::KeyEventKind::Press,
-                code: ::ratatui::crossterm::event::KeyCode::Char(#key),
+                code,
                 ..
-            }) => ::std::option::Option::Some(Self:: #event)
+            }) if code == #key.convert() => ::std::option::Option::Some(Self:: #event)
         }
     });
 
@@ -94,6 +94,8 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
     quote! {
         impl ::input_mapping_common::InputMappingT for #ident {
             fn get_mapping() -> ::input_mapping_common::InputMapping {
+                use ::input_mapping_common::KeyCodeConversions;
+
                 ::input_mapping_common::InputMapping {
                     mapping: vec![
                         #(#mapping_constructors,)*
@@ -104,6 +106,8 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
             }
 
             fn map_event(event: ::ratatui::crossterm::event::Event) -> ::std::option::Option<Self> {
+                use ::input_mapping_common::KeyCodeConversions;
+
                 match event {
                     #(#mapping_matchers,)*
                     _ => None,
@@ -133,7 +137,18 @@ fn generate_mapping_entry(variant: Variant) -> MappingEntry {
                         panic!("Duplicate definition for attribute: key");
                     }
 
-                    key = Some(value.into_token_stream());
+                    key = Some(match value {
+                        Expr::Lit(lit) => match &lit.lit {
+                            Lit::Str(str) => str.value().parse().expect("Invalid expression"),
+                            Lit::Char(char) => char.to_token_stream(),
+                            _ => {
+                                unimplemented!("Values other than string or char are not supported")
+                            }
+                        },
+                        _ => unimplemented!(),
+                    });
+
+                    //key = Some(value.into_token_stream());
                 } else if path.is_ident("description") {
                     if description.is_some() {
                         panic!("Duplicate definition for attribute: description");

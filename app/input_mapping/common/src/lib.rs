@@ -23,3 +23,19 @@ pub struct MappingEntry {
     pub key: KeyCode,
     pub description: String,
 }
+
+pub trait KeyCodeConversions {
+    fn convert(self) -> KeyCode;
+}
+
+impl KeyCodeConversions for char {
+    fn convert(self) -> KeyCode {
+        KeyCode::Char(self)
+    }
+}
+
+impl KeyCodeConversions for KeyCode {
+    fn convert(self) -> KeyCode {
+        self
+    }
+}

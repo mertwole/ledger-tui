@@ -23,6 +23,10 @@ enum Nested {
     #[description = "four_test"]
     Four,
 
+    #[key = "KeyCode::Up"]
+    #[description = "up"]
+    Five,
+
     Six,
 }
 
@@ -35,11 +39,12 @@ fn test_input_mapping_generated_as_expected() {
         .map(|map| (map.key, map.description))
         .collect();
 
-    assert_eq!(mapping.len(), 4);
+    assert_eq!(mapping.len(), 5);
     assert_eq!(
         mapping.get(&KeyCode::Char('f')),
         Some(&"four_test".to_string())
     );
     assert_eq!(mapping.get(&KeyCode::Char('t')), Some(&"test".to_string()));
     assert_eq!(mapping.get(&KeyCode::Char('s')), Some(&"".to_string()));
+    assert_eq!(mapping.get(&KeyCode::Up), Some(&"up".to_string()));
 }
