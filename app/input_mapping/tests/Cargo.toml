@@ -1,0 +1,11 @@
+[package]
+name = "input-mapping-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+input-mapping-derive.workspace = true
+input-mapping-common.workspace = true
+
+ratatui.workspace = true
