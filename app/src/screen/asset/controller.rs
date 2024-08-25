@@ -13,17 +13,27 @@ use super::{Model, TimePeriod};
 
 #[derive(InputMapping)]
 pub enum InputEvent {
+    #[key = 'q']
     Quit,
+    #[key = 'b']
     Back,
+    #[key = 's']
+    #[description = "Open deposit screen"]
     OpenDepositScreen,
     SelectTimeInterval(SelectTimeIntervalEvent),
 }
 
+#[derive(InputMapping)]
 pub enum SelectTimeIntervalEvent {
+    #[key = 'd']
     Day,
+    #[key = 'w']
     Week,
+    #[key = 'm']
     Month,
+    #[key = 'y']
     Year,
+    #[key = 'a']
     All,
 }
 
