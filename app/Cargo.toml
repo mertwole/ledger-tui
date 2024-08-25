@@ -6,6 +6,8 @@ authors.workspace = true
 
 [dependencies]
 api-proc-macro.workspace = true
+input-mapping-derive.workspace = true
+input-mapping-common.workspace = true
 
 binance_spot_connector_rust.workspace = true
 bs58.workspace = true

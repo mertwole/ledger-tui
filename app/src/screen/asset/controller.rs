@@ -1,3 +1,4 @@
+use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::{Event, KeyCode};
 
 use crate::{
@@ -9,6 +10,46 @@ use crate::{
 };
 
 use super::{Model, TimePeriod};
+
+#[derive(InputMapping)]
+pub enum InputEvent {
+    Quit,
+    Back,
+    OpenDepositScreen,
+    SelectTimeInterval(SelectTimeIntervalEvent),
+}
+
+pub enum SelectTimeIntervalEvent {
+    Day,
+    Week,
+    Month,
+    Year,
+    All,
+}
+
+impl InputEvent {
+    pub fn from_event(event: &Event) -> Option<Self> {
+        match () {
+            () if event.is_key_pressed(KeyCode::Char('q')) => Some(Self::Quit),
+            () if event.is_key_pressed(KeyCode::Char('b')) => Some(Self::Back),
+            () if event.is_key_pressed(KeyCode::Char('s')) => Some(Self::OpenDepositScreen),
+            _ => SelectTimeIntervalEvent::from_event(event).map(|e| Self::SelectTimeInterval(e)),
+        }
+    }
+}
+
+impl SelectTimeIntervalEvent {
+    fn from_event(event: &Event) -> Option<Self> {
+        match () {
+            () if event.is_key_pressed(KeyCode::Char('d')) => Some(Self::Day),
+            () if event.is_key_pressed(KeyCode::Char('w')) => Some(Self::Week),
+            () if event.is_key_pressed(KeyCode::Char('m')) => Some(Self::Month),
+            () if event.is_key_pressed(KeyCode::Char('y')) => Some(Self::Year),
+            () if event.is_key_pressed(KeyCode::Char('a')) => Some(Self::All),
+            _ => None,
+        }
+    }
+}
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     event: &Event,

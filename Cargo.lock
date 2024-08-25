@@ -1310,6 +1310,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "input-mapping-common"
+version = "0.1.0"
+dependencies = [
+ "ratatui",
+]
+
+[[package]]
+name = "input-mapping-derive"
+version = "0.1.0"
+dependencies = [
+ "input-mapping-common",
+ "itertools 0.13.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.72",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1443,6 +1461,8 @@ dependencies = [
  "chrono",
  "copypasta",
  "futures",
+ "input-mapping-common",
+ "input-mapping-derive",
  "itertools 0.13.0",
  "ledger-lib",
  "ledger-proto",
