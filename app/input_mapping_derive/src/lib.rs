@@ -23,6 +23,29 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
         .filter(|variant| matches!(variant.fields, Fields::Unit))
         .map(generate_mapping_entry);
 
+    let mapping_constructors = mapping_entries.clone().map(|entry| {
+        let key = entry.key;
+        let description = entry.description;
+        let event = entry.event;
+
+        quote! {
+            ::input_mapping_common::MappingEntry {
+                key: ::ratatui::crossterm::event::KeyCode::Char(#key),
+                description: (#description).to_string(),
+                event: Self:: #event
+            }
+        }
+    });
+
+    let mapping_matchers = mapping_entries.map(|entry| {
+        let key = entry.key;
+        let event = entry.event;
+
+        quote! {
+            () if event.is_key_pressed(::ratatui::crossterm::event::KeyCode::Char(#key)) => ::std::option::Option::Some(Self:: #event)
+        }
+    });
+
     let ident = item_enum.ident;
 
     quote! {
@@ -31,19 +54,29 @@ fn generate_trait_impl(item_enum: ItemEnum) -> TokenStream {
                 ::input_mapping_common::InputMapping {
                     // TODO: Concat flattened
                     mapping: vec![
-                        #(#mapping_entries),*
+                        #(#mapping_constructors,)*
                     ]
                 }
             }
 
             fn map_event(&self, event: ::ratatui::crossterm::event::Event) -> ::std::option::Option<Self> {
-                todo!()
+                // TODO: Concat flattened
+                match () {
+                    #(#mapping_matchers,)*
+                    _ => None,
+                }
             }
         }
     }
 }
 
-fn generate_mapping_entry(variant: &Variant) -> TokenStream {
+struct MappingEntry {
+    key: TokenStream,
+    description: TokenStream,
+    event: TokenStream,
+}
+
+fn generate_mapping_entry(variant: &Variant) -> MappingEntry {
     let mut key: Option<TokenStream> = None;
     let mut description: Option<TokenStream> = None;
 
@@ -81,13 +114,9 @@ fn generate_mapping_entry(variant: &Variant) -> TokenStream {
 
     let description = description.unwrap_or_else(|| Literal::string("").into_token_stream());
 
-    let command = variant.ident.to_token_stream();
-
-    quote! {
-        ::input_mapping_common::MappingEntry {
-            key: ::ratatui::crossterm::event::KeyCode::Char(#key),
-            description: (#description).to_string(),
-            event: Self:: #command
-        }
+    MappingEntry {
+        key,
+        description,
+        event: variant.ident.to_token_stream(),
     }
 }
