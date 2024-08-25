@@ -1,5 +1,7 @@
 use std::num::NonZeroUsize;
 
+use input_mapping_common::InputMappingT;
+use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::{Event, KeyCode};
 
 use super::Model;
@@ -8,15 +10,48 @@ use crate::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
         ledger::LedgerApiT,
     },
-    screen::{EventExt, OutgoingMessage, ScreenName},
+    screen::{OutgoingMessage, ScreenName},
 };
 
+#[derive(InputMapping)]
+pub enum InputEvent {
+    #[key = 'q']
+    #[description = "Quit application"]
+    Quit,
+
+    #[key = 'd']
+    #[description = "Open device selection screen"]
+    OpenDeviceSelection,
+
+    #[key = "KeyCode::Down"]
+    #[description = "Navigate down in list"]
+    Down,
+
+    #[key = "KeyCode::Up"]
+    #[description = "Navigate up in list"]
+    Up,
+
+    #[key = "KeyCode::Enter"]
+    #[description = "Select device"]
+    Select,
+}
+
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &mut Model<L, C, M>,
     event: &Event,
+    model: &mut Model<L, C, M>,
 ) -> Option<OutgoingMessage> {
+    let event = InputEvent::map_event(event.clone())?;
+
+    match event {
+        InputEvent::Quit => return Some(OutgoingMessage::Exit),
+        InputEvent::OpenDeviceSelection => {
+            return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection))
+        }
+        _ => {}
+    };
+
     if let Some(accounts) = model.state.device_accounts.as_ref() {
-        if event.is_key_pressed(KeyCode::Enter) {
+        if matches!(event, InputEvent::Select) {
             if let Some((selected_network_idx, selected_account_idx)) = model.selected_account {
                 let (selected_network, accounts) = &accounts[selected_network_idx];
                 let selected_account = accounts[selected_account_idx].clone();
@@ -33,15 +68,8 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
                 NonZeroUsize::new(accounts.len()).expect("No accounts for provided network found")
             })
             .collect();
-        process_table_navigation(model, event, &accounts_per_network);
-    }
 
-    if event.is_key_pressed(KeyCode::Char('d')) {
-        return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection));
-    }
-
-    if event.is_key_pressed(KeyCode::Char('q')) {
-        return Some(OutgoingMessage::Exit);
+        process_table_navigation(model, &event, &accounts_per_network);
     }
 
     None
@@ -49,10 +77,10 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
 
 fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &mut Model<L, C, M>,
-    event: &Event,
+    event: &InputEvent,
     accounts_per_network: &[NonZeroUsize],
 ) {
-    if event.is_key_pressed(KeyCode::Down) {
+    if matches!(event, InputEvent::Down) {
         if let Some((selected_network, selected_account)) = model.selected_account {
             if selected_account + 1 >= accounts_per_network[selected_network].into() {
                 if selected_network >= accounts_per_network.len() - 1 {
@@ -76,7 +104,7 @@ fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
         }
     }
 
-    if event.is_key_pressed(KeyCode::Up) {
+    if matches!(event, InputEvent::Up) {
         if let Some((selected_network, selected_account)) = model.selected_account {
             if selected_account == 0 {
                 if selected_network == 0 {

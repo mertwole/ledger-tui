@@ -2,7 +2,7 @@
 
 resolver = "2"
 
-members = ["./app", "./app/api_proc_macro"]
+members = ["./app", "./app/input_mapping/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -11,6 +11,8 @@ authors = ["mertwole"]
 
 [workspace.dependencies]
 api-proc-macro = { path = "./app/api_proc_macro" }
+input-mapping-derive = { path = "./app/input_mapping/derive" }
+input-mapping-common = { path = "./app/input_mapping/common" }
 
 binance_spot_connector_rust = "1.1.0"
 bs58 = "0.5.1"
