@@ -23,7 +23,7 @@ use crate::{
             cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApiT,
         },
     },
-    screen::{OutgoingMessage, Screen, ScreenName},
+    screen::{resources::Resources, OutgoingMessage, Screen, ScreenName},
 };
 
 pub struct App {
@@ -140,8 +140,12 @@ impl App {
         mut screen: Screen<L, C, M>,
         terminal: &mut Terminal<B>,
     ) -> (StateRegistry, ApiRegistry<L, C, M>, OutgoingMessage) {
+        let resources = Resources::default();
+
         loop {
-            terminal.draw(|frame| screen.render(frame)).unwrap();
+            terminal
+                .draw(|frame| screen.render(frame, &resources))
+                .unwrap();
 
             let event = event::poll(Duration::ZERO)
                 .unwrap()

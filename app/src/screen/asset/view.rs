@@ -20,7 +20,10 @@ use crate::{
         common_types::{Account, Network},
         ledger::LedgerApiT,
     },
-    screen::common::{format_address, network_symbol, render_centered_text},
+    screen::{
+        common::{format_address, network_symbol, render_centered_text},
+        resources::Resources,
+    },
 };
 
 use super::{Model, TimePeriod};
@@ -31,6 +34,7 @@ const TX_UID_MAX_LEN: usize = 16;
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
+    _resources: &Resources,
 ) {
     let area = frame.size();
 

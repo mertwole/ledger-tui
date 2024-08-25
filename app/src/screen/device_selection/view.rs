@@ -7,13 +7,18 @@ use ratatui::{
 };
 
 use super::Model;
-use crate::api::{
-    blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT, ledger::LedgerApiT,
+use crate::{
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT,
+    },
+    screen::resources::Resources,
 };
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
+    _resources: &Resources,
 ) {
     let area = frame.size();
 

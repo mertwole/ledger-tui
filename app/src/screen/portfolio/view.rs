@@ -19,12 +19,13 @@ use crate::{
         common_types::{Account, Network},
         ledger::LedgerApiT,
     },
-    screen::common::network_symbol,
+    screen::{common::network_symbol, resources::Resources},
 };
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
+    _resources: &Resources,
 ) {
     if let Some(accounts) = model.state.device_accounts.as_ref() {
         render_account_table(model, frame, accounts);
