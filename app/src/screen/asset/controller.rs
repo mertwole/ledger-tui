@@ -14,51 +14,41 @@ use super::{Model, TimePeriod};
 #[derive(InputMapping)]
 pub enum InputEvent {
     #[key = 'q']
+    #[description = "Quit application"]
     Quit,
+
     #[key = 'b']
+    #[description = "Return one screen back"]
     Back,
+
     #[key = 's']
     #[description = "Open deposit screen"]
     OpenDepositScreen,
-    SelectTimeInterval(SelectTimeIntervalEvent),
+
+    SelectTimeInterval(SelectTimeInterval),
 }
 
 #[derive(InputMapping)]
-pub enum SelectTimeIntervalEvent {
+pub enum SelectTimeInterval {
     #[key = 'd']
+    #[description = "Select time interval - day"]
     Day,
+
     #[key = 'w']
+    #[description = "Select time interval - week"]
     Week,
+
     #[key = 'm']
+    #[description = "Select time interval - month"]
     Month,
+
     #[key = 'y']
+    #[description = "Select time interval - year"]
     Year,
+
     #[key = 'a']
+    #[description = "Select time interval - all time"]
     All,
-}
-
-impl InputEvent {
-    pub fn from_event(event: &Event) -> Option<Self> {
-        match () {
-            () if event.is_key_pressed(KeyCode::Char('q')) => Some(Self::Quit),
-            () if event.is_key_pressed(KeyCode::Char('b')) => Some(Self::Back),
-            () if event.is_key_pressed(KeyCode::Char('s')) => Some(Self::OpenDepositScreen),
-            _ => SelectTimeIntervalEvent::from_event(event).map(|e| Self::SelectTimeInterval(e)),
-        }
-    }
-}
-
-impl SelectTimeIntervalEvent {
-    fn from_event(event: &Event) -> Option<Self> {
-        match () {
-            () if event.is_key_pressed(KeyCode::Char('d')) => Some(Self::Day),
-            () if event.is_key_pressed(KeyCode::Char('w')) => Some(Self::Week),
-            () if event.is_key_pressed(KeyCode::Char('m')) => Some(Self::Month),
-            () if event.is_key_pressed(KeyCode::Char('y')) => Some(Self::Year),
-            () if event.is_key_pressed(KeyCode::Char('a')) => Some(Self::All),
-            _ => None,
-        }
-    }
 }
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(

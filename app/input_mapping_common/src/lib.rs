@@ -6,6 +6,7 @@ pub trait InputMappingT: Sized {
     fn map_event(event: Event) -> Option<Self>;
 }
 
+#[derive(Debug)]
 pub struct InputMapping {
     pub mapping: Vec<MappingEntry>,
 }
@@ -17,6 +18,7 @@ impl InputMapping {
     }
 }
 
+#[derive(Debug)]
 pub struct MappingEntry {
     pub key: KeyCode,
     pub description: String,
