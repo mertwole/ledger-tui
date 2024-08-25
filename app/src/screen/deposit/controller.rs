@@ -1,7 +1,9 @@
 use std::time::Instant;
 
 use copypasta::{ClipboardContext, ClipboardProvider};
-use ratatui::crossterm::event::{Event, KeyCode};
+use input_mapping_common::InputMappingT;
+use input_mapping_derive::InputMapping;
+use ratatui::crossterm::event::Event;
 
 use super::Model;
 use crate::{
@@ -9,38 +11,51 @@ use crate::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
         ledger::LedgerApiT,
     },
-    screen::{EventExt, OutgoingMessage},
+    screen::OutgoingMessage,
 };
+
+#[derive(InputMapping)]
+pub enum InputEvent {
+    #[key = 'q']
+    #[description = "Quit application"]
+    Quit,
+
+    #[key = 'b']
+    #[description = "Return one screen back"]
+    Back,
+
+    #[key = 'c']
+    #[description = "Copy address to a clipboard"]
+    CopyAddress,
+}
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     event: &Event,
     model: &mut Model<L, C, M>,
 ) -> Option<OutgoingMessage> {
-    if event.is_key_pressed(KeyCode::Char('q')) {
-        return Some(OutgoingMessage::Exit);
+    let event = InputEvent::map_event(event.clone())?;
+
+    match event {
+        InputEvent::Quit => Some(OutgoingMessage::Exit),
+        InputEvent::Back => Some(OutgoingMessage::Back),
+        InputEvent::CopyAddress => {
+            model.last_address_copy = Some(Instant::now());
+
+            let pubkey = model
+                .state
+                .selected_account
+                .as_ref()
+                .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?
+                .1
+                .get_info()
+                .pk;
+
+            let mut ctx = ClipboardContext::new().unwrap();
+            ctx.set_contents(pubkey).unwrap();
+            // It's a bug in `copypasta`. Without calling `get_contents` after `set_contents` clipboard will contain nothing.
+            ctx.get_contents().unwrap();
+
+            None
+        }
     }
-
-    if event.is_key_pressed(KeyCode::Char('b')) {
-        return Some(OutgoingMessage::Back);
-    }
-
-    if event.is_key_pressed(KeyCode::Char('c')) {
-        model.last_address_copy = Some(Instant::now());
-
-        let pubkey = model
-            .state
-            .selected_account
-            .as_ref()
-            .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?
-            .1
-            .get_info()
-            .pk;
-
-        let mut ctx = ClipboardContext::new().unwrap();
-        ctx.set_contents(pubkey).unwrap();
-        // It's a bug in `copypasta`. Without calling `get_contents` after `set_contents` clipboard will contain nothing.
-        ctx.get_contents().unwrap();
-    }
-
-    None
 }
