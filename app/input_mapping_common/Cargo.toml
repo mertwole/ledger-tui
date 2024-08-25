@@ -1,8 +1,0 @@
-[package]
-name = "input-mapping-common"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-
-[dependencies]
-ratatui.workspace = true

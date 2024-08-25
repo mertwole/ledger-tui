@@ -1328,6 +1328,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "input-mapping-tests"
+version = "0.1.0"
+dependencies = [
+ "input-mapping-common",
+ "input-mapping-derive",
+ "ratatui",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
