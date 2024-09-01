@@ -1,12 +1,16 @@
 use ratatui::{
     layout::{Constraint, Flex, Layout, Rect},
-    style::{Color, Stylize},
-    text::{Line, Text},
-    widgets::Widget,
+    text::Text,
     Frame,
 };
 
 use crate::api::common_types::Network;
+
+mod background_widget;
+pub use background_widget::*;
+
+mod navigation_help_widget;
+pub use navigation_help_widget::*;
 
 pub fn network_symbol(network: Network) -> String {
     match network {
@@ -48,28 +52,6 @@ pub fn format_address(address: &str, max_symbols: usize) -> String {
         &address[..part_size],
         &address[(address.len() - part_size)..]
     )
-}
-
-pub struct BackgroundWidget {
-    color: Color,
-}
-
-impl BackgroundWidget {
-    pub fn new(color: Color) -> Self {
-        Self { color }
-    }
-}
-
-impl Widget for BackgroundWidget {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        let line = Line::raw(" ".repeat(area.width as usize)).bg(self.color);
-        for y in area.y..area.y + area.height {
-            buf.set_line(area.x, y, &line, area.width);
-        }
-    }
 }
 
 #[cfg(test)]
