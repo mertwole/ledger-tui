@@ -1,3 +1,4 @@
+use input_mapping_common::InputMappingT;
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Rect},
@@ -12,7 +13,7 @@ use ratatui::{
 use rust_decimal::Decimal;
 use tui_widget_list::PreRender;
 
-use super::Model;
+use super::{controller, Model};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT,
@@ -21,7 +22,7 @@ use crate::{
         ledger::LedgerApiT,
     },
     screen::{
-        common::{network_symbol, BackgroundWidget},
+        common::{self, network_symbol, BackgroundWidget},
         resources::Resources,
     },
 };
@@ -41,6 +42,11 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     } else {
         // TODO: Process case when device is connected but accounts haven't been loaded yet.
         render_account_table_placeholder(frame, resources);
+    }
+
+    if model.show_navigation_help {
+        let mapping = controller::InputEvent::get_mapping();
+        common::render_navigation_help(mapping, frame, resources);
     }
 }
 

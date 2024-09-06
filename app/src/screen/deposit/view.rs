@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use input_mapping_common::InputMappingT;
 use qrcode::{Color as QrCodeColor, QrCode};
 use ratatui::{
     layout::{Alignment, Constraint, Flex, Layout, Rect},
@@ -15,7 +16,10 @@ use crate::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
         ledger::LedgerApiT,
     },
-    screen::{common::BackgroundWidget, resources::Resources},
+    screen::{
+        common::{self, BackgroundWidget},
+        resources::Resources,
+    },
 };
 
 use super::Model;
@@ -75,6 +79,11 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     frame.render_widget(qr_code, qr_code_area);
     frame.render_widget(address_text, address_area);
     frame.render_widget(description_text, description_area);
+
+    if model.show_navigation_help {
+        let mapping = super::controller::InputEvent::get_mapping();
+        common::render_navigation_help(mapping, frame, resources);
+    }
 }
 
 struct QrCodeWidget {

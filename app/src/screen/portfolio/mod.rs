@@ -23,6 +23,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     // TODO: Store it in API cache.
     coin_prices: HashMap<Network, Option<Decimal>>,
     balances: HashMap<(Network, Account), Decimal>,
+    show_navigation_help: bool,
 
     state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
@@ -102,6 +103,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             selected_account: None,
             coin_prices: Default::default(),
             balances: Default::default(),
+            show_navigation_help: false,
 
             state,
             apis: api_registry,

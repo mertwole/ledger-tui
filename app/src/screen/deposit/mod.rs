@@ -16,6 +16,7 @@ mod view;
 
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     last_address_copy: Option<Instant>,
+    show_navigation_help: bool,
 
     state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
@@ -27,6 +28,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
         Self {
             last_address_copy: None,
+            show_navigation_help: false,
 
             state,
             apis: api_registry,

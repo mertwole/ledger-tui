@@ -22,6 +22,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     devices: Vec<(Device, DeviceInfo)>,
     previous_poll: Instant,
     selected_device: Option<usize>,
+    show_navigation_help: bool,
 
     state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
@@ -65,6 +66,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             devices: vec![],
             previous_poll: Instant::now() - DEVICE_POLL_PERIOD,
             selected_device: None,
+            show_navigation_help: false,
 
             state,
             apis: api_registry,

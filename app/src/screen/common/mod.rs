@@ -1,6 +1,9 @@
+use input_mapping_common::InputMapping;
 use ratatui::{
-    layout::{Constraint, Flex, Layout, Rect},
+    layout::{Alignment, Constraint, Flex, Layout, Margin, Rect},
+    style::Stylize,
     text::Text,
+    widgets::{Block, BorderType, Borders, Padding},
     Frame,
 };
 
@@ -11,6 +14,8 @@ pub use background_widget::*;
 
 mod navigation_help_widget;
 pub use navigation_help_widget::*;
+
+use super::resources::Resources;
 
 pub fn network_symbol(network: Network) -> String {
     match network {
@@ -52,6 +57,54 @@ pub fn format_address(address: &str, max_symbols: usize) -> String {
         &address[..part_size],
         &address[(address.len() - part_size)..]
     )
+}
+
+pub fn render_navigation_help(
+    input_mapping: InputMapping,
+    frame: &mut Frame<'_>,
+    resources: &Resources,
+) {
+    let area = frame.size();
+
+    let bindings = input_mapping
+        .mapping
+        .into_iter()
+        .map(|map| (map.key, map.description))
+        .collect();
+
+    let widget = NavigationHelpWidget::new(bindings);
+
+    let block_area = area.inner(Margin::new(8, 4));
+
+    let width = widget.min_width().max(block_area.width as usize / 2);
+    let height = widget.height();
+
+    let block = Block::new()
+        .border_type(BorderType::Double)
+        .borders(Borders::all())
+        .border_style(resources.main_color)
+        .padding(Padding::proportional(1))
+        .title("Help")
+        .title_alignment(Alignment::Center)
+        .bg(resources.background_color)
+        .fg(resources.main_color);
+
+    let block_inner = block.inner(block_area);
+
+    let [widget_area] = Layout::horizontal([Constraint::Length(width as u16)])
+        .flex(Flex::Center)
+        .areas(block_inner);
+    let [widget_area] = Layout::vertical([Constraint::Length(height as u16)])
+        .flex(Flex::Center)
+        .areas(widget_area);
+
+    frame.render_widget(
+        BackgroundWidget::new(resources.background_color),
+        block_area,
+    );
+    frame.render_widget(block, block_area);
+
+    frame.render_widget(widget, widget_area);
 }
 
 #[cfg(test)]

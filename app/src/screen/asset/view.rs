@@ -1,12 +1,11 @@
 use input_mapping_common::InputMappingT;
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Flex, Layout, Margin, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
     symbols::{self},
     text::{Line, Span, Text},
     widgets::{
-        Axis, Block, BorderType, Borders, Chart, Dataset, GraphType, HighlightSpacing, Padding,
-        Row, Table,
+        Axis, Block, Borders, Chart, Dataset, GraphType, HighlightSpacing, Padding, Row, Table,
     },
     Frame,
 };
@@ -23,10 +22,7 @@ use crate::{
         ledger::LedgerApiT,
     },
     screen::{
-        common::{
-            format_address, network_symbol, render_centered_text, BackgroundWidget,
-            NavigationHelpWidget,
-        },
+        common::{self, format_address, network_symbol, render_centered_text, BackgroundWidget},
         resources::Resources,
     },
 };
@@ -110,7 +106,8 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     }
 
     if model.show_navigation_help {
-        render_navigation_help(frame, resources);
+        let mapping = super::controller::InputEvent::get_mapping();
+        common::render_navigation_help(mapping, frame, resources);
     }
 }
 
@@ -261,48 +258,4 @@ fn render_empty_tx_list(frame: &mut Frame<'_>, area: Rect) {
 fn render_tx_list_placeholder(frame: &mut Frame<'_>, area: Rect) {
     let text = Text::raw("Fetching transactions...");
     render_centered_text(frame, area, text)
-}
-
-fn render_navigation_help(frame: &mut Frame<'_>, resources: &Resources) {
-    let area = frame.size();
-
-    let bindings = super::controller::InputEvent::get_mapping()
-        .mapping
-        .into_iter()
-        .map(|map| (map.key, map.description))
-        .collect();
-
-    let widget = NavigationHelpWidget::new(bindings);
-
-    let block_area = area.inner(Margin::new(8, 4));
-
-    let width = widget.min_width().max(block_area.width as usize / 2);
-    let height = widget.height();
-
-    let block = Block::new()
-        .border_type(BorderType::Double)
-        .borders(Borders::all())
-        .border_style(resources.main_color)
-        .padding(Padding::proportional(1))
-        .title("Help")
-        .title_alignment(Alignment::Center)
-        .bg(resources.background_color)
-        .fg(resources.main_color);
-
-    let block_inner = block.inner(block_area);
-
-    let [widget_area] = Layout::horizontal([Constraint::Length(width as u16)])
-        .flex(Flex::Center)
-        .areas(block_inner);
-    let [widget_area] = Layout::vertical([Constraint::Length(height as u16)])
-        .flex(Flex::Center)
-        .areas(widget_area);
-
-    frame.render_widget(
-        BackgroundWidget::new(resources.background_color),
-        block_area,
-    );
-    frame.render_widget(block, block_area);
-
-    frame.render_widget(widget, widget_area);
 }
