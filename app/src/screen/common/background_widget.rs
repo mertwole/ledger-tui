@@ -1,4 +1,5 @@
 use ratatui::{
+    buffer::Buffer,
     layout::Rect,
     style::{Color, Stylize},
     text::Line,
@@ -16,7 +17,7 @@ impl BackgroundWidget {
 }
 
 impl Widget for BackgroundWidget {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {

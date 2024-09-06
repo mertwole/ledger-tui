@@ -1,8 +1,8 @@
 use ratatui::{
+    buffer::Buffer,
     crossterm::event::KeyCode,
-    layout::Rect,
-    style::{Color, Stylize},
-    text::Line,
+    layout::{Alignment, Rect},
+    text::Text,
     widgets::Widget,
 };
 
@@ -14,13 +14,58 @@ impl NavigationHelpWidget {
     pub fn new(key_bindings: Vec<(KeyCode, String)>) -> Self {
         Self { key_bindings }
     }
+
+    pub fn height(&self) -> usize {
+        self.key_bindings.len()
+    }
+
+    pub fn min_width(&self) -> usize {
+        self.key_bindings
+            .iter()
+            .map(|(key, description)| min_line_length(&description, &key_name(key)))
+            .max()
+            .unwrap_or_default()
+    }
 }
 
 impl Widget for NavigationHelpWidget {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {
-        todo!()
+        let width = area.width as usize;
+
+        let text: String = self
+            .key_bindings
+            .iter()
+            .map(|(key, description)| {
+                let key_name = key_name(key);
+                let line_len = min_line_length(&description, &key_name);
+
+                let padding = width - line_len.min(width);
+                let padding_str: String = vec![".".to_string(); padding + 1].into_iter().collect();
+
+                format!("[{}]{}{}", key_name, padding_str, description)
+            })
+            .intersperse("\n".to_string())
+            .collect();
+
+        let text = Text::raw(text).alignment(Alignment::Center);
+        text.render(area, buf);
     }
+}
+
+// TODO: Add arrow keys
+fn key_name(key: &KeyCode) -> String {
+    match key {
+        KeyCode::Char(ch) => ch.to_string(),
+        _ => "N/A".to_string(),
+    }
+}
+
+fn min_line_length(description: &str, key_name: &str) -> usize {
+    const BRACKETS_LEN: usize = 2;
+    const MINIMAL_SPACING: usize = 1;
+
+    description.len() + key_name.len() + BRACKETS_LEN + MINIMAL_SPACING
 }
