@@ -22,7 +22,7 @@ impl NavigationHelpWidget {
     pub fn min_width(&self) -> usize {
         self.key_bindings
             .iter()
-            .map(|(key, description)| min_line_length(&description, &key_name(key)))
+            .map(|(key, description)| min_line_length(description, &key_name(key)))
             .max()
             .unwrap_or_default()
     }
@@ -40,7 +40,7 @@ impl Widget for NavigationHelpWidget {
             .iter()
             .map(|(key, description)| {
                 let key_name = key_name(key);
-                let line_len = min_line_length(&description, &key_name);
+                let line_len = min_line_length(description, &key_name);
 
                 let padding = width - line_len.min(width);
                 let padding_str: String = vec![".".to_string(); padding + 1].into_iter().collect();
