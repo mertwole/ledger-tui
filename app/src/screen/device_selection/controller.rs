@@ -18,6 +18,10 @@ pub enum InputEvent {
     #[description = "Quit application"]
     Quit,
 
+    #[key = 'h']
+    #[description = "Open/close navigation help"]
+    NavigationHelp,
+
     #[key = "KeyCode::Down"]
     #[description = "Navigate down in list"]
     Down,
@@ -38,7 +42,11 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
     let event = InputEvent::map_event(event.clone())?;
 
     match event {
-        InputEvent::Quit => return Some(OutgoingMessage::Exit),
+        InputEvent::Quit => Some(OutgoingMessage::Exit),
+        InputEvent::NavigationHelp => {
+            model.show_navigation_help ^= true;
+            None
+        }
         InputEvent::Down => {
             if !model.devices.is_empty() {
                 if let Some(selected) = model.selected_device.as_mut() {
@@ -47,6 +55,8 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
                     model.selected_device = Some(0);
                 }
             }
+
+            None
         }
         InputEvent::Up => {
             if !model.devices.is_empty() {
@@ -56,16 +66,18 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
                     model.selected_device = Some(model.devices.len() - 1);
                 }
             }
+
+            None
         }
         InputEvent::Select => {
             if let Some(device_idx) = model.selected_device {
                 let (device, info) = model.devices[device_idx].clone();
                 model.state.active_device = Some((device, info));
 
-                return Some(OutgoingMessage::Back);
+                Some(OutgoingMessage::Back)
+            } else {
+                None
             }
         }
     }
-
-    None
 }

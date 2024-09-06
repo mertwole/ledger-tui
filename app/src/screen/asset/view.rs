@@ -1,7 +1,8 @@
+use input_mapping_common::InputMappingT;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
-    symbols,
+    symbols::{self},
     text::{Line, Span, Text},
     widgets::{
         Axis, Block, Borders, Chart, Dataset, GraphType, HighlightSpacing, Padding, Row, Table,
@@ -21,7 +22,7 @@ use crate::{
         ledger::LedgerApiT,
     },
     screen::{
-        common::{format_address, network_symbol, render_centered_text, BackgroundWidget},
+        common::{self, format_address, network_symbol, render_centered_text, BackgroundWidget},
         resources::Resources,
     },
 };
@@ -102,6 +103,11 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         None => {
             render_tx_list_placeholder(frame, inner_txs_list_area);
         }
+    }
+
+    if model.show_navigation_help {
+        let mapping = super::controller::InputEvent::get_mapping();
+        common::render_navigation_help(mapping, frame, resources);
     }
 }
 

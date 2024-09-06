@@ -1,3 +1,4 @@
+use input_mapping_common::InputMappingT;
 use ratatui::{
     layout::{Alignment, Margin},
     style::Stylize,
@@ -6,13 +7,16 @@ use ratatui::{
     Frame,
 };
 
-use super::Model;
+use super::{controller, Model};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
         ledger::LedgerApiT,
     },
-    screen::{common::BackgroundWidget, resources::Resources},
+    screen::{
+        common::{self, BackgroundWidget},
+        resources::Resources,
+    },
 };
 
 pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
@@ -60,4 +64,9 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
 
     frame.render_widget(list_block, area);
     frame.render_widget(list, list_area);
+
+    if model.show_navigation_help {
+        let mapping = controller::InputEvent::get_mapping();
+        common::render_navigation_help(mapping, frame, resources);
+    }
 }

@@ -20,6 +20,10 @@ pub enum InputEvent {
     #[description = "Quit application"]
     Quit,
 
+    #[key = 'h']
+    #[description = "Open/close navigation help"]
+    NavigationHelp,
+
     #[key = 'b']
     #[description = "Return one screen back"]
     Back,
@@ -37,6 +41,10 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
 
     match event {
         InputEvent::Quit => Some(OutgoingMessage::Exit),
+        InputEvent::NavigationHelp => {
+            model.show_navigation_help ^= true;
+            None
+        }
         InputEvent::Back => Some(OutgoingMessage::Back),
         InputEvent::CopyAddress => {
             model.last_address_copy = Some(Instant::now());

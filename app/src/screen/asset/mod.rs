@@ -23,6 +23,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_price_history: Option<Vec<PriceHistoryPoint>>,
     transactions: Option<Vec<(TransactionUid, TransactionInfo)>>,
     selected_time_period: TimePeriod,
+    show_navigation_help: bool,
 
     state: StateRegistry,
     apis: ApiRegistry<L, C, M>,
@@ -98,6 +99,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             coin_price_history: Default::default(),
             transactions: Default::default(),
             selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
+            show_navigation_help: false,
 
             state,
             apis: api_registry,

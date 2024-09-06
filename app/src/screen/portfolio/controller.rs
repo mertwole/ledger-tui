@@ -19,6 +19,10 @@ pub enum InputEvent {
     #[description = "Quit application"]
     Quit,
 
+    #[key = 'h']
+    #[description = "Open/close navigation help"]
+    NavigationHelp,
+
     #[key = 'd']
     #[description = "Open device selection screen"]
     OpenDeviceSelection,
@@ -44,6 +48,10 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
 
     match event {
         InputEvent::Quit => return Some(OutgoingMessage::Exit),
+        InputEvent::NavigationHelp => {
+            model.show_navigation_help ^= true;
+            return None;
+        }
         InputEvent::OpenDeviceSelection => {
             return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection))
         }
