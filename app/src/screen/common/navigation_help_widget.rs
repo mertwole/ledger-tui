@@ -55,11 +55,13 @@ impl Widget for NavigationHelpWidget {
     }
 }
 
-// TODO: Add arrow keys
 fn key_name(key: &KeyCode) -> String {
     match key {
         KeyCode::Char(ch) => ch.to_string(),
-        _ => "N/A".to_string(),
+        KeyCode::Up => "↑".to_string(),
+        KeyCode::Down => "↓".to_string(),
+        KeyCode::Enter => "⏎".to_string(),
+        _ => unimplemented!(),
     }
 }
 
@@ -67,5 +69,5 @@ fn min_line_length(description: &str, key_name: &str) -> usize {
     const BRACKETS_LEN: usize = 2;
     const MINIMAL_SPACING: usize = 1;
 
-    description.len() + key_name.len() + BRACKETS_LEN + MINIMAL_SPACING
+    Text::raw(description).width() + Text::raw(key_name).width() + BRACKETS_LEN + MINIMAL_SPACING
 }

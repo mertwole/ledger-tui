@@ -86,6 +86,7 @@ pub fn render_navigation_help(
         .padding(Padding::proportional(1))
         .title("Help")
         .title_alignment(Alignment::Center)
+        .reset()
         .bg(resources.background_color)
         .fg(resources.main_color);
 
