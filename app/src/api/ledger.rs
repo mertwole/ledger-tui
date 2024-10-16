@@ -12,7 +12,7 @@ use super::common_types::{Account, Network};
 
 implement_cache!(
     #[async_trait]
-    pub trait LedgerApiT: Send + Sync {
+    pub trait LedgerApiT: Send + Sync + 'static {
         async fn discover_devices(&self) -> Vec<Device>;
 
         async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;

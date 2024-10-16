@@ -134,12 +134,7 @@ impl App {
         }
     }
 
-    fn screen_loop<
-        B: Backend,
-        L: LedgerApiT,
-        C: CoinPriceApiT + Clone + 'static,
-        M: BlockchainMonitoringApiT,
-    >(
+    fn screen_loop<B: Backend, L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         mut screen: Screen<L, C, M>,
         terminal: &mut Terminal<B>,
     ) -> (StateRegistry, ApiRegistry<L, C, M>, OutgoingMessage) {

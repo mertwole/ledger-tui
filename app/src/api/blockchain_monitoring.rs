@@ -10,7 +10,7 @@ use super::common_types::{Account, Network};
 // TODO: This API will be fallible (return `Result<...>`) in future.
 implement_cache! {
     #[async_trait]
-    pub trait BlockchainMonitoringApiT: Send + Sync {
+    pub trait BlockchainMonitoringApiT: Send + Sync + 'static {
         async fn get_balance(&self, network: Network, account: &Account) -> Decimal;
 
         async fn get_transactions(&self, network: Network, account: &Account) -> Vec<TransactionUid>;

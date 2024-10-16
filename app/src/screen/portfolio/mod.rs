@@ -21,7 +21,7 @@ use crate::{
 mod controller;
 mod view;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT> {
+pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
     coin_prices: Arc<Mutex<HashMap<Network, Option<Decimal>>>>,
@@ -35,9 +35,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: Blockchai
 type AccountIdx = usize;
 type NetworkIdx = usize;
 
-impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT>
-    Model<L, C, M>
-{
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
     fn tick_logic(&mut self) {
         if self.state.device_accounts.is_none() {
             if let Some((active_device, _)) = self.state.active_device.as_ref() {
@@ -64,7 +62,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringA
             }
         }
 
-        let coin_price_api = self.apis.coin_price_api.clone();
+        //let coin_price_api = self.apis.coin_price_api.clone();
+        let apis = self.apis.clone();
         let self_coin_prices = self.coin_prices.clone();
 
         tokio::task::spawn(async move {
@@ -77,7 +76,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringA
                     Network::Ethereum => Coin::ETH,
                 };
 
-                let price = coin_price_api.get_price(coin, Coin::USDT).await;
+                let price = apis.coin_price_api.get_price(coin, Coin::USDT).await;
                 coin_prices.insert(network, price);
             }
 
@@ -104,8 +103,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringA
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT>
-    ScreenT<L, C, M> for Model<L, C, M>
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
+    for Model<L, C, M>
 {
     fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
         Self {

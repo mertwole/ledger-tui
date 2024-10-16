@@ -27,11 +27,7 @@ use crate::{
     },
 };
 
-pub(super) fn render<
-    L: LedgerApiT,
-    C: CoinPriceApiT + Clone + 'static,
-    M: BlockchainMonitoringApiT,
->(
+pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     resources: &Resources,
@@ -54,11 +50,7 @@ pub(super) fn render<
     }
 }
 
-fn render_account_table<
-    L: LedgerApiT,
-    C: CoinPriceApiT + Clone + 'static,
-    M: BlockchainMonitoringApiT,
->(
+fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &Model<L, C, M>,
     frame: &mut Frame<'_>,
     accounts: &[(Network, Vec<Account>)],

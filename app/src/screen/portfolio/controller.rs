@@ -40,11 +40,7 @@ pub enum InputEvent {
     Select,
 }
 
-pub(super) fn process_input<
-    L: LedgerApiT,
-    C: CoinPriceApiT + Clone + 'static,
-    M: BlockchainMonitoringApiT,
->(
+pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     event: &Event,
     model: &mut Model<L, C, M>,
 ) -> Option<OutgoingMessage> {
@@ -87,11 +83,7 @@ pub(super) fn process_input<
     None
 }
 
-fn process_table_navigation<
-    L: LedgerApiT,
-    C: CoinPriceApiT + Clone + 'static,
-    M: BlockchainMonitoringApiT,
->(
+fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     model: &mut Model<L, C, M>,
     event: &InputEvent,
     accounts_per_network: &[NonZeroUsize],

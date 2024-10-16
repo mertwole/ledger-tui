@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 implement_cache! {
     #[async_trait]
-    pub trait CoinPriceApiT: Send + Sync {
+    pub trait CoinPriceApiT: Send + Sync + 'static {
         async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
 
         async fn get_price_history(
@@ -53,7 +53,6 @@ impl Coin {
     }
 }
 
-#[derive(Clone)]
 pub struct CoinPriceApi {
     client: BinanceHttpClient,
 }
