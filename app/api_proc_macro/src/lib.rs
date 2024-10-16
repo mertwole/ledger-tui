@@ -150,9 +150,9 @@ impl TraitMethodInfo {
 
         quote! {
             #[allow(unused_parens)]
-            #name: ::std::cell::RefCell<::std::collections::HashMap<#args_tuple, #return_type>>,
+            #name: ::std::sync::Mutex<::std::collections::HashMap<#args_tuple, #return_type>>,
             #[allow(unused_parens)]
-            #mode_field_name : ::std::cell::RefCell<Mode<#args_tuple>>,
+            #mode_field_name : ::std::sync::Mutex<Mode<#args_tuple>>,
         }
     }
 
@@ -170,7 +170,7 @@ impl TraitMethodInfo {
         let mode_field_name = make_mode_field_name(&self.name);
 
         quote! {
-            (*self. #mode_field_name .borrow_mut()) = mode_plan.into_mode();
+            (*self. #mode_field_name .lock().unwrap()) = mode_plan.into_mode();
         }
     }
 
@@ -193,10 +193,10 @@ impl TraitMethodInfo {
                 let api_result = self.api.#name(#api_call_args);
                 let api_result = ::std::boxed::Box::pin(api_result);
 
-                let mut cache = self.#name.borrow_mut();
+                let mut cache = self.#name.lock().unwrap();
                 let cache = cache.entry(#arg_tuple);
 
-                let mut mode = self.#mode_field_name.borrow_mut();
+                let mut mode = self.#mode_field_name.lock().unwrap();
 
                 crate::api::cache_utils::use_cache(
                     #arg_tuple,

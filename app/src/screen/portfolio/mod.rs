@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
@@ -18,21 +21,23 @@ use crate::{
 mod controller;
 mod view;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
+pub struct Model<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT> {
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
-    coin_prices: HashMap<Network, Option<Decimal>>,
+    coin_prices: Arc<Mutex<HashMap<Network, Option<Decimal>>>>,
     balances: HashMap<(Network, Account), Decimal>,
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: ApiRegistry<L, C, M>,
+    apis: Arc<ApiRegistry<L, C, M>>,
 }
 
 type AccountIdx = usize;
 type NetworkIdx = usize;
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
+impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT>
+    Model<L, C, M>
+{
     fn tick_logic(&mut self) {
         if self.state.device_accounts.is_none() {
             if let Some((active_device, _)) = self.state.active_device.as_ref() {
@@ -59,22 +64,26 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             }
         }
 
-        // TODO: Correctly map accounts to coins.
-        // TODO: Don't request price each tick.
-        self.coin_prices = [Network::Bitcoin, Network::Ethereum]
-            .into_iter()
-            .map(|network| {
+        let coin_price_api = self.apis.coin_price_api.clone();
+        let self_coin_prices = self.coin_prices.clone();
+
+        tokio::task::spawn(async move {
+            let mut coin_prices = HashMap::new();
+            // TODO: Correctly map accounts to coins.
+            let networks = [Network::Bitcoin, Network::Ethereum];
+            for network in networks {
                 let coin = match network {
                     Network::Bitcoin => Coin::BTC,
                     Network::Ethereum => Coin::ETH,
                 };
 
-                (
-                    network,
-                    block_on(self.apis.coin_price_api.get_price(coin, Coin::USDT)),
-                )
-            })
-            .collect();
+                let price = coin_price_api.get_price(coin, Coin::USDT).await;
+                coin_prices.insert(network, price);
+            }
+
+            let mut guard = self_coin_prices.lock().expect("Failed to lock mutex");
+            *guard = coin_prices;
+        });
 
         // TODO: Don't request balance each tick.
         if let Some(accounts) = self.state.device_accounts.as_ref() {
@@ -95,8 +104,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
-    for Model<L, C, M>
+impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT>
+    ScreenT<L, C, M> for Model<L, C, M>
 {
     fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
         Self {
@@ -106,7 +115,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             show_navigation_help: false,
 
             state,
-            apis: api_registry,
+            apis: Arc::from(api_registry),
         }
     }
 
@@ -121,6 +130,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     }
 
     fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state, self.apis)
+        (self.state, todo!())
     }
 }

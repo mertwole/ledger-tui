@@ -16,14 +16,16 @@ pub mod device_selection;
 pub mod portfolio;
 pub mod resources;
 
-pub enum Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
+pub enum Screen<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT> {
     Asset(asset::Model<L, C, M>),
     Deposit(deposit::Model<L, C, M>),
     DeviceSelection(device_selection::Model<L, C, M>),
     Portfolio(portfolio::Model<L, C, M>),
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, M> {
+impl<L: LedgerApiT, C: CoinPriceApiT + Clone + 'static, M: BlockchainMonitoringApiT>
+    Screen<L, C, M>
+{
     pub fn new(
         name: ScreenName,
         state_registry: StateRegistry,

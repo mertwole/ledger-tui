@@ -15,9 +15,7 @@ use crate::{
     api::{
         blockchain_monitoring::{mock::BlockchainMonitoringApiMock, BlockchainMonitoringApiT},
         cache_utils::ModePlan,
-        coin_price::{
-            cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT,
-        },
+        coin_price::{mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT},
         common_types::{Account, Network},
         ledger::{
             cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApiT,
@@ -90,11 +88,11 @@ impl App {
 
             let _coin_price_api = CoinPriceApiMock::new();
             let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
-            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(1)));
+            //let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+            //coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(1)));
 
-            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
+            //let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+            //coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
 
             let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 
@@ -136,7 +134,12 @@ impl App {
         }
     }
 
-    fn screen_loop<B: Backend, L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    fn screen_loop<
+        B: Backend,
+        L: LedgerApiT,
+        C: CoinPriceApiT + Clone + 'static,
+        M: BlockchainMonitoringApiT,
+    >(
         mut screen: Screen<L, C, M>,
         terminal: &mut Terminal<B>,
     ) -> (StateRegistry, ApiRegistry<L, C, M>, OutgoingMessage) {

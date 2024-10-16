@@ -1,3 +1,5 @@
+use std::{future::Future, time::Duration};
+
 use api_proc_macro::implement_cache;
 use binance_spot_connector_rust::{
     market::{self, klines::KlineInterval},
@@ -8,13 +10,18 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 
-implement_cache! {
-    pub trait CoinPriceApiT {
-        async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
+//implement_cache! {
+pub trait CoinPriceApiT: Send + Sync {
+    fn get_price(&self, from: Coin, to: Coin) -> impl Future<Output = Option<Decimal>> + Send;
 
-        async fn get_price_history(&self, from: Coin, to: Coin, interval: TimePeriod) -> Option<PriceHistory>;
-    }
+    async fn get_price_history(
+        &self,
+        from: Coin,
+        to: Coin,
+        interval: TimePeriod,
+    ) -> Option<PriceHistory>;
 }
+//}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TimePeriod {
@@ -46,6 +53,7 @@ impl Coin {
     }
 }
 
+#[derive(Clone)]
 pub struct CoinPriceApi {
     client: BinanceHttpClient,
 }
