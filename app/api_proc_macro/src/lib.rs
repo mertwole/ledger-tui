@@ -92,7 +92,7 @@ impl TraitInfo {
                         }
                     }
 
-                    pub fn set_all_modes(&mut self, mode_plan: ModePlan) {
+                    pub async fn set_all_modes(&mut self, mode_plan: ModePlan) {
                         #mode_setters
                     }
                 }
@@ -150,7 +150,7 @@ impl TraitMethodInfo {
 
         quote! {
             #[allow(unused_parens)]
-            #mode_field_name : ::std::sync::Mutex<::std::option::Option<Mode<#args_tuple, #return_type>>>,
+            #mode_field_name : tokio::sync::Mutex<Mode<#args_tuple, #return_type>>,
         }
     }
 
@@ -158,7 +158,7 @@ impl TraitMethodInfo {
         let mode_field_name = make_mode_field_name(&self.name);
 
         quote! {
-            #mode_field_name : ::std::sync::Mutex::new(::std::option::Option::Some(::std::default::Default::default())),
+            #mode_field_name : ::std::default::Default::default(),
         }
     }
 
@@ -166,7 +166,7 @@ impl TraitMethodInfo {
         let mode_field_name = make_mode_field_name(&self.name);
 
         quote! {
-            (*self. #mode_field_name .lock().unwrap()) = ::std::option::Option::Some(mode_plan.into_mode());
+            (*self. #mode_field_name .lock().await) = mode_plan.into_mode();
         }
     }
 
@@ -189,15 +189,13 @@ impl TraitMethodInfo {
                 let api_result = self.api.#name(#api_call_args);
                 let api_result = ::std::boxed::Box::pin(api_result);
 
-                let mut mode = self.#mode_field_name.lock().expect("Failed to acquire lock on mutex").clone().expect("Conventionally should be Some");
+                let mut mode = self.#mode_field_name.lock().await;
 
                 let res = crate::api::cache_utils::use_cache(
                     #arg_tuple,
                     api_result,
-                    &mut mode
+                    &mut *mode
                 ).await;
-
-                *self.#mode_field_name.lock().expect("Failed to acquire lock on mutex") = ::std::option::Option::Some(mode);
 
                 res
             }
