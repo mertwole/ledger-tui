@@ -20,9 +20,11 @@ mod view;
 
 const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
 
+type TransactionList = Vec<(TransactionUid, TransactionInfo)>;
+
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_price_history: Arc<Mutex<Option<Vec<PriceHistoryPoint>>>>,
-    transactions: Arc<Mutex<Option<Vec<(TransactionUid, TransactionInfo)>>>>,
+    transactions: Arc<Mutex<Option<TransactionList>>>,
     selected_time_period: TimePeriod,
     show_navigation_help: bool,
 

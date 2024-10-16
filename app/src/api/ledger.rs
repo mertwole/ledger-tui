@@ -1,4 +1,4 @@
-use std::{cell::RefCell, hash::Hash, sync::Mutex};
+use std::{hash::Hash, sync::Mutex};
 
 use api_proc_macro::implement_cache;
 use async_trait::async_trait;

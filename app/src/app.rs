@@ -15,7 +15,9 @@ use crate::{
     api::{
         blockchain_monitoring::{mock::BlockchainMonitoringApiMock, BlockchainMonitoringApiT},
         cache_utils::ModePlan,
-        coin_price::{mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT},
+        coin_price::{
+            cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT,
+        },
         common_types::{Account, Network},
         ledger::{
             cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApiT,
@@ -83,16 +85,16 @@ impl App {
 
         let api_registry = {
             let ledger_api = LedgerApiMock::new(2, 3);
-            //let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
-            //ledger_api.set_all_modes(ModePlan::Transparent);
+            let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
+            ledger_api.set_all_modes(ModePlan::Transparent);
 
-            let coin_price_api = CoinPriceApiMock::new();
-            //let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
-            //let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            //coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(1)));
+            let _coin_price_api = CoinPriceApiMock::new();
+            let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
+            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+            coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(1)));
 
-            //let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            //coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
+            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+            coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
 
             let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 
