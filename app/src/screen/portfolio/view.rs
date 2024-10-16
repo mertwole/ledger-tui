@@ -82,7 +82,12 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
                 .map(|account| {
                     (
                         account.clone(),
-                        model.balances.get(&(*network, account.clone())).copied(),
+                        model
+                            .balances
+                            .lock()
+                            .expect("Failed to acquire lock on mutex")
+                            .get(&(*network, account.clone()))
+                            .copied(),
                     )
                 })
                 .collect();

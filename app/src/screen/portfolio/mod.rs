@@ -25,7 +25,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
     coin_prices: Arc<Mutex<HashMap<Network, Option<Decimal>>>>,
-    balances: HashMap<(Network, Account), Decimal>,
+    balances: Arc<Mutex<HashMap<(Network, Account), Decimal>>>,
     show_navigation_help: bool,
 
     state: StateRegistry,
@@ -62,9 +62,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             }
         }
 
-        //let coin_price_api = self.apis.coin_price_api.clone();
         let apis = self.apis.clone();
-        let self_coin_prices = self.coin_prices.clone();
+        let state_coin_prices = self.coin_prices.clone();
 
         tokio::task::spawn(async move {
             let mut coin_prices = HashMap::new();
@@ -80,23 +79,37 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                 coin_prices.insert(network, price);
             }
 
-            let mut guard = self_coin_prices.lock().expect("Failed to lock mutex");
+            let mut guard = state_coin_prices
+                .lock()
+                .expect("Failed to acquire lock on mutex");
             *guard = coin_prices;
         });
 
         // TODO: Don't request balance each tick.
-        if let Some(accounts) = self.state.device_accounts.as_ref() {
+        if let Some(accounts) = self.state.device_accounts.clone() {
             for (network, accounts) in accounts {
                 for account in accounts {
-                    self.balances
-                        .entry((*network, account.clone()))
-                        .or_insert_with(|| {
-                            block_on(
-                                self.apis
-                                    .blockchain_monitoring_api
-                                    .get_balance(*network, account),
-                            )
+                    if !self
+                        .balances
+                        .lock()
+                        .expect("Failed to acquire lock on mutex")
+                        .contains_key(&(network, account.clone()))
+                    {
+                        let apis = self.apis.clone();
+                        let balances = self.balances.clone();
+
+                        tokio::task::spawn(async move {
+                            let balance = apis
+                                .blockchain_monitoring_api
+                                .get_balance(network, &account)
+                                .await;
+
+                            balances
+                                .lock()
+                                .expect("Failed to acquire lock on mutex")
+                                .insert((network, account), balance);
                         });
+                    }
                 }
             }
         }

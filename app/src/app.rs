@@ -86,8 +86,8 @@ impl App {
             //let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
             //ledger_api.set_all_modes(ModePlan::Transparent);
 
-            let _coin_price_api = CoinPriceApiMock::new();
-            let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
+            let coin_price_api = CoinPriceApiMock::new();
+            //let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
             //let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
             //coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(1)));
 

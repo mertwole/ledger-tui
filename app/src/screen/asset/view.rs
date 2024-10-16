@@ -55,7 +55,12 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     let inner_price_chart_area = price_chart_block.inner(price_chart_area);
     frame.render_widget(price_chart_block, price_chart_area);
 
-    if let Some(prices) = model.coin_price_history.as_ref() {
+    if let Some(prices) = model
+        .coin_price_history
+        .lock()
+        .expect("Failed to acquire lock on mutex")
+        .as_ref()
+    {
         render_price_chart(
             &prices[..],
             model.selected_time_period,
@@ -81,7 +86,12 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     let inner_txs_list_area = txs_list_block.inner(txs_list_area);
     frame.render_widget(txs_list_block, txs_list_area);
 
-    match model.transactions.as_ref() {
+    match model
+        .transactions
+        .lock()
+        .expect("Failed to acquire lock on mutex")
+        .as_ref()
+    {
         Some(tx_list) if tx_list.is_empty() => {
             render_empty_tx_list(frame, inner_txs_list_area);
         }
