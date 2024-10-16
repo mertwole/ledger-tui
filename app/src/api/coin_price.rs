@@ -1,6 +1,5 @@
-use std::{future::Future, time::Duration};
-
 use api_proc_macro::implement_cache;
+use async_trait::async_trait;
 use binance_spot_connector_rust::{
     market::{self, klines::KlineInterval},
     ureq::BinanceHttpClient,
@@ -10,18 +9,19 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 
-//implement_cache! {
-pub trait CoinPriceApiT: Send + Sync {
-    fn get_price(&self, from: Coin, to: Coin) -> impl Future<Output = Option<Decimal>> + Send;
+implement_cache! {
+    #[async_trait]
+    pub trait CoinPriceApiT: Send + Sync {
+        async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal>;
 
-    async fn get_price_history(
-        &self,
-        from: Coin,
-        to: Coin,
-        interval: TimePeriod,
-    ) -> Option<PriceHistory>;
+        async fn get_price_history(
+            &self,
+            from: Coin,
+            to: Coin,
+            interval: TimePeriod,
+        ) -> Option<PriceHistory>;
+    }
 }
-//}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TimePeriod {
@@ -127,6 +127,7 @@ impl CoinPriceApi {
     }
 }
 
+#[async_trait]
 impl CoinPriceApiT for CoinPriceApi {
     async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal> {
         let pair = [from.to_api_string(), to.to_api_string()].concat();
@@ -196,6 +197,7 @@ pub mod mock {
         }
     }
 
+    #[async_trait]
     impl CoinPriceApiT for CoinPriceApiMock {
         async fn get_price(&self, from: Coin, to: Coin) -> Option<Decimal> {
             self.prices.get(&(from, to)).cloned()

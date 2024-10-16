@@ -1,6 +1,7 @@
-use std::{cell::RefCell, hash::Hash};
+use std::{cell::RefCell, hash::Hash, sync::Mutex};
 
 use api_proc_macro::implement_cache;
+use async_trait::async_trait;
 use futures::executor::block_on;
 use ledger_lib::{
     info::Model, Device as LedgerDevice, Filters, LedgerInfo, LedgerProvider, Transport,
@@ -10,7 +11,8 @@ use ledger_lib::{
 use super::common_types::{Account, Network};
 
 implement_cache!(
-    pub trait LedgerApiT {
+    #[async_trait]
+    pub trait LedgerApiT: Send + Sync {
         async fn discover_devices(&self) -> Vec<Device>;
 
         async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
@@ -42,25 +44,38 @@ pub struct DeviceInfo {
 }
 
 pub struct LedgerApi {
-    provider: RefCell<LedgerProvider>,
+    provider: Mutex<LedgerProvider>,
 }
 
 impl LedgerApi {
     pub async fn new() -> Self {
         Self {
-            provider: RefCell::from(LedgerProvider::init().await),
+            provider: Mutex::from(LedgerProvider::init().await),
         }
     }
 }
 
+#[async_trait]
 impl LedgerApiT for LedgerApi {
     async fn discover_devices(&self) -> Vec<Device> {
-        let devices = block_on(self.provider.borrow_mut().list(Filters::Any)).unwrap();
+        let devices = block_on(
+            self.provider
+                .lock()
+                .expect("Failed to acquire lock on mutex")
+                .list(Filters::Any),
+        )
+        .unwrap();
         devices.into_iter().map(|info| Device { info }).collect()
     }
 
     async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
-        let mut handle = block_on(self.provider.borrow_mut().connect(device.info.clone())).ok()?;
+        let mut handle = block_on(
+            self.provider
+                .lock()
+                .expect("Failed to acquire lock on mutex")
+                .connect(device.info.clone()),
+        )
+        .ok()?;
 
         let info = handle.device_info(DEFAULT_TIMEOUT).await.ok()?;
 
@@ -176,6 +191,7 @@ pub mod mock {
         }
     }
 
+    #[async_trait]
     impl LedgerApiT for LedgerApiMock {
         async fn discover_devices(&self) -> Vec<Device> {
             self.devices.clone()

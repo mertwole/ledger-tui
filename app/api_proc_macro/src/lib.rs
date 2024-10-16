@@ -97,6 +97,7 @@ impl TraitInfo {
                     }
                 }
 
+                #[async_trait::async_trait]
                 impl<A: super::#trait_name> super::#trait_name for Cache<A> {
                     #api_method_wrappers
                 }
@@ -190,20 +191,22 @@ impl TraitMethodInfo {
         quote! {
             #[allow(clippy::await_holding_refcell_ref)]
             async fn #name(&self, #(#args),*) -> #ret {
-                let api_result = self.api.#name(#api_call_args);
-                let api_result = ::std::boxed::Box::pin(api_result);
+                // let api_result = self.api.#name(#api_call_args);
+                // let api_result = ::std::boxed::Box::pin(api_result);
 
-                let mut cache = self.#name.lock().unwrap();
-                let cache = cache.entry(#arg_tuple);
+                // let mut cache = self.#name.lock().unwrap();
+                // let mut cache = cache.entry(#arg_tuple);
 
-                let mut mode = self.#mode_field_name.lock().unwrap();
+                // let mut mode = self.#mode_field_name.lock().unwrap();
 
-                crate::api::cache_utils::use_cache(
-                    #arg_tuple,
-                    cache,
-                    api_result,
-                    &mut *mode
-                ).await
+                // crate::api::cache_utils::use_cache(
+                //     #arg_tuple,
+                //     cache,
+                //     api_result,
+                //     &mut *mode
+                // ).await
+
+                todo!()
             }
         }
     }
