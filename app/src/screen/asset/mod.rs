@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
@@ -26,7 +28,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: ApiRegistry<L, C, M>,
+    apis: Arc<ApiRegistry<L, C, M>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
@@ -94,7 +96,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
     for Model<L, C, M>
 {
-    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
+    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
         Self {
             coin_price_history: Default::default(),
             transactions: Default::default(),
@@ -116,7 +118,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         controller::process_input(event.as_ref()?, self)
     }
 
-    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state, self.apis)
+    fn deconstruct(self) -> StateRegistry {
+        self.state
     }
 }

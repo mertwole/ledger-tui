@@ -1,4 +1,4 @@
-use std::{io::stdout, marker::PhantomData, time::Duration};
+use std::{io::stdout, marker::PhantomData, sync::Arc, time::Duration};
 
 use futures::executor::block_on;
 use ratatui::{
@@ -104,7 +104,7 @@ impl App {
             }
         };
 
-        let mut api_registry = Some(api_registry);
+        let api_registry = Arc::new(api_registry);
 
         loop {
             let screen = self
@@ -112,11 +112,10 @@ impl App {
                 .last()
                 .expect("At least one screen should be present");
 
-            let screen = Screen::new(*screen, state.take().unwrap(), api_registry.take().unwrap());
+            let screen = Screen::new(*screen, state.take().unwrap(), api_registry.clone());
 
-            let (new_state, new_api_registry, msg) = Self::screen_loop(screen, &mut terminal);
+            let (new_state, msg) = Self::screen_loop(screen, &mut terminal);
             state = Some(new_state);
-            api_registry = Some(new_api_registry);
 
             match msg {
                 OutgoingMessage::Exit => {
@@ -137,7 +136,7 @@ impl App {
     fn screen_loop<B: Backend, L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         mut screen: Screen<L, C, M>,
         terminal: &mut Terminal<B>,
-    ) -> (StateRegistry, ApiRegistry<L, C, M>, OutgoingMessage) {
+    ) -> (StateRegistry, OutgoingMessage) {
         let resources = Resources::default();
 
         loop {
@@ -152,8 +151,8 @@ impl App {
             let msg = screen.tick(event);
 
             if let Some(msg) = msg {
-                let (state, api_registry) = screen.deconstruct();
-                return (state, api_registry, msg);
+                let state = screen.deconstruct();
+                return (state, msg);
             }
         }
     }

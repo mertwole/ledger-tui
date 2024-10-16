@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ratatui::{crossterm::event::Event, Frame};
 use resources::Resources;
 
@@ -27,7 +29,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
     pub fn new(
         name: ScreenName,
         state_registry: StateRegistry,
-        api_registry: ApiRegistry<L, C, M>,
+        api_registry: Arc<ApiRegistry<L, C, M>>,
     ) -> Self {
         match name {
             ScreenName::Asset => Self::Asset(asset::Model::construct(state_registry, api_registry)),
@@ -61,7 +63,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
         }
     }
 
-    pub fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
+    pub fn deconstruct(self) -> StateRegistry {
         match self {
             Self::Asset(screen) => screen.deconstruct(),
             Self::Deposit(screen) => screen.deconstruct(),
@@ -72,12 +74,12 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
 }
 
 trait ScreenT<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self;
+    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self;
 
     fn render(&self, frame: &mut Frame<'_>, resources: &Resources);
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage>;
 
-    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>);
+    fn deconstruct(self) -> StateRegistry;
 }
 
 pub enum OutgoingMessage {

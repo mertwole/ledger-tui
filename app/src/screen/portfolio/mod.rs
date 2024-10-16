@@ -106,7 +106,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
     for Model<L, C, M>
 {
-    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
+    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
         Self {
             selected_account: None,
             coin_prices: Default::default(),
@@ -114,7 +114,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             show_navigation_help: false,
 
             state,
-            apis: Arc::from(api_registry),
+            apis: api_registry,
         }
     }
 
@@ -128,7 +128,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         controller::process_input(event.as_ref()?, self)
     }
 
-    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state, todo!())
+    fn deconstruct(self) -> StateRegistry {
+        self.state
     }
 }
