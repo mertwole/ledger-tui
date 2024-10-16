@@ -91,10 +91,10 @@ impl App {
             let _coin_price_api = CoinPriceApiMock::new();
             let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
             let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(1)));
+            coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(0)));
 
             let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
+            coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(50)));
 
             let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 

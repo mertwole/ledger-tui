@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Network {
     Bitcoin,
     Ethereum,
@@ -27,7 +27,7 @@ impl Network {
 
 // TODO: Don't allow to construct it directly
 // And allow mocks to substitute `MockAccount` instead of `Account`.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Account {
     pub pk: String,
 }

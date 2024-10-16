@@ -23,7 +23,7 @@ implement_cache! {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TimePeriod {
     Day,
     Week,
@@ -36,7 +36,7 @@ pub enum TimePeriod {
 pub type PriceHistory = Vec<Decimal>;
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Coin {
     BTC,
     ETH,

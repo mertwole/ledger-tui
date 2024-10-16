@@ -19,19 +19,19 @@ implement_cache! {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TransactionUid {
     // TODO: Make private.
     pub uid: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TransactionInfo {
     pub ty: TransactionType,
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TransactionType {
     Deposit { from: Account, amount: Decimal },
     Withdraw { to: Account, amount: Decimal },
