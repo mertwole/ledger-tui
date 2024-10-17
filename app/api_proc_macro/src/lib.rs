@@ -191,13 +191,11 @@ impl TraitMethodInfo {
 
                 let mut mode = self.#mode_field_name.lock().await;
 
-                let res = crate::api::cache_utils::use_cache(
+                crate::api::cache_utils::use_cache(
                     #arg_tuple,
                     api_result,
                     &mut *mode
-                ).await;
-
-                res
+                ).await
             }
         }
     }

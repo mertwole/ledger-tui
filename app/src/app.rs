@@ -1,6 +1,5 @@
 use std::{io::stdout, marker::PhantomData, sync::Arc, time::Duration};
 
-use futures::executor::block_on;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     crossterm::{
@@ -85,17 +84,17 @@ impl App {
 
         let api_registry = {
             let ledger_api = LedgerApiMock::new(2, 3);
-            let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
+            let mut ledger_api = LedgerApiCache::new(ledger_api).await;
             ledger_api.set_all_modes(ModePlan::Transparent).await;
 
             let _coin_price_api = CoinPriceApiMock::new();
             let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
-            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+            let mut coin_price_api = CoinPriceApiCache::new(coin_price_api).await;
             coin_price_api
                 .set_all_modes(ModePlan::Slow(Duration::from_secs(0)))
                 .await;
 
-            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
+            let mut coin_price_api = CoinPriceApiCache::new(coin_price_api).await;
             coin_price_api
                 .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
                 .await;

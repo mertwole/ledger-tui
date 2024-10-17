@@ -62,15 +62,14 @@ impl<In: Hash + PartialEq + Eq, Out> Mode<In, Out> {
     }
 }
 
-pub(super) async fn use_cache<In, Out, F>(
+pub(super) async fn use_cache<In, Out>(
     request: In,
-    api_result: Pin<Box<F>>,
+    api_result: Pin<Box<impl Future<Output = Out>>>,
     mode: &mut Mode<In, Out>,
 ) -> Out
 where
-    Out: Clone + Send + Sync,
-    In: Hash + PartialEq + Eq + Clone + Send + Sync,
-    F: Future<Output = Out> + Send,
+    Out: Clone,
+    In: Hash + PartialEq + Eq + Clone,
 {
     match mode {
         Mode::Transparent => transparent_mode(request, api_result).await,
