@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use bigdecimal::BigDecimal;
 use futures::executor::block_on;
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
@@ -25,7 +26,7 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
     coin_prices: Arc<Mutex<HashMap<Network, Option<Decimal>>>>,
-    balances: Arc<Mutex<HashMap<(Network, Account), Decimal>>>,
+    balances: Arc<Mutex<HashMap<(Network, Account), BigDecimal>>>,
     show_navigation_help: bool,
 
     state: StateRegistry,

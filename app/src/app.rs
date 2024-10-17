@@ -12,7 +12,9 @@ use ratatui::{
 
 use crate::{
     api::{
-        blockchain_monitoring::{mock::BlockchainMonitoringApiMock, BlockchainMonitoringApiT},
+        blockchain_monitoring::{
+            mock::BlockchainMonitoringApiMock, BlockchainMonitoringApi, BlockchainMonitoringApiT,
+        },
         cache_utils::ModePlan,
         coin_price::{
             cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT,
@@ -99,7 +101,8 @@ impl App {
                 .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
                 .await;
 
-            let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
+            let _blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
+            let blockchain_monitoring_api = BlockchainMonitoringApi::new().await;
 
             ApiRegistry {
                 ledger_api,

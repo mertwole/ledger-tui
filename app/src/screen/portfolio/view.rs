@@ -1,3 +1,4 @@
+use bigdecimal::BigDecimal;
 use input_mapping_common::InputMappingT;
 use ratatui::{
     buffer::Buffer,
@@ -87,7 +88,7 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
                             .lock()
                             .expect("Failed to acquire lock on mutex")
                             .get(&(*network, account.clone()))
-                            .copied(),
+                            .cloned(),
                     )
                 })
                 .collect();
@@ -114,7 +115,7 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
 
 struct NetworkAccountsTable<'a> {
     network: Network,
-    accounts_and_balances: Vec<(Account, Option<Decimal>)>,
+    accounts_and_balances: Vec<(Account, Option<BigDecimal>)>,
 
     selected_account: Option<usize>,
     is_self_selected: bool,
@@ -165,12 +166,15 @@ impl<'a> Widget for NetworkAccountsTable<'a> {
             let pk = account.get_info().pk[..8].to_string();
 
             let price = balance
+                .clone()
                 .zip(self.price)
-                .map(|(balance, price)| balance * price)
+                // TODO: balance * price
+                .map(|(balance, price)| price)
                 .map(|price| format!("{}₮", price))
                 .unwrap_or_else(|| "Fetching price...".to_string());
 
             let balance = balance
+                .clone()
                 .map(|balance| [balance.to_string(), icon.clone()].concat())
                 .unwrap_or_else(|| "Fetching price...".to_string());
 

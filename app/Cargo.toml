@@ -9,8 +9,10 @@ api-proc-macro.workspace = true
 input-mapping-derive.workspace = true
 input-mapping-common.workspace = true
 
+alloy.workspace = true
 async-trait.workspace = true
 binance_spot_connector_rust.workspace = true
+bigdecimal.workspace = true
 bs58.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 copypasta.workspace = true
