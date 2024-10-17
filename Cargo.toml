@@ -14,6 +14,7 @@ api-proc-macro = { path = "./app/api_proc_macro" }
 input-mapping-derive = { path = "./app/input_mapping/derive" }
 input-mapping-common = { path = "./app/input_mapping/common" }
 
+async-trait = "0.1.83"
 binance_spot_connector_rust = "1.1.0"
 bs58 = "0.5.1"
 chrono = "0.4.38"

@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{marker::PhantomData, sync::Arc, time::Instant};
 
 use ratatui::{crossterm::event::Event, Frame};
 
@@ -19,19 +19,19 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: ApiRegistry<L, C, M>,
+    _phantom: PhantomData<(L, C, M)>,
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
     for Model<L, C, M>
 {
-    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
+    fn construct(state: StateRegistry, _api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
         Self {
             last_address_copy: None,
             show_navigation_help: false,
 
             state,
-            apis: api_registry,
+            _phantom: PhantomData,
         }
     }
 
@@ -43,7 +43,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         controller::process_input(event.as_ref()?, self)
     }
 
-    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state, self.apis)
+    fn deconstruct(self) -> StateRegistry {
+        self.state
     }
 }

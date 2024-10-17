@@ -37,26 +37,34 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         .title_alignment(Alignment::Center);
 
     let mut list_height = 0;
-    let list = List::new(model.devices.iter().enumerate().map(|(idx, (_, info))| {
-        let label = format!(
-            "{} MCU v{} SE v{}",
-            info.model, info.mcu_version, info.se_version
-        );
+    let list = List::new(
+        model
+            .devices
+            .lock()
+            .expect("Failed to acquire lock on mutex")
+            .iter()
+            .enumerate()
+            .map(|(idx, (_, info))| {
+                let label = format!(
+                    "{} MCU v{} SE v{}",
+                    info.model, info.mcu_version, info.se_version
+                );
 
-        let item = Text::centered(label.into());
+                let item = Text::centered(label.into());
 
-        let item = if Some(idx) == model.selected_device {
-            item.bold()
-                .bg(resources.accent_color)
-                .fg(resources.background_color)
-        } else {
-            item.fg(resources.main_color)
-        };
+                let item = if Some(idx) == model.selected_device {
+                    item.bold()
+                        .bg(resources.accent_color)
+                        .fg(resources.background_color)
+                } else {
+                    item.fg(resources.main_color)
+                };
 
-        list_height += item.height();
+                list_height += item.height();
 
-        item
-    }));
+                item
+            }),
+    );
 
     let list_area = list_block.inner(area);
     let margin = list_area.height.saturating_sub(list_height as u16) / 2;

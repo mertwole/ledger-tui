@@ -1,16 +1,18 @@
-use std::{cell::RefCell, hash::Hash};
+use std::hash::Hash;
 
 use api_proc_macro::implement_cache;
-use futures::executor::block_on;
+use async_trait::async_trait;
 use ledger_lib::{
     info::Model, Device as LedgerDevice, Filters, LedgerInfo, LedgerProvider, Transport,
     DEFAULT_TIMEOUT,
 };
+use tokio::sync::Mutex;
 
 use super::common_types::{Account, Network};
 
 implement_cache!(
-    pub trait LedgerApiT {
+    #[async_trait]
+    pub trait LedgerApiT: Send + Sync + 'static {
         async fn discover_devices(&self) -> Vec<Device>;
 
         async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
@@ -42,25 +44,32 @@ pub struct DeviceInfo {
 }
 
 pub struct LedgerApi {
-    provider: RefCell<LedgerProvider>,
+    provider: Mutex<LedgerProvider>,
 }
 
 impl LedgerApi {
     pub async fn new() -> Self {
         Self {
-            provider: RefCell::from(LedgerProvider::init().await),
+            provider: Mutex::from(LedgerProvider::init().await),
         }
     }
 }
 
+#[async_trait]
 impl LedgerApiT for LedgerApi {
     async fn discover_devices(&self) -> Vec<Device> {
-        let devices = block_on(self.provider.borrow_mut().list(Filters::Any)).unwrap();
+        let devices = self.provider.lock().await.list(Filters::Any).await.unwrap();
         devices.into_iter().map(|info| Device { info }).collect()
     }
 
     async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
-        let mut handle = block_on(self.provider.borrow_mut().connect(device.info.clone())).ok()?;
+        let mut handle = self
+            .provider
+            .lock()
+            .await
+            .connect(device.info.clone())
+            .await
+            .ok()?;
 
         let info = handle.device_info(DEFAULT_TIMEOUT).await.ok()?;
 
@@ -176,6 +185,7 @@ pub mod mock {
         }
     }
 
+    #[async_trait]
     impl LedgerApiT for LedgerApiMock {
         async fn discover_devices(&self) -> Vec<Device> {
             self.devices.clone()

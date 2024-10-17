@@ -1,4 +1,5 @@
-use futures::executor::block_on;
+use std::sync::{Arc, Mutex};
+
 use ratatui::{crossterm::event::Event, Frame};
 use rust_decimal::Decimal;
 use strum::EnumIter;
@@ -19,14 +20,16 @@ mod view;
 
 const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
 
+type TransactionList = Vec<(TransactionUid, TransactionInfo)>;
+
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    coin_price_history: Option<Vec<PriceHistoryPoint>>,
-    transactions: Option<Vec<(TransactionUid, TransactionInfo)>>,
+    coin_price_history: Arc<Mutex<Option<Vec<PriceHistoryPoint>>>>,
+    transactions: Arc<Mutex<Option<TransactionList>>>,
     selected_time_period: TimePeriod,
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: ApiRegistry<L, C, M>,
+    apis: Arc<ApiRegistry<L, C, M>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
@@ -46,7 +49,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             .state
             .selected_account
             .as_ref()
-            .expect("Selected account should be present in state"); // TODO: Enforce this rule at `app` level?
+            .expect("Selected account should be present in state")
+            .clone(); // TODO: Enforce this rule at `app` level?
 
         let coin = match selected_network {
             Network::Bitcoin => Coin::BTC,
@@ -61,40 +65,50 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             TimePeriod::All => ApiTimePeriod::All,
         };
 
-        self.coin_price_history = block_on(self.apis.coin_price_api.get_price_history(
-            coin,
-            Coin::USDT,
-            time_period,
-        ));
+        let apis = self.apis.clone();
+        let coin_price_history = self.coin_price_history.clone();
 
-        // TODO: Don't make requests to API each tick.
-        let tx_list = block_on(
-            self.apis
+        tokio::task::spawn(async move {
+            let price_history = apis
+                .coin_price_api
+                .get_price_history(coin, Coin::USDT, time_period)
+                .await;
+
+            *coin_price_history
+                .lock()
+                .expect("Failed to acquire lock on mutex") = price_history;
+        });
+
+        let apis = self.apis.clone();
+        let transactions = self.transactions.clone();
+
+        tokio::task::spawn(async move {
+            let tx_list = apis
                 .blockchain_monitoring_api
-                .get_transactions(*selected_network, selected_account),
-        );
-        let txs = tx_list
-            .into_iter()
-            .map(|tx_uid| {
-                (
-                    tx_uid.clone(),
-                    block_on(
-                        self.apis
-                            .blockchain_monitoring_api
-                            .get_transaction_info(*selected_network, &tx_uid),
-                    ),
-                )
-            })
-            .collect();
+                .get_transactions(selected_network, &selected_account)
+                .await;
 
-        self.transactions = Some(txs);
+            let mut txs = vec![];
+            for tx in tx_list {
+                let tx_info = apis
+                    .blockchain_monitoring_api
+                    .get_transaction_info(selected_network, &tx)
+                    .await;
+
+                txs.push((tx, tx_info));
+            }
+
+            *transactions
+                .lock()
+                .expect("Failed to acquire lock on mutex") = Some(txs);
+        });
     }
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
     for Model<L, C, M>
 {
-    fn construct(state: StateRegistry, api_registry: ApiRegistry<L, C, M>) -> Self {
+    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
         Self {
             coin_price_history: Default::default(),
             transactions: Default::default(),
@@ -116,7 +130,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         controller::process_input(event.as_ref()?, self)
     }
 
-    fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        (self.state, self.apis)
+    fn deconstruct(self) -> StateRegistry {
+        self.state
     }
 }

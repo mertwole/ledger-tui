@@ -1,6 +1,5 @@
-use std::{io::stdout, marker::PhantomData, time::Duration};
+use std::{io::stdout, marker::PhantomData, sync::Arc, time::Duration};
 
-use futures::executor::block_on;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     crossterm::{
@@ -85,16 +84,20 @@ impl App {
 
         let api_registry = {
             let ledger_api = LedgerApiMock::new(2, 3);
-            let mut ledger_api = block_on(LedgerApiCache::new(ledger_api));
-            ledger_api.set_all_modes(ModePlan::Transparent);
+            let mut ledger_api = LedgerApiCache::new(ledger_api).await;
+            ledger_api.set_all_modes(ModePlan::Transparent).await;
 
             let _coin_price_api = CoinPriceApiMock::new();
             let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
-            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            coin_price_api.set_all_modes(ModePlan::Slow(Duration::from_secs(1)));
+            let mut coin_price_api = CoinPriceApiCache::new(coin_price_api).await;
+            coin_price_api
+                .set_all_modes(ModePlan::Slow(Duration::from_secs(0)))
+                .await;
 
-            let mut coin_price_api = block_on(CoinPriceApiCache::new(coin_price_api));
-            coin_price_api.set_all_modes(ModePlan::TimedOut(Duration::from_secs(5)));
+            let mut coin_price_api = CoinPriceApiCache::new(coin_price_api).await;
+            coin_price_api
+                .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
+                .await;
 
             let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 
@@ -106,7 +109,7 @@ impl App {
             }
         };
 
-        let mut api_registry = Some(api_registry);
+        let api_registry = Arc::new(api_registry);
 
         loop {
             let screen = self
@@ -114,11 +117,10 @@ impl App {
                 .last()
                 .expect("At least one screen should be present");
 
-            let screen = Screen::new(*screen, state.take().unwrap(), api_registry.take().unwrap());
+            let screen = Screen::new(*screen, state.take().unwrap(), api_registry.clone());
 
-            let (new_state, new_api_registry, msg) = Self::screen_loop(screen, &mut terminal);
+            let (new_state, msg) = Self::screen_loop(screen, &mut terminal);
             state = Some(new_state);
-            api_registry = Some(new_api_registry);
 
             match msg {
                 OutgoingMessage::Exit => {
@@ -139,7 +141,7 @@ impl App {
     fn screen_loop<B: Backend, L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         mut screen: Screen<L, C, M>,
         terminal: &mut Terminal<B>,
-    ) -> (StateRegistry, ApiRegistry<L, C, M>, OutgoingMessage) {
+    ) -> (StateRegistry, OutgoingMessage) {
         let resources = Resources::default();
 
         loop {
@@ -154,8 +156,8 @@ impl App {
             let msg = screen.tick(event);
 
             if let Some(msg) = msg {
-                let (state, api_registry) = screen.deconstruct();
-                return (state, api_registry, msg);
+                let state = screen.deconstruct();
+                return (state, msg);
             }
         }
     }

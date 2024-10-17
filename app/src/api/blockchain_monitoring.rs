@@ -1,6 +1,7 @@
 #![allow(dead_code)] // TODO: Remove
 
 use api_proc_macro::implement_cache;
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 
@@ -8,7 +9,8 @@ use super::common_types::{Account, Network};
 
 // TODO: This API will be fallible (return `Result<...>`) in future.
 implement_cache! {
-    pub trait BlockchainMonitoringApiT {
+    #[async_trait]
+    pub trait BlockchainMonitoringApiT: Send + Sync + 'static {
         async fn get_balance(&self, network: Network, account: &Account) -> Decimal;
 
         async fn get_transactions(&self, network: Network, account: &Account) -> Vec<TransactionUid>;
@@ -17,19 +19,19 @@ implement_cache! {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TransactionUid {
     // TODO: Make private.
     pub uid: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TransactionInfo {
     pub ty: TransactionType,
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TransactionType {
     Deposit { from: Account, amount: Decimal },
     Withdraw { to: Account, amount: Decimal },
@@ -43,6 +45,7 @@ impl BlockchainMonitoringApi {
     }
 }
 
+#[async_trait]
 impl BlockchainMonitoringApiT for BlockchainMonitoringApi {
     async fn get_balance(&self, _network: Network, _account: &Account) -> Decimal {
         todo!()
@@ -114,6 +117,7 @@ pub mod mock {
         }
     }
 
+    #[async_trait]
     impl BlockchainMonitoringApiT for BlockchainMonitoringApiMock {
         async fn get_balance(&self, _network: Network, _account: &Account) -> Decimal {
             Decimal::from_i128_with_scale(102312, 1)

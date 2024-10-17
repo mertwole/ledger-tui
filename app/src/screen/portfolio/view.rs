@@ -69,14 +69,25 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
                 _ => None,
             };
 
-            let price = model.coin_prices.get(network).copied().unwrap_or_default();
+            let price = model
+                .coin_prices
+                .lock()
+                .unwrap()
+                .get(network)
+                .copied()
+                .unwrap_or_default();
 
             let accounts_and_balances: Vec<_> = accounts
                 .iter()
                 .map(|account| {
                     (
                         account.clone(),
-                        model.balances.get(&(*network, account.clone())).copied(),
+                        model
+                            .balances
+                            .lock()
+                            .expect("Failed to acquire lock on mutex")
+                            .get(&(*network, account.clone()))
+                            .copied(),
                     )
                 })
                 .collect();
