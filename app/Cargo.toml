@@ -9,7 +9,7 @@ api-proc-macro.workspace = true
 input-mapping-derive.workspace = true
 input-mapping-common.workspace = true
 
-alloy.workspace = true
+alloy = { workspace = true, features = ["full"] }
 async-trait.workspace = true
 binance_spot_connector_rust.workspace = true
 bigdecimal.workspace = true
@@ -32,4 +32,5 @@ serde.workspace = true
 serde_json.workspace = true
 strum = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["time"] }
+toml.workspace = true
 tui-widget-list.workspace = true

@@ -1,4 +1,4 @@
-use std::{io::stdout, marker::PhantomData, sync::Arc, time::Duration};
+use std::{collections::HashMap, io::stdout, marker::PhantomData, sync::Arc, time::Duration};
 
 use ratatui::{
     backend::{Backend, CrosstermBackend},
@@ -9,12 +9,14 @@ use ratatui::{
     },
     Terminal,
 };
+use toml::Table;
 
 use crate::{
     api::{
         blockchain_monitoring::{
             cache::Cache as BlockchainMonitoringApiCache, mock::BlockchainMonitoringApiMock,
             BlockchainMonitoringApi, BlockchainMonitoringApiT,
+            Config as BlockchainMonitoringApiConfig, NetworkApiConfig,
         },
         cache_utils::ModePlan,
         coin_price::{
@@ -103,7 +105,9 @@ impl App {
                 .await;
 
             let _blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
-            let blockchain_monitoring_api = BlockchainMonitoringApi::new().await;
+
+            let config = load_blockchain_monitoring_api_config();
+            let blockchain_monitoring_api = BlockchainMonitoringApi::new(config).await;
             let mut blockchain_monitoring_api =
                 BlockchainMonitoringApiCache::new(blockchain_monitoring_api).await;
             blockchain_monitoring_api
@@ -170,4 +174,31 @@ impl App {
             }
         }
     }
+}
+
+fn load_blockchain_monitoring_api_config() -> BlockchainMonitoringApiConfig {
+    let config = include_str!("../../NetworkApiConfig.toml");
+    let config = config
+        .parse::<Table>()
+        .expect("Failed to parse NetworkApiConfig.toml");
+
+    let mut network_configs = HashMap::new();
+    for (network, network_config) in config {
+        let network = match network.as_str() {
+            "ethereum" => Network::Ethereum,
+            "bitcoin" => Network::Bitcoin,
+            str => panic!("Invalid network name found: {}", str),
+        };
+
+        let config = network_config
+            .as_table()
+            .expect("Wrong NetworkApiConfig.toml format")
+            .to_string();
+        let network_config: NetworkApiConfig =
+            toml::from_str(&config).expect("Wrong NetworkApiConfig.toml format");
+
+        network_configs.insert(network, network_config);
+    }
+
+    BlockchainMonitoringApiConfig { network_configs }
 }

@@ -17,7 +17,7 @@ pub struct Api {
 
 impl Api {
     pub fn new(config: NetworkApiConfig) -> Api {
-        let rpc_url = config.provider_endpoint.parse().unwrap();
+        let rpc_url = config.endpoint.parse().unwrap();
         let provider = ProviderBuilder::new().on_http(rpc_url);
 
         Api { provider }

@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use serde::Deserialize;
 use tokio::sync::Mutex;
 
 use super::common_types::{Account, Network};
@@ -48,12 +49,23 @@ pub enum TransactionType {
 
 pub struct BlockchainMonitoringApi {
     network_apis: Mutex<HashMap<Network, Arc<Box<dyn NetworkApi>>>>,
+    config: Config,
+}
+
+pub struct Config {
+    pub network_configs: HashMap<Network, NetworkApiConfig>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct NetworkApiConfig {
+    pub endpoint: String,
 }
 
 impl BlockchainMonitoringApi {
-    pub async fn new() -> Self {
+    pub async fn new(config: Config) -> Self {
         Self {
             network_apis: Default::default(),
+            config,
         }
     }
 
@@ -61,9 +73,8 @@ impl BlockchainMonitoringApi {
         match self.network_apis.lock().await.entry(network) {
             Entry::Occupied(entry) => entry.get().clone(),
             Entry::Vacant(entry) => {
-                let api = ethereum::Api::new(NetworkApiConfig {
-                    provider_endpoint: "".to_string(),
-                });
+                let network_config = self.config.network_configs.get(&network).unwrap();
+                let api = ethereum::Api::new(network_config.clone());
                 let api: Box<dyn NetworkApi> = Box::from(api);
                 let api: Arc<Box<dyn NetworkApi>> = Arc::from(api);
 
@@ -104,10 +115,6 @@ trait NetworkApi: Send + Sync + 'static {
     async fn get_transactions(&self, account: &Account) -> Vec<TransactionUid>;
 
     async fn get_transaction_info(&self, tx_uid: &TransactionUid) -> TransactionInfo;
-}
-
-struct NetworkApiConfig {
-    pub provider_endpoint: String,
 }
 
 pub mod mock {
