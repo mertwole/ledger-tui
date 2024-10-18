@@ -1,17 +1,27 @@
-#![allow(dead_code)] // TODO: Remove
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    sync::Arc,
+};
 
 use api_proc_macro::implement_cache;
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use serde::Deserialize;
+use tokio::sync::Mutex;
 
 use super::common_types::{Account, Network};
+
+mod bitcoin;
+mod ethereum;
 
 // TODO: This API will be fallible (return `Result<...>`) in future.
 implement_cache! {
     #[async_trait]
     pub trait BlockchainMonitoringApiT: Send + Sync + 'static {
-        async fn get_balance(&self, network: Network, account: &Account) -> Decimal;
+        // TODO: Decimal is too small for this purpose.
+        async fn get_balance(&self, network: Network, account: &Account) -> BigDecimal;
 
         async fn get_transactions(&self, network: Network, account: &Account) -> Vec<TransactionUid>;
 
@@ -37,31 +47,74 @@ pub enum TransactionType {
     Withdraw { to: Account, amount: Decimal },
 }
 
-pub struct BlockchainMonitoringApi {}
+pub struct BlockchainMonitoringApi {
+    network_apis: Mutex<HashMap<Network, Arc<Box<dyn NetworkApi>>>>,
+    config: Config,
+}
+
+pub struct Config {
+    pub network_configs: HashMap<Network, NetworkApiConfig>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct NetworkApiConfig {
+    pub endpoint: String,
+}
 
 impl BlockchainMonitoringApi {
-    pub async fn new() -> Self {
-        Self {}
+    pub async fn new(config: Config) -> Self {
+        Self {
+            network_apis: Default::default(),
+            config,
+        }
+    }
+
+    async fn get_or_instantiate_network_api(&self, network: Network) -> Arc<Box<dyn NetworkApi>> {
+        match self.network_apis.lock().await.entry(network) {
+            Entry::Occupied(entry) => entry.get().clone(),
+            Entry::Vacant(entry) => {
+                let network_config = self.config.network_configs.get(&network).unwrap();
+                let api = ethereum::Api::new(network_config.clone());
+                let api: Box<dyn NetworkApi> = Box::from(api);
+                let api: Arc<Box<dyn NetworkApi>> = Arc::from(api);
+
+                entry.insert(api.clone());
+
+                api
+            }
+        }
     }
 }
 
 #[async_trait]
 impl BlockchainMonitoringApiT for BlockchainMonitoringApi {
-    async fn get_balance(&self, _network: Network, _account: &Account) -> Decimal {
-        todo!()
+    async fn get_balance(&self, network: Network, account: &Account) -> BigDecimal {
+        let network_api = self.get_or_instantiate_network_api(network).await;
+        network_api.get_balance(account).await
     }
 
-    async fn get_transactions(&self, _network: Network, _account: &Account) -> Vec<TransactionUid> {
-        todo!()
+    async fn get_transactions(&self, network: Network, account: &Account) -> Vec<TransactionUid> {
+        let network_api = self.get_or_instantiate_network_api(network).await;
+        network_api.get_transactions(account).await
     }
 
     async fn get_transaction_info(
         &self,
-        _network: Network,
-        _tx_uid: &TransactionUid,
+        network: Network,
+        tx_uid: &TransactionUid,
     ) -> TransactionInfo {
-        todo!()
+        let network_api = self.get_or_instantiate_network_api(network).await;
+        network_api.get_transaction_info(tx_uid).await
     }
+}
+
+#[async_trait]
+trait NetworkApi: Send + Sync + 'static {
+    async fn get_balance(&self, account: &Account) -> BigDecimal;
+
+    async fn get_transactions(&self, account: &Account) -> Vec<TransactionUid>;
+
+    async fn get_transaction_info(&self, tx_uid: &TransactionUid) -> TransactionInfo;
 }
 
 pub mod mock {
@@ -119,8 +172,8 @@ pub mod mock {
 
     #[async_trait]
     impl BlockchainMonitoringApiT for BlockchainMonitoringApiMock {
-        async fn get_balance(&self, _network: Network, _account: &Account) -> Decimal {
-            Decimal::from_i128_with_scale(102312, 1)
+        async fn get_balance(&self, _network: Network, _account: &Account) -> BigDecimal {
+            BigDecimal::from_u32(102312).expect("Failed to create BigDecimal from u32")
         }
 
         async fn get_transactions(
