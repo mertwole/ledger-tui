@@ -1,4 +1,4 @@
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, FromPrimitive};
 use input_mapping_common::InputMappingT;
 use ratatui::{
     buffer::Buffer,
@@ -168,9 +168,8 @@ impl<'a> Widget for NetworkAccountsTable<'a> {
             let price = balance
                 .clone()
                 .zip(self.price)
-                // TODO: balance * price
-                .map(|(balance, price)| price)
-                .map(|price| format!("{}₮", price))
+                .map(|(balance, price)| mul_bigdecimal_decimal(balance, price))
+                .map(|price| format!("{}₮", price.round(10)))
                 .unwrap_or_else(|| "Fetching price...".to_string());
 
             let balance = balance
@@ -220,4 +219,9 @@ fn render_account_table_placeholder(frame: &mut Frame<'_>, resources: &Resources
 
     frame.render_widget(block, area);
     frame.render_widget(text, text_area);
+}
+
+fn mul_bigdecimal_decimal(lhs: BigDecimal, rhs: Decimal) -> BigDecimal {
+    lhs * BigDecimal::from_f64(rhs.try_into().expect("Failed to convert Decimal to f64"))
+        .expect("Fauiled to convert f64 to BigDecimal")
 }

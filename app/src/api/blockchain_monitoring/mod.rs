@@ -1,6 +1,7 @@
-#![allow(dead_code)] // TODO: Remove
-
-use std::collections::{hash_map::Entry, HashMap};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    sync::Arc,
+};
 
 use api_proc_macro::implement_cache;
 use async_trait::async_trait;
@@ -46,7 +47,7 @@ pub enum TransactionType {
 }
 
 pub struct BlockchainMonitoringApi {
-    network_apis: Mutex<HashMap<Network, Box<dyn NetworkApi>>>,
+    network_apis: Mutex<HashMap<Network, Arc<Box<dyn NetworkApi>>>>,
 }
 
 impl BlockchainMonitoringApi {
@@ -55,37 +56,44 @@ impl BlockchainMonitoringApi {
             network_apis: Default::default(),
         }
     }
+
+    async fn get_or_instantiate_network_api(&self, network: Network) -> Arc<Box<dyn NetworkApi>> {
+        match self.network_apis.lock().await.entry(network) {
+            Entry::Occupied(entry) => entry.get().clone(),
+            Entry::Vacant(entry) => {
+                let api = ethereum::Api::new(NetworkApiConfig {
+                    provider_endpoint: "".to_string(),
+                });
+                let api: Box<dyn NetworkApi> = Box::from(api);
+                let api: Arc<Box<dyn NetworkApi>> = Arc::from(api);
+
+                entry.insert(api.clone());
+
+                api
+            }
+        }
+    }
 }
 
 #[async_trait]
 impl BlockchainMonitoringApiT for BlockchainMonitoringApi {
     async fn get_balance(&self, network: Network, account: &Account) -> BigDecimal {
-        match self.network_apis.lock().await.entry(network) {
-            Entry::Occupied(entry) => entry.get().get_balance(account).await,
-            Entry::Vacant(entry) => {
-                let api = ethereum::Api::new(NetworkApiConfig {
-                    provider_endpoint: todo!(),
-                });
-
-                let result = api.get_balance(account).await;
-
-                entry.insert(Box::from(api));
-
-                result
-            }
-        }
+        let network_api = self.get_or_instantiate_network_api(network).await;
+        network_api.get_balance(account).await
     }
 
-    async fn get_transactions(&self, _network: Network, _account: &Account) -> Vec<TransactionUid> {
-        vec![]
+    async fn get_transactions(&self, network: Network, account: &Account) -> Vec<TransactionUid> {
+        let network_api = self.get_or_instantiate_network_api(network).await;
+        network_api.get_transactions(account).await
     }
 
     async fn get_transaction_info(
         &self,
-        _network: Network,
-        _tx_uid: &TransactionUid,
+        network: Network,
+        tx_uid: &TransactionUid,
     ) -> TransactionInfo {
-        todo!()
+        let network_api = self.get_or_instantiate_network_api(network).await;
+        network_api.get_transaction_info(tx_uid).await
     }
 }
 

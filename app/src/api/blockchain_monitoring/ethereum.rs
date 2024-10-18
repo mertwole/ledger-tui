@@ -5,10 +5,7 @@ use alloy::{
 };
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, One};
-use rust_decimal::{
-    prelude::{FromPrimitive, Zero},
-    Decimal,
-};
+use rust_decimal::prelude::{FromPrimitive, Zero};
 
 use super::{Account, NetworkApi, NetworkApiConfig, TransactionInfo, TransactionUid};
 
@@ -45,11 +42,11 @@ impl NetworkApi for Api {
         balance / BigDecimal::from_u64(WEI_IN_ETH).expect("Failed to create BigDecimal from u64")
     }
 
-    async fn get_transactions(&self, account: &Account) -> Vec<TransactionUid> {
+    async fn get_transactions(&self, _account: &Account) -> Vec<TransactionUid> {
         vec![]
     }
 
-    async fn get_transaction_info(&self, tx_uid: &TransactionUid) -> TransactionInfo {
+    async fn get_transaction_info(&self, _tx_uid: &TransactionUid) -> TransactionInfo {
         todo!()
     }
 }
