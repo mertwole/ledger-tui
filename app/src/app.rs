@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io::stdout, marker::PhantomData, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, sync::Arc,
+    time::Duration,
+};
 
 use ratatui::{
     backend::{Backend, CrosstermBackend},
@@ -177,7 +180,8 @@ impl App {
 }
 
 fn load_blockchain_monitoring_api_config() -> BlockchainMonitoringApiConfig {
-    let config = include_str!("../../NetworkApiConfig.toml");
+    let config =
+        read_to_string("NetworkApiConfig.toml").expect("Network api config file is not found");
     let config = config
         .parse::<Table>()
         .expect("Failed to parse NetworkApiConfig.toml");
