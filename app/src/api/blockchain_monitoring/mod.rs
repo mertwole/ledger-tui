@@ -132,27 +132,30 @@ pub mod mock {
 
     impl BlockchainMonitoringApiMock {
         pub fn new(tx_count: usize) -> Self {
-            let txs =
-                vec![(
-                TransactionType::Withdraw {
-                    to: Account {
-                        public_key: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
-                            .to_string(),
+            let txs = vec![
+                (
+                    TransactionType::Withdraw {
+                        to: Account {
+                            public_key:
+                                "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
+                                    .to_string(),
+                        },
+                        amount: Decimal::from_u64(10).unwrap(),
                     },
-                    amount: Decimal::from_u64(10).unwrap(),
-                },
-                Utc::now(),
-            ),
-            (
-                TransactionType::Deposit {
-                    from: Account {
-                        public_key: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
-                            .to_string(),
+                    Utc::now(),
+                ),
+                (
+                    TransactionType::Deposit {
+                        from: Account {
+                            public_key:
+                                "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
+                                    .to_string(),
+                        },
+                        amount: Decimal::from_i128_with_scale(12345, 3),
                     },
-                    amount: Decimal::from_i128_with_scale(12345, 3),
-                },
-                Utc::now(),
-            )];
+                    Utc::now(),
+                ),
+            ];
 
             let txs = iter::repeat(txs)
                 .flatten()
