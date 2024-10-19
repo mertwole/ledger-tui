@@ -16,11 +16,9 @@ use super::common_types::{Account, Network};
 mod bitcoin;
 mod ethereum;
 
-// TODO: This API will be fallible (return `Result<...>`) in future.
 implement_cache! {
     #[async_trait]
     pub trait BlockchainMonitoringApiT: Send + Sync + 'static {
-        // TODO: Decimal is too small for this purpose.
         async fn get_balance(&self, network: Network, account: &Account) -> BigDecimal;
 
         async fn get_transactions(&self, network: Network, account: &Account) -> Vec<TransactionUid>;
@@ -74,8 +72,12 @@ impl BlockchainMonitoringApi {
             Entry::Occupied(entry) => entry.get().clone(),
             Entry::Vacant(entry) => {
                 let network_config = self.config.network_configs.get(&network).unwrap();
-                let api = ethereum::Api::new(network_config.clone());
-                let api: Box<dyn NetworkApi> = Box::from(api);
+
+                let api: Box<dyn NetworkApi> = match network {
+                    Network::Ethereum => Box::from(ethereum::Api::new(network_config.clone())),
+                    Network::Bitcoin => Box::from(bitcoin::Api::new(network_config.clone())),
+                };
+
                 let api: Arc<Box<dyn NetworkApi>> = Arc::from(api);
 
                 entry.insert(api.clone());

@@ -13,11 +13,13 @@ alloy = { workspace = true, features = ["full"] }
 async-trait.workspace = true
 binance_spot_connector_rust.workspace = true
 bigdecimal.workspace = true
+bitcoincore-rpc-json.workspace = true
 bs58.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 copypasta.workspace = true
 futures.workspace = true
 itertools.workspace = true
+jsonrpsee = { workspace = true, features = ["client"] }
 ledger_bitcoin_client.workspace = true
 ledger-lib.workspace = true
 ledger-proto.workspace = true
