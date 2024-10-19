@@ -27,7 +27,7 @@ impl Api {
 #[async_trait]
 impl NetworkApi for Api {
     async fn get_balance(&self, account: &Account) -> BigDecimal {
-        let account = Address::parse_checksummed(&account.pk, None).unwrap();
+        let account = Address::parse_checksummed(&account.public_key, None).unwrap();
         let balance = self.provider.get_balance(account).await.unwrap();
         let balance_le: [u8; 32] = balance.to_le_bytes();
 
@@ -42,11 +42,14 @@ impl NetworkApi for Api {
         balance / BigDecimal::from_u64(WEI_IN_ETH).expect("Failed to create BigDecimal from u64")
     }
 
+    // TODO: It's impossible to request transactions for a given account using only RPC API.
+    // Consider storing transactions made by user in some file and assume that all the transfers
+    // are made using only ledger-tui.
     async fn get_transactions(&self, _account: &Account) -> Vec<TransactionUid> {
         vec![]
     }
 
     async fn get_transaction_info(&self, _tx_uid: &TransactionUid) -> TransactionInfo {
-        todo!()
+        unimplemented!()
     }
 }

@@ -56,7 +56,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
                 .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?
                 .1
                 .get_info()
-                .pk;
+                .public_key;
 
             let mut ctx = ClipboardContext::new().unwrap();
             ctx.set_contents(pubkey).unwrap();

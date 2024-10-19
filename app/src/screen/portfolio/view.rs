@@ -163,7 +163,7 @@ impl<'a> Widget for NetworkAccountsTable<'a> {
 
         let rows = self.accounts_and_balances.iter().map(|(account, balance)| {
             // TODO: Pretty formatting.
-            let pk = account.get_info().pk[..8].to_string();
+            let pk = account.get_info().public_key[..8].to_string();
 
             let price = balance
                 .clone()

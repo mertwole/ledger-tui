@@ -136,7 +136,7 @@ pub mod mock {
                 vec![(
                 TransactionType::Withdraw {
                     to: Account {
-                        pk: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
+                        public_key: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
                             .to_string(),
                     },
                     amount: Decimal::from_u64(10).unwrap(),
@@ -146,7 +146,7 @@ pub mod mock {
             (
                 TransactionType::Deposit {
                     from: Account {
-                        pk: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
+                        public_key: "0xMOCK_000000000000000000000000000000000000000000000000000000_MOCK"
                             .to_string(),
                     },
                     amount: Decimal::from_i128_with_scale(12345, 3),

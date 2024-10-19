@@ -29,13 +29,13 @@ impl Network {
 // And allow mocks to substitute `MockAccount` instead of `Account`.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Account {
-    pub pk: String,
+    pub public_key: String,
 }
 
 impl Account {
     pub fn get_info(&self) -> AccountInfo {
         AccountInfo {
-            pk: self.pk.clone(),
+            public_key: self.public_key.clone(),
         }
     }
 }
@@ -43,5 +43,5 @@ impl Account {
 pub struct AccountInfo {
     #[allow(dead_code)]
     /// Public key of account in encoding native for network,
-    pub pk: String,
+    pub public_key: String,
 }

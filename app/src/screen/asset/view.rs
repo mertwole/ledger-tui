@@ -208,7 +208,7 @@ fn render_tx_list(
 ) {
     let (selected_account_network, selected_account) = selected_account;
 
-    let selected_account_address = selected_account.get_info().pk;
+    let selected_account_address = selected_account.get_info().public_key;
 
     let network_icon = network_symbol(selected_account_network);
 
@@ -223,7 +223,7 @@ fn render_tx_list(
 
             let description = match &tx.ty {
                 TransactionType::Deposit { from, amount } => {
-                    let from = format_address(&from.get_info().pk, ADDRESSES_MAX_LEN);
+                    let from = format_address(&from.get_info().public_key, ADDRESSES_MAX_LEN);
                     let to = format_address(&selected_account_address, ADDRESSES_MAX_LEN);
 
                     vec![
@@ -235,7 +235,7 @@ fn render_tx_list(
                 }
                 TransactionType::Withdraw { to, amount } => {
                     let from = format_address(&selected_account_address, ADDRESSES_MAX_LEN);
-                    let to = format_address(&to.get_info().pk, ADDRESSES_MAX_LEN);
+                    let to = format_address(&to.get_info().public_key, ADDRESSES_MAX_LEN);
 
                     vec![
                         Span::raw(from).fg(resources.accent_color),
