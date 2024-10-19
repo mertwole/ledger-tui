@@ -1,3 +1,4 @@
+use bigdecimal::{BigDecimal, FromPrimitive};
 use input_mapping_common::InputMappingT;
 use ratatui::{
     buffer::Buffer,
@@ -87,7 +88,7 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
                             .lock()
                             .expect("Failed to acquire lock on mutex")
                             .get(&(*network, account.clone()))
-                            .copied(),
+                            .cloned(),
                     )
                 })
                 .collect();
@@ -114,7 +115,7 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
 
 struct NetworkAccountsTable<'a> {
     network: Network,
-    accounts_and_balances: Vec<(Account, Option<Decimal>)>,
+    accounts_and_balances: Vec<(Account, Option<BigDecimal>)>,
 
     selected_account: Option<usize>,
     is_self_selected: bool,
@@ -162,15 +163,17 @@ impl<'a> Widget for NetworkAccountsTable<'a> {
 
         let rows = self.accounts_and_balances.iter().map(|(account, balance)| {
             // TODO: Pretty formatting.
-            let pk = account.get_info().pk[..8].to_string();
+            let pk = account.get_info().public_key[..8].to_string();
 
             let price = balance
+                .clone()
                 .zip(self.price)
-                .map(|(balance, price)| balance * price)
-                .map(|price| format!("{}₮", price))
+                .map(|(balance, price)| mul_bigdecimal_decimal(balance, price))
+                .map(|price| format!("{}₮", price.round(10)))
                 .unwrap_or_else(|| "Fetching price...".to_string());
 
             let balance = balance
+                .clone()
                 .map(|balance| [balance.to_string(), icon.clone()].concat())
                 .unwrap_or_else(|| "Fetching price...".to_string());
 
@@ -216,4 +219,9 @@ fn render_account_table_placeholder(frame: &mut Frame<'_>, resources: &Resources
 
     frame.render_widget(block, area);
     frame.render_widget(text, text_area);
+}
+
+fn mul_bigdecimal_decimal(lhs: BigDecimal, rhs: Decimal) -> BigDecimal {
+    lhs * BigDecimal::from_f64(rhs.try_into().expect("Failed to convert Decimal to f64"))
+        .expect("Fauiled to convert f64 to BigDecimal")
 }

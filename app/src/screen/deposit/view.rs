@@ -42,7 +42,7 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         .expect("Selected account should be present in state") // TODO: Enforce this rule at `app` level?
         .1
         .get_info()
-        .pk;
+        .public_key;
 
     let address_text = Text::raw(&pubkey)
         .alignment(Alignment::Center)
