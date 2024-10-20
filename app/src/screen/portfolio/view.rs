@@ -38,7 +38,13 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         frame.size(),
     );
 
-    if let Some(accounts) = model.state.device_accounts.as_ref() {
+    if let Some(accounts) = model
+        .state
+        .device_accounts
+        .lock()
+        .expect("Failed to acquire lock on mutex")
+        .as_ref()
+    {
         render_account_table(model, frame, accounts, resources);
     } else {
         // TODO: Process case when device is connected but accounts haven't been loaded yet.

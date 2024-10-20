@@ -80,8 +80,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
         }
         InputEvent::Select => {
             if let Some(device_idx) = model.selected_device {
-                let (device, info) = devices[device_idx].clone();
-                model.state.active_device = Some((device, info));
+                model.state.active_device = Some(devices[device_idx].clone());
 
                 Some(OutgoingMessage::Back)
             } else {

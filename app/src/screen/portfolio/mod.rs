@@ -37,32 +37,33 @@ type AccountIdx = usize;
 type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    fn tick_logic(&mut self) {
-        if self.state.device_accounts.is_none() {
-            if let Some((active_device, _)) = self.state.active_device.as_ref() {
-                // TODO: Load at startup from config and add only on user request.
-                // TODO: Filter accounts based on balance.
-                self.state.device_accounts = Some(
-                    [Network::Bitcoin, Network::Ethereum]
-                        .into_iter()
-                        .filter_map(|network| {
-                            let accounts = block_on(
-                                self.apis
-                                    .ledger_api
-                                    .discover_accounts(active_device, network),
-                            );
+    fn init_logic(&self) {
+        let state_device_accounts = self.state.device_accounts.clone();
+        let apis = self.apis.clone();
 
-                            if accounts.is_empty() {
-                                None
-                            } else {
-                                Some((network, accounts))
-                            }
-                        })
-                        .collect(),
-                );
-            }
+        if let Some((active_device, _)) = self.state.active_device.clone() {
+            // TODO: Introduce separate screen where account loading and management will be performed.
+            tokio::task::spawn(async move {
+                let mut device_accounts = vec![];
+                for network in [Network::Bitcoin, Network::Ethereum] {
+                    let accounts = apis
+                        .ledger_api
+                        .discover_accounts(&active_device, network)
+                        .await;
+
+                    if !accounts.is_empty() {
+                        device_accounts.push((network, accounts));
+                    }
+                }
+
+                *state_device_accounts
+                    .lock()
+                    .expect("Failed to acquire lock on mutex") = Some(device_accounts);
+            });
         }
+    }
 
+    async fn tick_logic(&mut self) {
         let apis = self.apis.clone();
         let state_coin_prices = self.coin_prices.clone();
 
@@ -87,7 +88,12 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         });
 
         // TODO: Don't request balance each tick.
-        if let Some(accounts) = self.state.device_accounts.clone() {
+        let device_accounts = self
+            .state
+            .device_accounts
+            .lock()
+            .expect("Failed to acquire lock on mutex");
+        if let Some(accounts) = device_accounts.clone() {
             for (network, accounts) in accounts {
                 for account in accounts {
                     if !self
@@ -121,7 +127,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     for Model<L, C, M>
 {
     fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
-        Self {
+        let new = Self {
             selected_account: None,
             coin_prices: Default::default(),
             balances: Default::default(),
@@ -129,7 +135,11 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
 
             state,
             apis: api_registry,
-        }
+        };
+
+        new.init_logic();
+
+        new
     }
 
     fn render(&self, frame: &mut Frame<'_>, resources: &Resources) {
@@ -137,7 +147,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     }
 
     fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
-        self.tick_logic();
+        block_on(self.tick_logic());
 
         controller::process_input(event.as_ref()?, self)
     }
