@@ -33,6 +33,10 @@ pub enum InputEvent {
     #[key = "KeyCode::Enter"]
     #[description = "Select device"]
     Select,
+
+    #[key = 'r']
+    #[description = "Refresh device list"]
+    Refresh,
 }
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
@@ -83,6 +87,10 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             } else {
                 None
             }
+        }
+        InputEvent::Refresh => {
+            model.refresh_device_list();
+            None
         }
     }
 }

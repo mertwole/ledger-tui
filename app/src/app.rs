@@ -27,7 +27,8 @@ use crate::{
         },
         common_types::{Account, Network},
         ledger::{
-            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApiT,
+            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApi,
+            LedgerApiT,
         },
     },
     screen::{resources::Resources, OutgoingMessage, Screen, ScreenName},
@@ -92,6 +93,7 @@ impl App {
 
         let api_registry = {
             let ledger_api = LedgerApiMock::new(2, 3);
+            let _ledger_api = LedgerApi::new().await;
             let mut ledger_api = LedgerApiCache::new(ledger_api).await;
             ledger_api.set_all_modes(ModePlan::Transparent).await;
 

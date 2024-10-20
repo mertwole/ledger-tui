@@ -26,6 +26,23 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
     fn tick_logic(&mut self) {
+        let devices = self
+            .devices
+            .lock()
+            .expect("Failed to acquire lock on mutex");
+
+        if devices.is_empty() {
+            self.selected_device = None;
+        }
+
+        if let Some(selected) = self.selected_device.as_mut() {
+            if *selected >= devices.len() {
+                *selected = devices.len() - 1;
+            }
+        }
+    }
+
+    fn refresh_device_list(&self) {
         let state_devices = self.devices.clone();
         let apis = self.apis.clone();
 
@@ -44,21 +61,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                 .lock()
                 .expect("Failed to acquire lock on mutex") = devices_with_info;
         });
-
-        let devices = self
-            .devices
-            .lock()
-            .expect("Failed to acquire lock on mutex");
-
-        if devices.is_empty() {
-            self.selected_device = None;
-        }
-
-        if let Some(selected) = self.selected_device.as_mut() {
-            if *selected >= devices.len() {
-                *selected = devices.len() - 1;
-            }
-        }
     }
 }
 
