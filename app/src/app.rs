@@ -92,8 +92,8 @@ impl App {
         let mut state = Some(StateRegistry::new());
 
         let api_registry = {
-            let ledger_api = LedgerApiMock::new(2, 3);
-            let _ledger_api = LedgerApi::new().await;
+            let _ledger_api = LedgerApiMock::new(2, 3);
+            let ledger_api = LedgerApi::new().await;
             let mut ledger_api = LedgerApiCache::new(ledger_api).await;
             ledger_api.set_all_modes(ModePlan::Transparent).await;
 

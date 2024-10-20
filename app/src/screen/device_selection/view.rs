@@ -1,5 +1,4 @@
 use input_mapping_common::InputMappingT;
-use qrcode::render;
 use ratatui::{
     layout::{Alignment, Margin, Rect},
     style::Stylize,
@@ -49,7 +48,6 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         .expect("Failed to acquire lock on mutex");
 
     if devices.is_empty() {
-        log::info!("RERE");
         render_device_list_placeholder(frame, list_area);
     } else {
         render_device_list(

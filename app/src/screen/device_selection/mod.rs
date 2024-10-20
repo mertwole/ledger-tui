@@ -47,6 +47,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         let apis = self.apis.clone();
 
         tokio::task::spawn(async move {
+            log::info!("Requesting device list from ledger api");
+
             let devices = apis.ledger_api.discover_devices().await;
             let mut devices_with_info = Vec::with_capacity(devices.len());
 
@@ -56,6 +58,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                     devices_with_info.push((device, info));
                 }
             }
+
+            log::info!("Discovered {} ledger devices", devices_with_info.len());
 
             *state_devices
                 .lock()
