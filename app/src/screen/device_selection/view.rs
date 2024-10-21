@@ -79,10 +79,7 @@ fn render_device_list(
 ) {
     let mut list_height = 0;
     let list = List::new(devices.iter().enumerate().map(|(idx, (_, info))| {
-        let label = format!(
-            "{} MCU v{} SE v{}",
-            info.model, info.mcu_version, info.se_version
-        );
+        let label = format!("Ledger {}", info.model);
 
         let item = Text::centered(label.into());
 
