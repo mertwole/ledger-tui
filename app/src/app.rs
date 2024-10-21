@@ -1,5 +1,9 @@
 use std::{
-    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, sync::Arc,
+    collections::HashMap,
+    fs::read_to_string,
+    io::stdout,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -27,7 +31,8 @@ use crate::{
         },
         common_types::{Account, Network},
         ledger::{
-            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApiT,
+            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApi,
+            LedgerApiT,
         },
     },
     screen::{resources::Resources, OutgoingMessage, Screen, ScreenName},
@@ -37,10 +42,12 @@ pub struct App {
     screens: Vec<ScreenName>,
 }
 
+type DeviceAccountsList = Vec<(Network, Vec<Account>)>;
+
 // TODO: Add macro to automatically break this registry into sub-registries designated for specific Screens.
 pub(crate) struct StateRegistry {
     pub active_device: Option<(Device, DeviceInfo)>,
-    pub device_accounts: Option<Vec<(Network, Vec<Account>)>>,
+    pub device_accounts: Arc<Mutex<Option<DeviceAccountsList>>>,
     pub selected_account: Option<(Network, Account)>,
     _phantom: PhantomData<()>,
 }
@@ -60,8 +67,8 @@ where
 impl StateRegistry {
     fn new() -> StateRegistry {
         StateRegistry {
-            active_device: None,
-            device_accounts: None,
+            active_device: Default::default(),
+            device_accounts: Default::default(),
             selected_account: None,
             _phantom: PhantomData,
         }
@@ -91,7 +98,8 @@ impl App {
         let mut state = Some(StateRegistry::new());
 
         let api_registry = {
-            let ledger_api = LedgerApiMock::new(2, 3);
+            let _ledger_api = LedgerApiMock::new();
+            let ledger_api = LedgerApi::new().await;
             let mut ledger_api = LedgerApiCache::new(ledger_api).await;
             ledger_api.set_all_modes(ModePlan::Transparent).await;
 

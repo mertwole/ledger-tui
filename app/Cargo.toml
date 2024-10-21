@@ -21,8 +21,9 @@ futures.workspace = true
 itertools.workspace = true
 jsonrpsee = { workspace = true, features = ["client"] }
 ledger_bitcoin_client.workspace = true
-ledger-lib.workspace = true
-ledger-proto.workspace = true
+ledger-apdu.workspace = true
+ledger-transport.workspace = true
+ledger-transport-hid.workspace = true
 log.workspace = true
 paste.workspace = true
 pretty_env_logger.workspace = true

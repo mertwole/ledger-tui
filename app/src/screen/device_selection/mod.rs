@@ -26,25 +26,6 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
     fn tick_logic(&mut self) {
-        let state_devices = self.devices.clone();
-        let apis = self.apis.clone();
-
-        tokio::task::spawn(async move {
-            let devices = apis.ledger_api.discover_devices().await;
-            let mut devices_with_info = Vec::with_capacity(devices.len());
-
-            for device in devices {
-                let info = apis.ledger_api.get_device_info(&device).await;
-                if let Some(info) = info {
-                    devices_with_info.push((device, info));
-                }
-            }
-
-            *state_devices
-                .lock()
-                .expect("Failed to acquire lock on mutex") = devices_with_info;
-        });
-
         let devices = self
             .devices
             .lock()
@@ -59,6 +40,31 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                 *selected = devices.len() - 1;
             }
         }
+    }
+
+    fn refresh_device_list(&self) {
+        let state_devices = self.devices.clone();
+        let apis = self.apis.clone();
+
+        tokio::task::spawn(async move {
+            log::info!("Requesting device list from ledger api");
+
+            let devices = apis.ledger_api.discover_devices().await;
+            let mut devices_with_info = Vec::with_capacity(devices.len());
+
+            for device in devices {
+                let info = apis.ledger_api.get_device_info(&device).await;
+                if let Some(info) = info {
+                    devices_with_info.push((device, info));
+                }
+            }
+
+            log::info!("Discovered {} ledger devices", devices_with_info.len());
+
+            *state_devices
+                .lock()
+                .expect("Failed to acquire lock on mutex") = devices_with_info;
+        });
     }
 }
 
