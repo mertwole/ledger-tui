@@ -1,7 +1,8 @@
-use std::hash::Hash;
+use std::{hash::Hash, str::FromStr};
 
 use api_proc_macro::implement_cache;
 use async_trait::async_trait;
+use ledger_apdu::APDUCommand;
 use ledger_transport_hid::{
     hidapi::{DeviceInfo as LedgerDeviceInfo, HidApi},
     TransportNativeHID,
@@ -92,6 +93,31 @@ impl LedgerApiT for LedgerApi {
 
 impl LedgerApi {
     async fn discover_bitcoin_accounts(&self, device: &Device) -> Vec<Account> {
+        let transport = TransportNativeHID::open_device(&self.hid_api, &device.info).unwrap();
+
+        let data = &[
+            &[1u8][..],                                // Display
+            &[5u8][..], // Number of BIP 32 derivations to perform (max 8)
+            &((1u32 << 31) ^ 84u32).to_be_bytes()[..], // 1st derivation index (big endian)
+            &((1u32 << 31) ^ 0u32).to_be_bytes()[..], // 2nd derivation index (big endian)
+            &((1u32 << 31) ^ 0u32).to_be_bytes()[..], // 3rd derivation index (big endian)
+            &0u32.to_be_bytes()[..], // 4th derivation index (big endian)
+            &0u32.to_be_bytes()[..], // 5th derivation index (big endian)
+        ]
+        .concat()[..];
+
+        let command = APDUCommand {
+            cla: 0xE1,
+            ins: 0x00,
+            p1: 0x00,
+            p2: 0x00,
+            data,
+        };
+
+        let response = transport.exchange(&command).unwrap();
+        let response = String::from_utf8(response.data().to_vec()).unwrap();
+        let _xpub = bitcoin::bip32::ExtendedPubKey::from_str(&response).unwrap();
+
         vec![]
     }
 

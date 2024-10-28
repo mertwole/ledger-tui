@@ -12,6 +12,7 @@ input-mapping-common.workspace = true
 alloy = { workspace = true, features = ["full"] }
 async-trait.workspace = true
 binance_spot_connector_rust.workspace = true
+bitcoin.workspace = true
 bigdecimal.workspace = true
 bitcoincore-rpc-json.workspace = true
 bs58.workspace = true
@@ -20,7 +21,6 @@ copypasta.workspace = true
 futures.workspace = true
 itertools.workspace = true
 jsonrpsee = { workspace = true, features = ["client"] }
-ledger_bitcoin_client.workspace = true
 ledger-apdu.workspace = true
 ledger-transport.workspace = true
 ledger-transport-hid.workspace = true
