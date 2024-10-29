@@ -18,6 +18,7 @@ Install dependencies:
 - `pkg-config`
 - `build-essential`
 - `libusb-1.0-0-dev`
+- `libudev-dev`
 
 Instal rust:
 

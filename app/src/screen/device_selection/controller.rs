@@ -33,6 +33,10 @@ pub enum InputEvent {
     #[key = "KeyCode::Enter"]
     #[description = "Select device"]
     Select,
+
+    #[key = 'r']
+    #[description = "Refresh device list"]
+    Refresh,
 }
 
 pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
@@ -76,13 +80,16 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
         }
         InputEvent::Select => {
             if let Some(device_idx) = model.selected_device {
-                let (device, info) = devices[device_idx].clone();
-                model.state.active_device = Some((device, info));
+                model.state.active_device = Some(devices[device_idx].clone());
 
                 Some(OutgoingMessage::Back)
             } else {
                 None
             }
+        }
+        InputEvent::Refresh => {
+            model.refresh_device_list();
+            None
         }
     }
 }

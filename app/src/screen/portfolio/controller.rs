@@ -4,7 +4,7 @@ use input_mapping_common::InputMappingT;
 use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::{Event, KeyCode};
 
-use super::Model;
+use super::{AccountIdx, Model, NetworkIdx};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
@@ -58,7 +58,13 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
         _ => {}
     };
 
-    if let Some(accounts) = model.state.device_accounts.as_ref() {
+    let new_selected = if let Some(accounts) = model
+        .state
+        .device_accounts
+        .lock()
+        .expect("Failed to acquire lock on mutex")
+        .as_ref()
+    {
         if matches!(event, InputEvent::Select) {
             if let Some((selected_network_idx, selected_account_idx)) = model.selected_account {
                 let (selected_network, accounts) = &accounts[selected_network_idx];
@@ -77,34 +83,39 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             })
             .collect();
 
-        process_table_navigation(model, &event, &accounts_per_network);
-    }
+        process_table_navigation(model.selected_account, &event, &accounts_per_network)
+    } else {
+        None
+    };
+
+    model.selected_account = new_selected;
 
     None
 }
 
-fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &mut Model<L, C, M>,
+type SelectedAccount = Option<(NetworkIdx, AccountIdx)>;
+
+fn process_table_navigation(
+    mut selected: SelectedAccount,
     event: &InputEvent,
     accounts_per_network: &[NonZeroUsize],
-) {
+) -> SelectedAccount {
     if matches!(event, InputEvent::Down) {
-        if let Some((selected_network, selected_account)) = model.selected_account {
+        if let Some((selected_network, selected_account)) = selected {
             if selected_account + 1 >= accounts_per_network[selected_network].into() {
                 if selected_network >= accounts_per_network.len() - 1 {
                     let last_network_accounts: usize =
                         (*accounts_per_network.last().unwrap()).into();
 
-                    model.selected_account =
-                        Some((accounts_per_network.len() - 1, last_network_accounts - 1));
+                    selected = Some((accounts_per_network.len() - 1, last_network_accounts - 1));
                 } else {
-                    model.selected_account = Some((selected_network + 1, 0));
+                    selected = Some((selected_network + 1, 0));
                 }
             } else {
-                model.selected_account = Some((selected_network, selected_account + 1));
+                selected = Some((selected_network, selected_account + 1));
             }
         } else {
-            model.selected_account = if accounts_per_network.is_empty() {
+            selected = if accounts_per_network.is_empty() {
                 None
             } else {
                 Some((0, 0))
@@ -113,19 +124,19 @@ fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
     }
 
     if matches!(event, InputEvent::Up) {
-        if let Some((selected_network, selected_account)) = model.selected_account {
+        if let Some((selected_network, selected_account)) = selected {
             if selected_account == 0 {
                 if selected_network == 0 {
-                    model.selected_account = Some((0, 0));
+                    selected = Some((0, 0));
                 } else {
                     let accounts: usize = accounts_per_network[selected_network - 1].into();
-                    model.selected_account = Some((selected_network - 1, accounts - 1));
+                    selected = Some((selected_network - 1, accounts - 1));
                 }
             } else {
-                model.selected_account = Some((selected_network, selected_account - 1));
+                selected = Some((selected_network, selected_account - 1));
             }
         } else {
-            model.selected_account = if accounts_per_network.is_empty() {
+            selected = if accounts_per_network.is_empty() {
                 None
             } else {
                 let network = accounts_per_network.len() - 1;
@@ -135,4 +146,6 @@ fn process_table_navigation<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             };
         }
     }
+
+    selected
 }
