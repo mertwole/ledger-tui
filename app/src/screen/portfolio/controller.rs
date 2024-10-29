@@ -83,11 +83,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             })
             .collect();
 
-        process_table_navigation(
-            model.selected_account.clone(),
-            &event,
-            &accounts_per_network,
-        )
+        process_table_navigation(model.selected_account, &event, &accounts_per_network)
     } else {
         None
     };

@@ -50,13 +50,7 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
     if devices.is_empty() {
         render_device_list_placeholder(frame, list_area);
     } else {
-        render_device_list(
-            devices,
-            model.selected_device.clone(),
-            frame,
-            list_area,
-            resources,
-        );
+        render_device_list(devices, model.selected_device, frame, list_area, resources);
     }
 
     if model.show_navigation_help {

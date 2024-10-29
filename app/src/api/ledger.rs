@@ -96,6 +96,7 @@ impl LedgerApi {
     async fn discover_bitcoin_accounts(&self, device: &Device) -> Vec<Account> {
         let transport = TransportNativeHID::open_device(&self.hid_api, &device.info).unwrap();
 
+        #[allow(clippy::identity_op)]
         let data = &[
             &[0u8][..],                                // Display
             &[5u8][..], // Number of BIP 32 derivations to perform (max 8)
