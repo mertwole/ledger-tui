@@ -1,8 +1,8 @@
 use std::{marker::PhantomData, sync::Arc, time::Instant};
 
-use ratatui::{crossterm::event::Event, Frame};
+use ratatui::{Frame, crossterm::event::Event};
 
-use super::{resources::Resources, OutgoingMessage, ScreenT};
+use super::{OutgoingMessage, ScreenT, resources::Resources};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,

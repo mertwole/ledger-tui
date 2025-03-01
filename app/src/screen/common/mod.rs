@@ -1,10 +1,10 @@
 use input_mapping_common::InputMapping;
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Flex, Layout, Margin, Rect},
     style::Stylize,
     text::Text,
     widgets::{Block, BorderType, Borders, Padding},
-    Frame,
 };
 
 use crate::api::common_types::Network;

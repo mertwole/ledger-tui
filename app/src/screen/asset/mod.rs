@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use ratatui::{crossterm::event::Event, Frame};
+use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
 use strum::EnumIter;
 
-use super::{resources::Resources, OutgoingMessage, ScreenT};
+use super::{OutgoingMessage, ScreenT, resources::Resources};
 use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},

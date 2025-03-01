@@ -5,8 +5,8 @@ extern crate syn;
 
 use proc_macro2::TokenStream;
 use syn::{
-    parse_macro_input, FnArg, Ident, ItemTrait, Pat, PatType, ReturnType, TraitItem, Type,
-    Visibility,
+    FnArg, Ident, ItemTrait, Pat, PatType, ReturnType, TraitItem, Type, Visibility,
+    parse_macro_input,
 };
 
 #[proc_macro]

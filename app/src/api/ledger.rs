@@ -4,8 +4,8 @@ use api_proc_macro::implement_cache;
 use async_trait::async_trait;
 use ledger_apdu::{APDUCommand, APDUErrorCode};
 use ledger_transport_hid::{
-    hidapi::{DeviceInfo as LedgerDeviceInfo, HidApi},
     TransportNativeHID,
+    hidapi::{DeviceInfo as LedgerDeviceInfo, HidApi},
 };
 
 use super::common_types::{Account, Network};

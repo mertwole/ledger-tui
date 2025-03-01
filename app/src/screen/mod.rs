@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ratatui::{crossterm::event::Event, Frame};
+use ratatui::{Frame, crossterm::event::Event};
 use resources::Resources;
 
 use crate::{

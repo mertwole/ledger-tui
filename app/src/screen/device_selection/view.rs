@@ -1,13 +1,13 @@
 use input_mapping_common::InputMappingT;
 use ratatui::{
+    Frame,
     layout::{Alignment, Margin, Rect},
     style::Stylize,
     text::Text,
     widgets::{Block, BorderType, Borders, List, Padding},
-    Frame,
 };
 
-use super::{controller, Model};
+use super::{Model, controller};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT,
@@ -15,7 +15,7 @@ use crate::{
         ledger::{Device, DeviceInfo, LedgerApiT},
     },
     screen::{
-        common::{self, render_centered_text, BackgroundWidget},
+        common::{self, BackgroundWidget, render_centered_text},
         resources::Resources,
     },
 };

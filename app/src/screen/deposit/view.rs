@@ -3,12 +3,12 @@ use std::time::Duration;
 use input_mapping_common::InputMappingT;
 use qrcode::{Color as QrCodeColor, QrCode};
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Flex, Layout, Rect},
     prelude::Buffer,
     style::{Color, Stylize},
     text::Text,
     widgets::{Block, BorderType, Borders, Padding, Widget},
-    Frame,
 };
 
 use crate::{

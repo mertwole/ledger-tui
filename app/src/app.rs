@@ -8,34 +8,33 @@ use std::{
 };
 
 use ratatui::{
+    Terminal,
     backend::{Backend, CrosstermBackend},
     crossterm::{
-        event,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-        ExecutableCommand,
+        ExecutableCommand, event,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
-    Terminal,
 };
 use toml::Table;
 
 use crate::{
     api::{
         blockchain_monitoring::{
-            cache::Cache as BlockchainMonitoringApiCache, mock::BlockchainMonitoringApiMock,
             BlockchainMonitoringApi, BlockchainMonitoringApiT,
             Config as BlockchainMonitoringApiConfig, NetworkApiConfig,
+            cache::Cache as BlockchainMonitoringApiCache, mock::BlockchainMonitoringApiMock,
         },
         cache_utils::ModePlan,
         coin_price::{
-            cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT,
+            CoinPriceApi, CoinPriceApiT, cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock,
         },
         common_types::{Account, Network},
         ledger::{
-            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApi,
-            LedgerApiT,
+            Device, DeviceInfo, LedgerApi, LedgerApiT, cache::Cache as LedgerApiCache,
+            mock::LedgerApiMock,
         },
     },
-    screen::{resources::Resources, OutgoingMessage, Screen, ScreenName},
+    screen::{OutgoingMessage, Screen, ScreenName, resources::Resources},
 };
 
 pub struct App {
