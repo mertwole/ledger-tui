@@ -33,6 +33,7 @@ use crate::{
             Device, DeviceInfo, LedgerApi, LedgerApiT, cache::Cache as LedgerApiCache,
             mock::LedgerApiMock,
         },
+        storage::{StorageApi, mock::StorageApiMock},
     },
     screen::{OutgoingMessage, Screen, ScreenName, resources::Resources},
 };
@@ -108,13 +109,10 @@ impl App {
             coin_price_api
                 .set_all_modes(ModePlan::Slow(Duration::from_secs(0)))
                 .await;
-
             let mut coin_price_api = CoinPriceApiCache::new(coin_price_api).await;
             coin_price_api
                 .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
                 .await;
-
-            let _blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 
             let config = load_blockchain_monitoring_api_config();
             let _blockchain_monitoring_api = BlockchainMonitoringApi::new(config).await;
@@ -124,6 +122,9 @@ impl App {
             blockchain_monitoring_api
                 .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
                 .await;
+
+            let _storage_api = StorageApi::new("./data".into());
+            let _storage_api = StorageApiMock::new();
 
             ApiRegistry {
                 ledger_api,
