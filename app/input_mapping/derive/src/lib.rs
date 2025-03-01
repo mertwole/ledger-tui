@@ -1,6 +1,6 @@
 use proc_macro2::{Literal, TokenStream};
 use quote::ToTokens;
-use syn::{parse_macro_input, Expr, Fields, ItemEnum, Lit, Meta, MetaNameValue, Variant};
+use syn::{Expr, Fields, ItemEnum, Lit, Meta, MetaNameValue, Variant, parse_macro_input};
 
 #[macro_use]
 extern crate quote;

@@ -1,4 +1,3 @@
-#![feature(entry_insert)]
 #![feature(iter_intersperse)]
 
 use log::LevelFilter;

@@ -4,8 +4,8 @@ use api_proc_macro::implement_cache;
 use async_trait::async_trait;
 use ledger_apdu::{APDUCommand, APDUErrorCode};
 use ledger_transport_hid::{
-    hidapi::{DeviceInfo as LedgerDeviceInfo, HidApi},
     TransportNativeHID,
+    hidapi::{DeviceInfo as LedgerDeviceInfo, HidApi},
 };
 
 use super::common_types::{Account, Network};
@@ -23,14 +23,48 @@ implement_cache!(
 );
 
 #[derive(Clone, Debug)]
-pub struct Device {
-    info: LedgerDeviceInfo,
+pub struct Device(DeviceInner);
+
+impl Device {
+    fn new(info: LedgerDeviceInfo) -> Self {
+        Self(DeviceInner::Device(info))
+    }
+
+    fn new_mock(id: usize) -> Self {
+        Self(DeviceInner::Mock(id))
+    }
+
+    fn get_info(&self) -> Option<&LedgerDeviceInfo> {
+        match &self.0 {
+            DeviceInner::Mock(_) => None,
+            DeviceInner::Device(info) => Some(info),
+        }
+    }
+
+    fn get_mock_id(&self) -> Option<usize> {
+        match &self.0 {
+            DeviceInner::Mock(id) => Some(*id),
+            DeviceInner::Device(_) => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+enum DeviceInner {
+    Mock(usize),
+    Device(LedgerDeviceInfo),
 }
 
 impl PartialEq for Device {
     fn eq(&self, other: &Self) -> bool {
-        self.info.path() == other.info.path()
-            && self.info.serial_number() == other.info.serial_number()
+        match (&self.0, &other.0) {
+            (DeviceInner::Mock(self_id), DeviceInner::Mock(other_id)) => self_id == other_id,
+            (DeviceInner::Device(self_info), DeviceInner::Device(other_info)) => {
+                self_info.path() == other_info.path()
+                    && self_info.serial_number() == other_info.serial_number()
+            }
+            _ => false,
+        }
     }
 }
 
@@ -38,8 +72,13 @@ impl Eq for Device {}
 
 impl Hash for Device {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.info.path().hash(state);
-        self.info.serial_number().hash(state);
+        match &self.0 {
+            DeviceInner::Mock(id) => id.hash(state),
+            DeviceInner::Device(info) => {
+                info.path().hash(state);
+                info.serial_number().hash(state);
+            }
+        }
     }
 }
 
@@ -66,7 +105,7 @@ impl LedgerApiT for LedgerApi {
         log::info!("Discovering connected ledger devices...");
 
         let devices = TransportNativeHID::list_ledgers(&self.hid_api);
-        let devices: Vec<_> = devices.map(|info| Device { info: info.clone() }).collect();
+        let devices: Vec<_> = devices.cloned().map(Device::new).collect();
 
         log::info!("Discovered {} connected ledger devices", devices.len());
 
@@ -75,7 +114,8 @@ impl LedgerApiT for LedgerApi {
 
     async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
         let model = device
-            .info
+            .get_info()
+            .expect("Expected non-mock device")
             .product_string()
             .map(|s| s.to_string())
             .unwrap_or_default();
@@ -94,7 +134,8 @@ impl LedgerApiT for LedgerApi {
 impl LedgerApi {
     // TODO: It's just a showcase of communicating with bitcoin app.
     async fn discover_bitcoin_accounts(&self, device: &Device) -> Vec<Account> {
-        let transport = TransportNativeHID::open_device(&self.hid_api, &device.info).unwrap();
+        let device_info = device.get_info().expect("Expected non-mock device");
+        let transport = TransportNativeHID::open_device(&self.hid_api, device_info).unwrap();
 
         #[allow(clippy::identity_op)]
         let data = &[
@@ -138,29 +179,80 @@ impl LedgerApi {
 }
 
 pub mod mock {
+    use std::collections::HashMap;
+
     use super::*;
 
-    // TODO: Implement mock.
-    pub struct LedgerApiMock {}
+    pub struct LedgerApiMock {
+        devices: Vec<Device>,
+        accounts: HashMap<Network, Vec<Account>>,
+    }
 
     impl LedgerApiMock {
-        pub fn new() -> Self {
-            Self {}
+        pub fn new(device_count: usize, account_count: usize) -> Self {
+            let repeat_accounts = |pattern: Vec<&str>| -> Vec<Account> {
+                std::iter::repeat(pattern)
+                    .flatten()
+                    .take(account_count)
+                    .map(|acc| Account {
+                        public_key: acc.into(),
+                    })
+                    .collect()
+            };
+
+            let mut accounts = HashMap::new();
+
+            let btc_accounts = repeat_accounts(vec![
+                "0x0123456789012345678901234567890101234567890123456789012345678901",
+                "0x9876543210987654321098765432109876543210987654321098765432109876",
+                "0x0000001111111112222222223333333333344444444445555555555666666666",
+                "0x1230000000000000000000000000000000000000000000000000000000000321",
+                "0x1111000000000000000000000000000000000000000000000000000000001111",
+            ]);
+            accounts.insert(Network::Bitcoin, btc_accounts);
+
+            let eth_accounts = repeat_accounts(vec!["0x1234567891011121123456789101112112345678"]);
+            accounts.insert(Network::Ethereum, eth_accounts);
+
+            Self {
+                devices: (0..device_count).map(Device::new_mock).collect(),
+                accounts,
+            }
         }
     }
 
     #[async_trait]
     impl LedgerApiT for LedgerApiMock {
         async fn discover_devices(&self) -> Vec<Device> {
-            vec![]
+            self.devices.clone()
         }
 
-        async fn get_device_info(&self, _device: &Device) -> Option<DeviceInfo> {
-            None
+        async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo> {
+            let id = device.get_mock_id().expect("Expected mock device");
+
+            let info = match id % 3 {
+                0 => DeviceInfo {
+                    model: "Nano S".to_string(),
+                },
+                1 => DeviceInfo {
+                    model: "Nano S+".to_string(),
+                },
+                2 => DeviceInfo {
+                    model: "Nano X".to_string(),
+                },
+                _ => unreachable!(),
+            };
+
+            Some(info)
         }
 
-        async fn discover_accounts(&self, _device: &Device, _network: Network) -> Vec<Account> {
-            vec![]
+        async fn discover_accounts(&self, _device: &Device, network: Network) -> Vec<Account> {
+            self.accounts
+                .get(&network)
+                .cloned()
+                .into_iter()
+                .flatten()
+                .collect()
         }
     }
 }

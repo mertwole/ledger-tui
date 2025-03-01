@@ -53,7 +53,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             return None;
         }
         InputEvent::OpenDeviceSelection => {
-            return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection))
+            return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection));
         }
         _ => {}
     };

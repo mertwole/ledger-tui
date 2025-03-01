@@ -1,5 +1,6 @@
 use input_mapping_common::InputMappingT;
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
     symbols::{self},
@@ -7,7 +8,6 @@ use ratatui::{
     widgets::{
         Axis, Block, Borders, Chart, Dataset, GraphType, HighlightSpacing, Padding, Row, Table,
     },
-    Frame,
 };
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
@@ -22,7 +22,7 @@ use crate::{
         ledger::LedgerApiT,
     },
     screen::{
-        common::{self, format_address, network_symbol, render_centered_text, BackgroundWidget},
+        common::{self, BackgroundWidget, format_address, network_symbol, render_centered_text},
         resources::Resources,
     },
 };
@@ -138,11 +138,13 @@ fn render_price_chart(
         .map(|(idx, &price)| (idx as f64, price.try_into().unwrap()))
         .collect();
 
-    let datasets = vec![Dataset::default()
-        .marker(symbols::Marker::Bar)
-        .name(legend)
-        .graph_type(GraphType::Line)
-        .data(&price_data)];
+    let datasets = vec![
+        Dataset::default()
+            .marker(symbols::Marker::Bar)
+            .name(legend)
+            .graph_type(GraphType::Line)
+            .data(&price_data),
+    ];
 
     let x_axis = Axis::default().bounds([0.0, (price_data.len() - 1) as f64]);
 

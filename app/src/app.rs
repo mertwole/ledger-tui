@@ -8,34 +8,33 @@ use std::{
 };
 
 use ratatui::{
+    Terminal,
     backend::{Backend, CrosstermBackend},
     crossterm::{
-        event,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-        ExecutableCommand,
+        ExecutableCommand, event,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
-    Terminal,
 };
 use toml::Table;
 
 use crate::{
     api::{
         blockchain_monitoring::{
-            cache::Cache as BlockchainMonitoringApiCache, mock::BlockchainMonitoringApiMock,
             BlockchainMonitoringApi, BlockchainMonitoringApiT,
             Config as BlockchainMonitoringApiConfig, NetworkApiConfig,
+            cache::Cache as BlockchainMonitoringApiCache, mock::BlockchainMonitoringApiMock,
         },
         cache_utils::ModePlan,
         coin_price::{
-            cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock, CoinPriceApi, CoinPriceApiT,
+            CoinPriceApi, CoinPriceApiT, cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock,
         },
         common_types::{Account, Network},
         ledger::{
-            cache::Cache as LedgerApiCache, mock::LedgerApiMock, Device, DeviceInfo, LedgerApi,
-            LedgerApiT,
+            Device, DeviceInfo, LedgerApi, LedgerApiT, cache::Cache as LedgerApiCache,
+            mock::LedgerApiMock,
         },
     },
-    screen::{resources::Resources, OutgoingMessage, Screen, ScreenName},
+    screen::{OutgoingMessage, Screen, ScreenName, resources::Resources},
 };
 
 pub struct App {
@@ -98,8 +97,8 @@ impl App {
         let mut state = Some(StateRegistry::new());
 
         let api_registry = {
-            let _ledger_api = LedgerApiMock::new();
-            let ledger_api = LedgerApi::new().await;
+            let ledger_api = LedgerApiMock::new(4, 4);
+            let _ledger_api = LedgerApi::new().await;
             let mut ledger_api = LedgerApiCache::new(ledger_api).await;
             ledger_api.set_all_modes(ModePlan::Transparent).await;
 
@@ -118,7 +117,8 @@ impl App {
             let _blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 
             let config = load_blockchain_monitoring_api_config();
-            let blockchain_monitoring_api = BlockchainMonitoringApi::new(config).await;
+            let _blockchain_monitoring_api = BlockchainMonitoringApi::new(config).await;
+            let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
             let mut blockchain_monitoring_api =
                 BlockchainMonitoringApiCache::new(blockchain_monitoring_api).await;
             blockchain_monitoring_api

@@ -1,20 +1,20 @@
 use bigdecimal::{BigDecimal, FromPrimitive};
 use input_mapping_common::InputMappingT;
 use ratatui::{
+    Frame,
     buffer::Buffer,
     layout::{Alignment, Constraint, Rect},
     style::{Style, Stylize},
     text::Text,
     widgets::{
-        block::Title, Block, BorderType, Borders, HighlightSpacing, Padding, Row, StatefulWidget,
-        Table, TableState, Widget,
+        Block, BorderType, Borders, HighlightSpacing, Padding, Row, StatefulWidget, Table,
+        TableState, Widget, block::Title,
     },
-    Frame,
 };
 use rust_decimal::Decimal;
 use tui_widget_list::PreRender;
 
-use super::{controller, Model};
+use super::{Model, controller};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT,
@@ -23,7 +23,7 @@ use crate::{
         ledger::LedgerApiT,
     },
     screen::{
-        common::{self, network_symbol, BackgroundWidget},
+        common::{self, BackgroundWidget, network_symbol},
         resources::Resources,
     },
 };
@@ -131,7 +131,7 @@ struct NetworkAccountsTable<'a> {
     resources: &'a Resources,
 }
 
-impl<'a> PreRender for NetworkAccountsTable<'a> {
+impl PreRender for NetworkAccountsTable<'_> {
     fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
         self.is_self_selected = context.is_selected;
 
@@ -139,7 +139,7 @@ impl<'a> PreRender for NetworkAccountsTable<'a> {
     }
 }
 
-impl<'a> Widget for NetworkAccountsTable<'a> {
+impl Widget for NetworkAccountsTable<'_> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,

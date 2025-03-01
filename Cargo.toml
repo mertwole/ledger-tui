@@ -6,7 +6,7 @@ members = ["./app", "./app/input_mapping/*"]
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["mertwole"]
 
 [workspace.dependencies]
