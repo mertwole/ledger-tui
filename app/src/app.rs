@@ -98,8 +98,8 @@ impl App {
         let mut state = Some(StateRegistry::new());
 
         let api_registry = {
-            let _ledger_api = LedgerApiMock::new();
-            let ledger_api = LedgerApi::new().await;
+            let ledger_api = LedgerApiMock::new(4, 4);
+            let _ledger_api = LedgerApi::new().await;
             let mut ledger_api = LedgerApiCache::new(ledger_api).await;
             ledger_api.set_all_modes(ModePlan::Transparent).await;
 
@@ -118,7 +118,8 @@ impl App {
             let _blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
 
             let config = load_blockchain_monitoring_api_config();
-            let blockchain_monitoring_api = BlockchainMonitoringApi::new(config).await;
+            let _blockchain_monitoring_api = BlockchainMonitoringApi::new(config).await;
+            let blockchain_monitoring_api = BlockchainMonitoringApiMock::new(4);
             let mut blockchain_monitoring_api =
                 BlockchainMonitoringApiCache::new(blockchain_monitoring_api).await;
             blockchain_monitoring_api
