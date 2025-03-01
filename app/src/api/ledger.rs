@@ -215,7 +215,7 @@ pub mod mock {
             accounts.insert(Network::Ethereum, eth_accounts);
 
             Self {
-                devices: (0..device_count).map(|id| Device::new_mock(id)).collect(),
+                devices: (0..device_count).map(Device::new_mock).collect(),
                 accounts,
             }
         }

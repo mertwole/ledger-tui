@@ -131,7 +131,7 @@ struct NetworkAccountsTable<'a> {
     resources: &'a Resources,
 }
 
-impl<'a> PreRender for NetworkAccountsTable<'a> {
+impl PreRender for NetworkAccountsTable<'_> {
     fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
         self.is_self_selected = context.is_selected;
 
@@ -139,7 +139,7 @@ impl<'a> PreRender for NetworkAccountsTable<'a> {
     }
 }
 
-impl<'a> Widget for NetworkAccountsTable<'a> {
+impl Widget for NetworkAccountsTable<'_> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
