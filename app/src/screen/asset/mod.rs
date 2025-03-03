@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
@@ -25,8 +25,8 @@ type TransactionList = Vec<(TransactionUid, TransactionInfo)>;
 type TaskHandle<R> = Option<JoinHandle<R>>;
 
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    coin_price_history: Arc<Mutex<Option<Vec<PriceHistoryPoint>>>>,
-    transactions: Arc<Mutex<Option<TransactionList>>>,
+    coin_price_history: Option<Vec<PriceHistoryPoint>>,
+    transactions: Option<TransactionList>,
     selected_time_period: TimePeriod,
     show_navigation_help: bool,
 
@@ -82,10 +82,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         self.price_history_task = Some(match self.price_history_task.take() {
             Some(join_handle) => {
                 if join_handle.is_finished() {
-                    *self
-                        .coin_price_history
-                        .lock()
-                        .expect("Failed to acquire lock on mutex") = join_handle.await.unwrap();
+                    self.coin_price_history = join_handle.await.unwrap();
 
                     spawn_price_history_task()
                 } else {
@@ -120,11 +117,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         self.transaction_list_task = Some(match self.transaction_list_task.take() {
             Some(join_handle) => {
                 if join_handle.is_finished() {
-                    *self
-                        .transactions
-                        .lock()
-                        .expect("Failed to acquire lock on mutex") =
-                        Some(join_handle.await.unwrap());
+                    self.transactions = Some(join_handle.await.unwrap());
 
                     spawn_transaction_list_task()
                 } else {
