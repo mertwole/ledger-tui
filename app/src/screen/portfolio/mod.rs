@@ -4,7 +4,6 @@ use std::{
 };
 
 use bigdecimal::BigDecimal;
-use futures::executor::block_on;
 use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
 
@@ -146,8 +145,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         view::render(self, frame, resources);
     }
 
-    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
-        block_on(self.tick_logic());
+    async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
+        self.tick_logic().await;
 
         controller::process_input(event.as_ref()?, self)
     }
