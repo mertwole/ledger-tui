@@ -54,12 +54,12 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
         }
     }
 
-    pub fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
+    pub async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         match self {
-            Self::Asset(screen) => screen.tick(event),
-            Self::Deposit(screen) => screen.tick(event),
-            Self::DeviceSelection(screen) => screen.tick(event),
-            Self::Portfolio(screen) => screen.tick(event),
+            Self::Asset(screen) => screen.tick(event).await,
+            Self::Deposit(screen) => screen.tick(event).await,
+            Self::DeviceSelection(screen) => screen.tick(event).await,
+            Self::Portfolio(screen) => screen.tick(event).await,
         }
     }
 
@@ -77,7 +77,7 @@ trait ScreenT<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self;
 
     fn render(&self, frame: &mut Frame<'_>, resources: &Resources);
-    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage>;
+    async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage>;
 
     fn deconstruct(self) -> StateRegistry;
 }

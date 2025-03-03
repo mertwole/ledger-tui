@@ -1,8 +1,9 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
 use strum::EnumIter;
+use tokio::task::JoinHandle;
 
 use super::{OutgoingMessage, ScreenT, resources::Resources};
 use crate::{
@@ -21,15 +22,19 @@ mod view;
 const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
 
 type TransactionList = Vec<(TransactionUid, TransactionInfo)>;
+type TaskHandle<R> = Option<JoinHandle<R>>;
 
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    coin_price_history: Arc<Mutex<Option<Vec<PriceHistoryPoint>>>>,
-    transactions: Arc<Mutex<Option<TransactionList>>>,
+    coin_price_history: Option<Vec<PriceHistoryPoint>>,
+    transactions: Option<TransactionList>,
     selected_time_period: TimePeriod,
     show_navigation_help: bool,
 
     state: StateRegistry,
     apis: Arc<ApiRegistry<L, C, M>>,
+
+    price_history_task: TaskHandle<Option<Vec<PriceHistoryPoint>>>,
+    transaction_list_task: TaskHandle<TransactionList>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
@@ -44,7 +49,7 @@ enum TimePeriod {
 type PriceHistoryPoint = Decimal;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    fn tick_logic(&mut self) {
+    async fn tick_logic(&mut self) {
         let (selected_network, selected_account) = self
             .state
             .selected_account
@@ -66,41 +71,60 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         };
 
         let apis = self.apis.clone();
-        let coin_price_history = self.coin_price_history.clone();
+        let spawn_price_history_task = || {
+            tokio::task::spawn(async move {
+                apis.coin_price_api
+                    .get_price_history(coin, Coin::USDT, time_period)
+                    .await
+            })
+        };
 
-        tokio::task::spawn(async move {
-            let price_history = apis
-                .coin_price_api
-                .get_price_history(coin, Coin::USDT, time_period)
-                .await;
+        self.price_history_task = Some(match self.price_history_task.take() {
+            Some(join_handle) => {
+                if join_handle.is_finished() {
+                    self.coin_price_history = join_handle.await.unwrap();
 
-            *coin_price_history
-                .lock()
-                .expect("Failed to acquire lock on mutex") = price_history;
+                    spawn_price_history_task()
+                } else {
+                    join_handle
+                }
+            }
+            None => spawn_price_history_task(),
         });
 
         let apis = self.apis.clone();
-        let transactions = self.transactions.clone();
-
-        tokio::task::spawn(async move {
-            let tx_list = apis
-                .blockchain_monitoring_api
-                .get_transactions(selected_network, &selected_account)
-                .await;
-
-            let mut txs = vec![];
-            for tx in tx_list {
-                let tx_info = apis
+        let spawn_transaction_list_task = || {
+            tokio::task::spawn(async move {
+                let tx_list = apis
                     .blockchain_monitoring_api
-                    .get_transaction_info(selected_network, &tx)
+                    .get_transactions(selected_network, &selected_account)
                     .await;
 
-                txs.push((tx, tx_info));
-            }
+                let mut txs = vec![];
+                for tx in tx_list {
+                    let tx_info = apis
+                        .blockchain_monitoring_api
+                        .get_transaction_info(selected_network, &tx)
+                        .await;
 
-            *transactions
-                .lock()
-                .expect("Failed to acquire lock on mutex") = Some(txs);
+                    txs.push((tx, tx_info));
+                }
+
+                txs
+            })
+        };
+
+        self.transaction_list_task = Some(match self.transaction_list_task.take() {
+            Some(join_handle) => {
+                if join_handle.is_finished() {
+                    self.transactions = Some(join_handle.await.unwrap());
+
+                    spawn_transaction_list_task()
+                } else {
+                    join_handle
+                }
+            }
+            None => spawn_transaction_list_task(),
         });
     }
 }
@@ -117,6 +141,9 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
 
             state,
             apis: api_registry,
+
+            price_history_task: None,
+            transaction_list_task: None,
         }
     }
 
@@ -124,8 +151,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         view::render(self, frame, resources);
     }
 
-    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
-        self.tick_logic();
+    async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
+        self.tick_logic().await;
 
         controller::process_input(event.as_ref()?, self)
     }
