@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use bigdecimal::BigDecimal;
 use futures::{executor::block_on, future::join_all};
@@ -29,14 +26,15 @@ type TaskHandle<R> = Option<JoinHandle<R>>;
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
-    coin_prices: Arc<Mutex<HashMap<Network, Option<Decimal>>>>,
-    balances: Arc<Mutex<HashMap<(Network, Account), BigDecimal>>>,
+    coin_prices: HashMap<Network, Option<Decimal>>,
+    balances: HashMap<(Network, Account), BigDecimal>,
     show_navigation_help: bool,
 
     state: StateRegistry,
     apis: Arc<ApiRegistry<L, C, M>>,
 
     coin_price_task: TaskHandle<HashMap<Network, Option<Decimal>>>,
+    account_balances_task: TaskHandle<HashMap<(Network, Account), BigDecimal>>,
 }
 
 type AccountIdx = usize;
@@ -84,7 +82,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         self.coin_price_task = Some(match self.coin_price_task.take() {
             Some(join_handle) => {
                 if join_handle.is_finished() {
-                    *self.coin_prices.lock().unwrap() = join_handle.await.unwrap();
+                    self.coin_prices = join_handle.await.unwrap();
 
                     spawn_coin_price_task()
                 } else {
@@ -94,40 +92,43 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             None => spawn_coin_price_task(),
         });
 
-        // TODO: Don't request balance each tick.
-        for (network, accounts) in self
+        let apis = self.apis.clone();
+        let accounts = self
             .state
             .device_accounts
-            .as_ref()
-            .expect("TODO: Enforce this rule at app level?")
-        {
-            for account in accounts {
-                if !self
-                    .balances
-                    .lock()
-                    .expect("Failed to acquire lock on mutex")
-                    .contains_key(&(*network, account.clone()))
-                {
-                    let apis = self.apis.clone();
-                    let balances = self.balances.clone();
+            .clone()
+            .expect("TODO: Enforce this rule at app level?");
+        let spawn_account_balances_task = || {
+            tokio::task::spawn(async move {
+                let accounts: Vec<_> = accounts
+                    .into_iter()
+                    .flat_map(|(network, accounts)| {
+                        accounts.into_iter().map(move |account| (network, account))
+                    })
+                    .collect();
 
-                    let account = account.clone();
-                    let network = network.clone();
+                let balances = accounts.iter().map(|(network, account)| {
+                    apis.blockchain_monitoring_api
+                        .get_balance(*network, account)
+                });
+                let balances = join_all(balances).await;
 
-                    tokio::task::spawn(async move {
-                        let balance = apis
-                            .blockchain_monitoring_api
-                            .get_balance(network, &account)
-                            .await;
+                accounts.into_iter().zip_eq(balances).collect()
+            })
+        };
 
-                        balances
-                            .lock()
-                            .expect("Failed to acquire lock on mutex")
-                            .insert((network, account), balance);
-                    });
+        self.account_balances_task = Some(match self.account_balances_task.take() {
+            Some(join_handle) => {
+                if join_handle.is_finished() {
+                    self.balances = join_handle.await.unwrap();
+
+                    spawn_account_balances_task()
+                } else {
+                    join_handle
                 }
             }
-        }
+            None => spawn_account_balances_task(),
+        });
     }
 }
 
@@ -145,6 +146,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
             apis: api_registry,
 
             coin_price_task: None,
+            account_balances_task: None,
         };
 
         block_on(new.init_logic());
