@@ -18,6 +18,7 @@ pub mod device_selection;
 pub mod portfolio;
 pub mod resources;
 
+#[allow(clippy::large_enum_variant)]
 pub enum Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     Asset(asset::Model<L, C, M>),
     Deposit(deposit::Model<L, C, M>),
