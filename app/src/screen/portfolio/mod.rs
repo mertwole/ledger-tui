@@ -117,6 +117,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             })
         };
 
+        // TODO: Request balances only when user updates the screen.
         self.account_balances_task = Some(match self.account_balances_task.take() {
             Some(join_handle) => {
                 if join_handle.is_finished() {

@@ -45,11 +45,6 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
 ) -> Option<OutgoingMessage> {
     let event = InputEvent::map_event(event.clone())?;
 
-    let devices = model
-        .devices
-        .lock()
-        .expect("Failed to acquire lock on mutex");
-
     match event {
         InputEvent::Quit => Some(OutgoingMessage::Exit),
         InputEvent::NavigationHelp => {
@@ -57,9 +52,9 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             None
         }
         InputEvent::Down => {
-            if !devices.is_empty() {
+            if !model.devices.is_empty() {
                 if let Some(selected) = model.selected_device.as_mut() {
-                    *selected = (devices.len() - 1).min(*selected + 1);
+                    *selected = (model.devices.len() - 1).min(*selected + 1);
                 } else {
                     model.selected_device = Some(0);
                 }
@@ -68,11 +63,11 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             None
         }
         InputEvent::Up => {
-            if !devices.is_empty() {
+            if !model.devices.is_empty() {
                 if let Some(selected) = model.selected_device.as_mut() {
                     *selected = if *selected == 0 { 0 } else { *selected - 1 };
                 } else {
-                    model.selected_device = Some(devices.len() - 1);
+                    model.selected_device = Some(model.devices.len() - 1);
                 }
             }
 
@@ -80,7 +75,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
         }
         InputEvent::Select => {
             if let Some(device_idx) = model.selected_device {
-                model.state.active_device = Some(devices[device_idx].clone());
+                model.state.active_device = Some(model.devices[device_idx].clone());
 
                 Some(OutgoingMessage::Back)
             } else {
