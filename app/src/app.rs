@@ -11,6 +11,7 @@ use ratatui::{
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
 };
+use tokio::task::JoinHandle;
 use toml::Table;
 
 use crate::{
@@ -57,6 +58,90 @@ where
     pub coin_price_api: C,
     pub blockchain_monitoring_api: M,
     _phantom: PhantomData<()>,
+}
+
+struct ApiTask<A, R>(Option<ApiTaskInner<A, R>>);
+
+enum ApiTaskInner<A, R> {
+    Api(A),
+    Task(JoinHandle<(A, R)>),
+}
+
+impl<A, R> ApiTask<A, R> {
+    pub fn new(api: A) -> Self {
+        Self(Some(ApiTaskInner::Api(api)))
+    }
+
+    pub async fn try_fetch_value(
+        &mut self,
+        spawn_task: impl FnOnce(A) -> JoinHandle<(A, R)>,
+    ) -> Option<R> {
+        let inner = self.0.take().unwrap();
+
+        let (inner, result) = match inner {
+            ApiTaskInner::Api(api) => (ApiTaskInner::Task(spawn_task(api)), None),
+            ApiTaskInner::Task(task) => {
+                if task.is_finished() {
+                    let (api, result) = task.await.unwrap();
+                    let task = spawn_task(api);
+                    (ApiTaskInner::Task(task), Some(result))
+                } else {
+                    (ApiTaskInner::Task(task), None)
+                }
+            }
+        };
+
+        self.0 = Some(inner);
+
+        result
+    }
+
+    pub async fn abort(self) -> A {
+        match self.0.unwrap() {
+            ApiTaskInner::Api(api) => api,
+            ApiTaskInner::Task(task) => task.await.unwrap().0,
+        }
+    }
+}
+
+struct TestApi {}
+
+enum SomeInput {
+    A,
+    B,
+}
+
+enum Output {
+    A,
+    B,
+}
+
+async fn test() {
+    let api = TestApi {};
+    let mut api_task: ApiTask<_, Output> = ApiTask::new(api);
+
+    for i in 0..100 {
+        let input = if i % 2 == 0 {
+            SomeInput::A
+        } else {
+            SomeInput::B
+        };
+
+        let _val = api_task
+            .try_fetch_value(move |api| {
+                tokio::task::spawn(async move {
+                    let output = match input {
+                        SomeInput::A => Output::A,
+                        SomeInput::B => Output::B,
+                    };
+
+                    (api, output)
+                })
+            })
+            .await;
+    }
+
+    let _api = api_task.abort().await;
 }
 
 impl StateRegistry {
