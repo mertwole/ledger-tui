@@ -4,8 +4,11 @@ use std::{
 };
 
 use bigdecimal::BigDecimal;
+use futures::{executor::block_on, future::join_all};
+use itertools::Itertools;
 use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
+use tokio::task::JoinHandle;
 
 use super::{OutgoingMessage, ScreenT, resources::Resources};
 use crate::{
@@ -21,6 +24,8 @@ use crate::{
 mod controller;
 mod view;
 
+type TaskHandle<R> = Option<JoinHandle<R>>;
+
 pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     selected_account: Option<(NetworkIdx, AccountIdx)>,
     // TODO: Store it in API cache.
@@ -30,92 +35,96 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
 
     state: StateRegistry,
     apis: Arc<ApiRegistry<L, C, M>>,
+
+    coin_price_task: TaskHandle<HashMap<Network, Option<Decimal>>>,
 }
 
 type AccountIdx = usize;
 type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    fn init_logic(&self) {
-        let state_device_accounts = self.state.device_accounts.clone();
-        let apis = self.apis.clone();
+    async fn init_logic(&mut self) {
+        let active_device = self
+            .state
+            .active_device
+            .clone()
+            .expect("TODO: Enforce this rule at app level?")
+            .0;
 
-        if let Some((active_device, _)) = self.state.active_device.clone() {
-            // TODO: Introduce separate screen where account loading and management will be performed.
-            tokio::task::spawn(async move {
-                let mut device_accounts = vec![];
-                for network in [Network::Bitcoin, Network::Ethereum] {
-                    let accounts = apis
-                        .ledger_api
-                        .discover_accounts(&active_device, network)
-                        .await;
+        // TODO: Introduce separate screen where account loading and management will be performed.
+        let mut device_accounts = vec![];
+        for network in [Network::Bitcoin, Network::Ethereum] {
+            let accounts = self
+                .apis
+                .ledger_api
+                .discover_accounts(&active_device, network)
+                .await;
 
-                    if !accounts.is_empty() {
-                        device_accounts.push((network, accounts));
-                    }
-                }
-
-                *state_device_accounts
-                    .lock()
-                    .expect("Failed to acquire lock on mutex") = Some(device_accounts);
-            });
+            if !accounts.is_empty() {
+                device_accounts.push((network, accounts));
+            }
         }
+
+        self.state.device_accounts = Some(device_accounts);
     }
 
     async fn tick_logic(&mut self) {
         let apis = self.apis.clone();
-        let state_coin_prices = self.coin_prices.clone();
+        let spawn_coin_price_task = || {
+            tokio::task::spawn(async move {
+                let prices = [Coin::BTC, Coin::ETH]
+                    .map(|coin| apis.coin_price_api.get_price(coin, Coin::USDT));
+                let prices = join_all(prices).await;
+                let networks = [Network::Bitcoin, Network::Ethereum];
 
-        tokio::task::spawn(async move {
-            let mut coin_prices = HashMap::new();
-            // TODO: Correctly map accounts to coins.
-            let networks = [Network::Bitcoin, Network::Ethereum];
-            for network in networks {
-                let coin = match network {
-                    Network::Bitcoin => Coin::BTC,
-                    Network::Ethereum => Coin::ETH,
-                };
+                networks.into_iter().zip_eq(prices.into_iter()).collect()
+            })
+        };
 
-                let price = apis.coin_price_api.get_price(coin, Coin::USDT).await;
-                coin_prices.insert(network, price);
+        self.coin_price_task = Some(match self.coin_price_task.take() {
+            Some(join_handle) => {
+                if join_handle.is_finished() {
+                    *self.coin_prices.lock().unwrap() = join_handle.await.unwrap();
+
+                    spawn_coin_price_task()
+                } else {
+                    join_handle
+                }
             }
-
-            let mut guard = state_coin_prices
-                .lock()
-                .expect("Failed to acquire lock on mutex");
-            *guard = coin_prices;
+            None => spawn_coin_price_task(),
         });
 
         // TODO: Don't request balance each tick.
-        let device_accounts = self
+        for (network, accounts) in self
             .state
             .device_accounts
-            .lock()
-            .expect("Failed to acquire lock on mutex");
-        if let Some(accounts) = device_accounts.clone() {
-            for (network, accounts) in accounts {
-                for account in accounts {
-                    if !self
-                        .balances
-                        .lock()
-                        .expect("Failed to acquire lock on mutex")
-                        .contains_key(&(network, account.clone()))
-                    {
-                        let apis = self.apis.clone();
-                        let balances = self.balances.clone();
+            .as_ref()
+            .expect("TODO: Enforce this rule at app level?")
+        {
+            for account in accounts {
+                if !self
+                    .balances
+                    .lock()
+                    .expect("Failed to acquire lock on mutex")
+                    .contains_key(&(*network, account.clone()))
+                {
+                    let apis = self.apis.clone();
+                    let balances = self.balances.clone();
 
-                        tokio::task::spawn(async move {
-                            let balance = apis
-                                .blockchain_monitoring_api
-                                .get_balance(network, &account)
-                                .await;
+                    let account = account.clone();
+                    let network = network.clone();
 
-                            balances
-                                .lock()
-                                .expect("Failed to acquire lock on mutex")
-                                .insert((network, account), balance);
-                        });
-                    }
+                    tokio::task::spawn(async move {
+                        let balance = apis
+                            .blockchain_monitoring_api
+                            .get_balance(network, &account)
+                            .await;
+
+                        balances
+                            .lock()
+                            .expect("Failed to acquire lock on mutex")
+                            .insert((network, account), balance);
+                    });
                 }
             }
         }
@@ -126,7 +135,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     for Model<L, C, M>
 {
     fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
-        let new = Self {
+        let mut new = Self {
             selected_account: None,
             coin_prices: Default::default(),
             balances: Default::default(),
@@ -134,9 +143,11 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
 
             state,
             apis: api_registry,
+
+            coin_price_task: None,
         };
 
-        new.init_logic();
+        block_on(new.init_logic());
 
         new
     }

@@ -1,9 +1,5 @@
 use std::{
-    collections::HashMap,
-    fs::read_to_string,
-    io::stdout,
-    marker::PhantomData,
-    sync::{Arc, Mutex},
+    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, sync::Arc,
     time::Duration,
 };
 
@@ -46,7 +42,7 @@ type DeviceAccountsList = Vec<(Network, Vec<Account>)>;
 // TODO: Add macro to automatically break this registry into sub-registries designated for specific Screens.
 pub(crate) struct StateRegistry {
     pub active_device: Option<(Device, DeviceInfo)>,
-    pub device_accounts: Arc<Mutex<Option<DeviceAccountsList>>>,
+    pub device_accounts: Option<DeviceAccountsList>,
     pub selected_account: Option<(Network, Account)>,
     _phantom: PhantomData<()>,
 }

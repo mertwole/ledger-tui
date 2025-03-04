@@ -58,35 +58,32 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
         _ => {}
     };
 
-    let new_selected = if let Some(accounts) = model
+    let accounts = model
         .state
         .device_accounts
-        .lock()
-        .expect("Failed to acquire lock on mutex")
         .as_ref()
-    {
-        if matches!(event, InputEvent::Select) {
-            if let Some((selected_network_idx, selected_account_idx)) = model.selected_account {
-                let (selected_network, accounts) = &accounts[selected_network_idx];
-                let selected_account = accounts[selected_account_idx].clone();
+        .expect("TODO: Enforce this rule at app level?");
 
-                model.state.selected_account = Some((*selected_network, selected_account));
+    if matches!(event, InputEvent::Select) {
+        if let Some((selected_network_idx, selected_account_idx)) = model.selected_account {
+            let (selected_network, accounts) = &accounts[selected_network_idx];
+            let selected_account = accounts[selected_account_idx].clone();
 
-                return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
-            }
+            model.state.selected_account = Some((*selected_network, selected_account));
+
+            return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
         }
+    }
 
-        let accounts_per_network: Vec<_> = accounts
-            .iter()
-            .map(|(_, accounts)| {
-                NonZeroUsize::new(accounts.len()).expect("No accounts for provided network found")
-            })
-            .collect();
+    let accounts_per_network: Vec<_> = accounts
+        .iter()
+        .map(|(_, accounts)| {
+            NonZeroUsize::new(accounts.len()).expect("No accounts for provided network found")
+        })
+        .collect();
 
-        process_table_navigation(model.selected_account, &event, &accounts_per_network)
-    } else {
-        None
-    };
+    let new_selected =
+        process_table_navigation(model.selected_account, &event, &accounts_per_network);
 
     model.selected_account = new_selected;
 
