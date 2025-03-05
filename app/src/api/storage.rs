@@ -3,6 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 use async_trait::async_trait;
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait StorageApiT: Send + Sync + 'static {
     async fn save(&mut self, name: &str, content: String);
 
