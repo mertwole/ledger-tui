@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use bigdecimal::BigDecimal;
 use futures::{executor::block_on, future::join_all};
@@ -31,16 +31,50 @@ pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: Arc<ApiRegistry<L, C, M>>,
+    apis: ApiSubRegistry<L, C, M>,
 
     coin_price_task: TaskHandle<HashMap<Network, Option<Decimal>>>,
     account_balances_task: TaskHandle<HashMap<(Network, Account), BigDecimal>>,
+}
+
+pub struct ApiSubRegistry<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
+    ledger_api: Option<L>,
+    coin_price_api: Option<C>,
+    blockchain_monitoring_api: Option<M>,
 }
 
 type AccountIdx = usize;
 type NetworkIdx = usize;
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
+    pub fn construct(
+        state: StateRegistry,
+        mut api_registry: ApiRegistry<L, C, M>,
+    ) -> (Self, ApiRegistry<L, C, M>) {
+        let apis = ApiSubRegistry {
+            ledger_api: api_registry.ledger_api.take(),
+            coin_price_api: api_registry.coin_price_api.take(),
+            blockchain_monitoring_api: api_registry.blockchain_monitoring_api.take(),
+        };
+
+        let mut new = Self {
+            selected_account: None,
+            coin_prices: Default::default(),
+            balances: Default::default(),
+            show_navigation_help: false,
+
+            state,
+            apis,
+
+            coin_price_task: None,
+            account_balances_task: None,
+        };
+
+        block_on(new.init_logic());
+
+        (new, api_registry)
+    }
+
     async fn init_logic(&mut self) {
         let active_device = self
             .state
@@ -51,12 +85,10 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
 
         // TODO: Introduce separate screen where account loading and management will be performed.
         let mut device_accounts = vec![];
+        // TODO: Fix.
+        let ledger_api = self.apis.ledger_api.take().unwrap();
         for network in [Network::Bitcoin, Network::Ethereum] {
-            let accounts = self
-                .apis
-                .ledger_api
-                .discover_accounts(&active_device, network)
-                .await;
+            let accounts = ledger_api.discover_accounts(&active_device, network).await;
 
             if !accounts.is_empty() {
                 device_accounts.push((network, accounts));
@@ -67,11 +99,12 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
     }
 
     async fn tick_logic(&mut self) {
-        let apis = self.apis.clone();
+        // TODO: Fix.
+        let coin_price_api = self.apis.coin_price_api.take().unwrap();
         let spawn_coin_price_task = || {
             tokio::task::spawn(async move {
-                let prices = [Coin::BTC, Coin::ETH]
-                    .map(|coin| apis.coin_price_api.get_price(coin, Coin::USDT));
+                let prices =
+                    [Coin::BTC, Coin::ETH].map(|coin| coin_price_api.get_price(coin, Coin::USDT));
                 let prices = join_all(prices).await;
                 let networks = [Network::Bitcoin, Network::Ethereum];
 
@@ -92,7 +125,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             None => spawn_coin_price_task(),
         });
 
-        let apis = self.apis.clone();
+        // TODO: Fix.
+        let blockchain_monitoring_api = self.apis.blockchain_monitoring_api.take().unwrap();
         let accounts = self
             .state
             .device_accounts
@@ -108,8 +142,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
                     .collect();
 
                 let balances = accounts.iter().map(|(network, account)| {
-                    apis.blockchain_monitoring_api
-                        .get_balance(*network, account)
+                    blockchain_monitoring_api.get_balance(*network, account)
                 });
                 let balances = join_all(balances).await;
 
@@ -131,30 +164,20 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             None => spawn_account_balances_task(),
         });
     }
+
+    pub async fn deconstruct(
+        mut self,
+        mut api_registry: ApiRegistry<L, C, M>,
+    ) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        api_registry.ledger_api = self.apis.ledger_api.take();
+        api_registry.coin_price_api = self.apis.coin_price_api.take();
+        api_registry.blockchain_monitoring_api = self.apis.blockchain_monitoring_api.take();
+
+        (self.state, api_registry)
+    }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
-    for Model<L, C, M>
-{
-    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
-        let mut new = Self {
-            selected_account: None,
-            coin_prices: Default::default(),
-            balances: Default::default(),
-            show_navigation_help: false,
-
-            state,
-            apis: api_registry,
-
-            coin_price_task: None,
-            account_balances_task: None,
-        };
-
-        block_on(new.init_logic());
-
-        new
-    }
-
+impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT for Model<L, C, M> {
     fn render(&self, frame: &mut Frame<'_>, resources: &Resources) {
         view::render(self, frame, resources);
     }
@@ -163,9 +186,5 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         self.tick_logic().await;
 
         controller::process_input(event.as_ref()?, self)
-    }
-
-    fn deconstruct(self) -> StateRegistry {
-        self.state
     }
 }

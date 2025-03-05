@@ -59,10 +59,14 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
                     model: ScreenModel::DeviceSelection(model),
                 }
             }
-            // ScreenName::Portfolio => {
-            //     Self::Portfolio(portfolio::Model::construct(state_registry, api_registry))
-            // }
-            _ => todo!(),
+            ScreenName::Portfolio => {
+                let (model, remaining_apis) =
+                    portfolio::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::Portfolio(model),
+                }
+            }
         }
     }
 
@@ -89,8 +93,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
             ScreenModel::Asset(model) => model.deconstruct(self.remaining_apis).await,
             ScreenModel::Deposit(model) => model.deconstruct(self.remaining_apis).await,
             ScreenModel::DeviceSelection(model) => model.deconstruct(self.remaining_apis).await,
-            // Self::Portfolio(screen) => screen.deconstruct(),
-            _ => todo!(),
+            ScreenModel::Portfolio(model) => model.deconstruct(self.remaining_apis).await,
         }
     }
 }
