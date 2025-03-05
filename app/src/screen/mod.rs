@@ -16,7 +16,6 @@ pub mod device_selection;
 pub mod portfolio;
 pub mod resources;
 
-#[allow(clippy::large_enum_variant)]
 pub struct Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     remaining_apis: ApiRegistry<L, C, M>,
     model: ScreenModel<L, C, M>,
@@ -27,7 +26,7 @@ enum ScreenModel<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     Asset(asset::Model<C, M>),
     Deposit(deposit::Model),
     DeviceSelection(device_selection::Model<L>),
-    Portfolio(portfolio::Model<L, C, M>),
+    Portfolio(portfolio::Model<C, M>),
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, M> {

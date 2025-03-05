@@ -1,9 +1,8 @@
 use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
 use strum::EnumIter;
-use tokio::task::JoinHandle;
 
-use super::{OutgoingMessage, ScreenT, resources::Resources};
+use super::{OutgoingMessage, ScreenT, common::api_task::ApiTask, resources::Resources};
 use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
@@ -20,7 +19,6 @@ mod view;
 const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
 
 type TransactionList = Vec<(TransactionUid, TransactionInfo)>;
-type TaskHandle<R> = Option<JoinHandle<R>>;
 
 pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_price_history: Option<Vec<PriceHistoryPoint>>,
@@ -29,15 +27,9 @@ pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: ApiSubRegistry<C, M>,
 
-    price_history_task: TaskHandle<Option<Vec<PriceHistoryPoint>>>,
-    transaction_list_task: TaskHandle<TransactionList>,
-}
-
-struct ApiSubRegistry<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    coin_price_api: Option<C>,
-    blockchain_monitoring_api: Option<M>,
+    price_history_task: ApiTask<C, Option<Vec<PriceHistoryPoint>>>,
+    transaction_list_task: ApiTask<M, TransactionList>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
@@ -56,10 +48,9 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
         state: StateRegistry,
         mut api_registry: ApiRegistry<L, C, M>,
     ) -> (Self, ApiRegistry<L, C, M>) {
-        let apis = ApiSubRegistry {
-            coin_price_api: api_registry.coin_price_api.take(),
-            blockchain_monitoring_api: api_registry.blockchain_monitoring_api.take(),
-        };
+        let price_history_task = ApiTask::new(api_registry.coin_price_api.take().unwrap());
+        let transaction_list_task =
+            ApiTask::new(api_registry.blockchain_monitoring_api.take().unwrap());
 
         (
             Self {
@@ -69,10 +60,9 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
                 show_navigation_help: false,
 
                 state,
-                apis,
 
-                price_history_task: None,
-                transaction_list_task: None,
+                price_history_task,
+                transaction_list_task,
             },
             api_registry,
         )
@@ -99,32 +89,25 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
             TimePeriod::All => ApiTimePeriod::All,
         };
 
-        // TODO: Fix.
-        let coin_price_api = self.apis.coin_price_api.take().unwrap();
-        let spawn_price_history_task = || {
+        let spawn_price_history_task = |coin_price_api: C| {
             tokio::task::spawn(async move {
-                coin_price_api
+                let result = coin_price_api
                     .get_price_history(coin, Coin::USDT, time_period)
-                    .await
+                    .await;
+
+                (coin_price_api, result)
             })
         };
 
-        self.price_history_task = Some(match self.price_history_task.take() {
-            Some(join_handle) => {
-                if join_handle.is_finished() {
-                    self.coin_price_history = join_handle.await.unwrap();
+        if let Some(price_history) = self
+            .price_history_task
+            .try_fetch_value(spawn_price_history_task)
+            .await
+        {
+            self.coin_price_history = price_history;
+        }
 
-                    spawn_price_history_task()
-                } else {
-                    join_handle
-                }
-            }
-            None => spawn_price_history_task(),
-        });
-
-        // TODO: Fix.
-        let blockchain_monitoring_api = self.apis.blockchain_monitoring_api.take().unwrap();
-        let spawn_transaction_list_task = || {
+        let spawn_transaction_list_task = |blockchain_monitoring_api: M| {
             tokio::task::spawn(async move {
                 let tx_list = blockchain_monitoring_api
                     .get_transactions(selected_network, &selected_account)
@@ -139,30 +122,25 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
                     txs.push((tx, tx_info));
                 }
 
-                txs
+                (blockchain_monitoring_api, txs)
             })
         };
 
-        self.transaction_list_task = Some(match self.transaction_list_task.take() {
-            Some(join_handle) => {
-                if join_handle.is_finished() {
-                    self.transactions = Some(join_handle.await.unwrap());
-
-                    spawn_transaction_list_task()
-                } else {
-                    join_handle
-                }
-            }
-            None => spawn_transaction_list_task(),
-        });
+        if let Some(transactions) = self
+            .transaction_list_task
+            .try_fetch_value(spawn_transaction_list_task)
+            .await
+        {
+            self.transactions = Some(transactions);
+        }
     }
 
     pub async fn deconstruct<L: LedgerApiT>(
-        mut self,
+        self,
         mut api_registry: ApiRegistry<L, C, M>,
     ) -> (StateRegistry, ApiRegistry<L, C, M>) {
-        api_registry.blockchain_monitoring_api = self.apis.blockchain_monitoring_api.take();
-        api_registry.coin_price_api = self.apis.coin_price_api.take();
+        api_registry.coin_price_api = Some(self.price_history_task.abort().await);
+        api_registry.blockchain_monitoring_api = Some(self.transaction_list_task.abort().await);
 
         (self.state, api_registry)
     }

@@ -6,10 +6,7 @@ use ratatui::crossterm::event::{Event, KeyCode};
 
 use super::{AccountIdx, Model, NetworkIdx};
 use crate::{
-    api::{
-        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
-        ledger::LedgerApiT,
-    },
+    api::{blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT},
     screen::{OutgoingMessage, ScreenName},
 };
 
@@ -40,9 +37,9 @@ pub enum InputEvent {
     Select,
 }
 
-pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     event: &Event,
-    model: &mut Model<L, C, M>,
+    model: &mut Model<C, M>,
 ) -> Option<OutgoingMessage> {
     let event = InputEvent::map_event(event.clone())?;
 
