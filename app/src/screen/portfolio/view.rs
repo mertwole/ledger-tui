@@ -7,8 +7,8 @@ use ratatui::{
     style::{Style, Stylize},
     text::Text,
     widgets::{
-        Block, BorderType, Borders, HighlightSpacing, Padding, Row, StatefulWidget, Table,
-        TableState, Widget, block::Title,
+        Block, BorderType, Borders, HighlightSpacing, Row, StatefulWidget, Table, TableState,
+        Widget, block::Title,
     },
 };
 use rust_decimal::Decimal;
@@ -38,18 +38,13 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
         frame.size(),
     );
 
-    if let Some(accounts) = model
+    let accounts = model
         .state
         .device_accounts
-        .lock()
-        .expect("Failed to acquire lock on mutex")
         .as_ref()
-    {
-        render_account_table(model, frame, accounts, resources);
-    } else {
-        // TODO: Process case when device is connected but accounts haven't been loaded yet.
-        render_account_table_placeholder(frame, resources);
-    }
+        .expect("TODO: Enforce this rule at app level?");
+
+    render_account_table(model, frame, accounts, resources);
 
     if model.show_navigation_help {
         let mapping = controller::InputEvent::get_mapping();
@@ -76,25 +71,14 @@ fn render_account_table<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoring
                 _ => None,
             };
 
-            let price = model
-                .coin_prices
-                .lock()
-                .unwrap()
-                .get(network)
-                .copied()
-                .unwrap_or_default();
+            let price = model.coin_prices.get(network).copied().unwrap_or_default();
 
             let accounts_and_balances: Vec<_> = accounts
                 .iter()
                 .map(|account| {
                     (
                         account.clone(),
-                        model
-                            .balances
-                            .lock()
-                            .expect("Failed to acquire lock on mutex")
-                            .get(&(*network, account.clone()))
-                            .cloned(),
+                        model.balances.get(&(*network, account.clone())).cloned(),
                     )
                 })
                 .collect();
@@ -204,27 +188,6 @@ impl Widget for NetworkAccountsTable<'_> {
         let mut table_state = TableState::default().with_selected(self.selected_account);
         StatefulWidget::render(table, area, buf, &mut table_state);
     }
-}
-
-fn render_account_table_placeholder(frame: &mut Frame<'_>, resources: &Resources) {
-    let area = frame.size();
-
-    let block = Block::new()
-        .border_type(BorderType::Double)
-        .borders(Borders::all())
-        .border_style(resources.main_color)
-        .padding(Padding::uniform(1))
-        .title("Portfolio")
-        .title_alignment(Alignment::Center);
-
-    let text_area = block.inner(area);
-
-    let text = Text::raw("Device is not selected. Please select device(`d`)")
-        .alignment(Alignment::Center)
-        .fg(resources.main_color);
-
-    frame.render_widget(block, area);
-    frame.render_widget(text, text_area);
 }
 
 fn mul_bigdecimal_decimal(lhs: BigDecimal, rhs: Decimal) -> BigDecimal {

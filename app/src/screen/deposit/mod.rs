@@ -39,7 +39,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         view::render(self, frame, resources);
     }
 
-    fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
+    async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         controller::process_input(event.as_ref()?, self)
     }
 

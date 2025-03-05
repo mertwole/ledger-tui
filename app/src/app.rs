@@ -1,9 +1,5 @@
 use std::{
-    collections::HashMap,
-    fs::read_to_string,
-    io::stdout,
-    marker::PhantomData,
-    sync::{Arc, Mutex},
+    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, sync::Arc,
     time::Duration,
 };
 
@@ -47,7 +43,7 @@ type DeviceAccountsList = Vec<(Network, Vec<Account>)>;
 // TODO: Add macro to automatically break this registry into sub-registries designated for specific Screens.
 pub(crate) struct StateRegistry {
     pub active_device: Option<(Device, DeviceInfo)>,
-    pub device_accounts: Arc<Mutex<Option<DeviceAccountsList>>>,
+    pub device_accounts: Option<DeviceAccountsList>,
     pub selected_account: Option<(Network, Account)>,
     _phantom: PhantomData<()>,
 }
@@ -144,7 +140,7 @@ impl App {
 
             let screen = Screen::new(*screen, state.take().unwrap(), api_registry.clone());
 
-            let (new_state, msg) = Self::screen_loop(screen, &mut terminal);
+            let (new_state, msg) = Self::screen_loop(screen, &mut terminal).await;
             state = Some(new_state);
 
             match msg {
@@ -163,7 +159,12 @@ impl App {
         }
     }
 
-    fn screen_loop<B: Backend, L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    async fn screen_loop<
+        B: Backend,
+        L: LedgerApiT,
+        C: CoinPriceApiT,
+        M: BlockchainMonitoringApiT,
+    >(
         mut screen: Screen<L, C, M>,
         terminal: &mut Terminal<B>,
     ) -> (StateRegistry, OutgoingMessage) {
@@ -178,7 +179,7 @@ impl App {
                 .unwrap()
                 .then(|| event::read().unwrap());
 
-            let msg = screen.tick(event);
+            let msg = screen.tick(event).await;
 
             if let Some(msg) = msg {
                 let state = screen.deconstruct();

@@ -42,15 +42,16 @@ pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApi
 
     frame.render_widget(list_block, area);
 
-    let devices = &*model
-        .devices
-        .lock()
-        .expect("Failed to acquire lock on mutex");
-
-    if devices.is_empty() {
+    if model.devices.is_empty() {
         render_device_list_placeholder(frame, list_area);
     } else {
-        render_device_list(devices, model.selected_device, frame, list_area, resources);
+        render_device_list(
+            &model.devices,
+            model.selected_device,
+            frame,
+            list_area,
+            resources,
+        );
     }
 
     if model.show_navigation_help {
