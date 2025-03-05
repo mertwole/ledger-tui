@@ -6,13 +6,7 @@ use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::Event;
 
 use super::Model;
-use crate::{
-    api::{
-        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
-        ledger::LedgerApiT,
-    },
-    screen::OutgoingMessage,
-};
+use crate::screen::OutgoingMessage;
 
 #[derive(InputMapping)]
 pub enum InputEvent {
@@ -33,10 +27,7 @@ pub enum InputEvent {
     CopyAddress,
 }
 
-pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    event: &Event,
-    model: &mut Model<L, C, M>,
-) -> Option<OutgoingMessage> {
+pub(super) fn process_input(event: &Event, model: &mut Model) -> Option<OutgoingMessage> {
     let event = InputEvent::map_event(event.clone())?;
 
     match event {

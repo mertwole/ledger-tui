@@ -1,6 +1,5 @@
 use std::{
-    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, sync::Arc,
-    time::Duration,
+    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, time::Duration,
 };
 
 use ratatui::{
@@ -11,7 +10,6 @@ use ratatui::{
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
 };
-use tokio::task::JoinHandle;
 use toml::Table;
 
 use crate::{
@@ -54,94 +52,10 @@ where
     C: CoinPriceApiT,
     M: BlockchainMonitoringApiT,
 {
-    pub ledger_api: L,
-    pub coin_price_api: C,
-    pub blockchain_monitoring_api: M,
+    pub ledger_api: Option<L>,
+    pub coin_price_api: Option<C>,
+    pub blockchain_monitoring_api: Option<M>,
     _phantom: PhantomData<()>,
-}
-
-struct ApiTask<A, R>(Option<ApiTaskInner<A, R>>);
-
-enum ApiTaskInner<A, R> {
-    Api(A),
-    Task(JoinHandle<(A, R)>),
-}
-
-impl<A, R> ApiTask<A, R> {
-    pub fn new(api: A) -> Self {
-        Self(Some(ApiTaskInner::Api(api)))
-    }
-
-    pub async fn try_fetch_value(
-        &mut self,
-        spawn_task: impl FnOnce(A) -> JoinHandle<(A, R)>,
-    ) -> Option<R> {
-        let inner = self.0.take().unwrap();
-
-        let (inner, result) = match inner {
-            ApiTaskInner::Api(api) => (ApiTaskInner::Task(spawn_task(api)), None),
-            ApiTaskInner::Task(task) => {
-                if task.is_finished() {
-                    let (api, result) = task.await.unwrap();
-                    let task = spawn_task(api);
-                    (ApiTaskInner::Task(task), Some(result))
-                } else {
-                    (ApiTaskInner::Task(task), None)
-                }
-            }
-        };
-
-        self.0 = Some(inner);
-
-        result
-    }
-
-    pub async fn abort(self) -> A {
-        match self.0.unwrap() {
-            ApiTaskInner::Api(api) => api,
-            ApiTaskInner::Task(task) => task.await.unwrap().0,
-        }
-    }
-}
-
-struct TestApi {}
-
-enum SomeInput {
-    A,
-    B,
-}
-
-enum Output {
-    A,
-    B,
-}
-
-async fn test() {
-    let api = TestApi {};
-    let mut api_task: ApiTask<_, Output> = ApiTask::new(api);
-
-    for i in 0..100 {
-        let input = if i % 2 == 0 {
-            SomeInput::A
-        } else {
-            SomeInput::B
-        };
-
-        let _val = api_task
-            .try_fetch_value(move |api| {
-                tokio::task::spawn(async move {
-                    let output = match input {
-                        SomeInput::A => Output::A,
-                        SomeInput::B => Output::B,
-                    };
-
-                    (api, output)
-                })
-            })
-            .await;
-    }
-
-    let _api = api_task.abort().await;
 }
 
 impl StateRegistry {
@@ -175,9 +89,9 @@ impl App {
     }
 
     async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
-        let mut state = Some(StateRegistry::new());
+        let mut state = StateRegistry::new();
 
-        let api_registry = {
+        let mut api_registry = {
             let ledger_api = LedgerApiMock::new(4, 4);
             let _ledger_api = LedgerApi::new().await;
             let mut ledger_api = LedgerApiCache::new(ledger_api).await;
@@ -207,14 +121,12 @@ impl App {
                 .await;
 
             ApiRegistry {
-                ledger_api,
-                coin_price_api,
-                blockchain_monitoring_api,
+                ledger_api: Some(ledger_api),
+                coin_price_api: Some(coin_price_api),
+                blockchain_monitoring_api: Some(blockchain_monitoring_api),
                 _phantom: PhantomData,
             }
         };
-
-        let api_registry = Arc::new(api_registry);
 
         loop {
             let screen = self
@@ -222,10 +134,11 @@ impl App {
                 .last()
                 .expect("At least one screen should be present");
 
-            let screen = Screen::new(*screen, state.take().unwrap(), api_registry.clone());
+            let (new_api_registry, new_state, msg) =
+                Self::screen_loop(*screen, state, api_registry, &mut terminal).await;
 
-            let (new_state, msg) = Self::screen_loop(screen, &mut terminal).await;
-            state = Some(new_state);
+            api_registry = new_api_registry;
+            state = new_state;
 
             match msg {
                 OutgoingMessage::Exit => {
@@ -249,9 +162,13 @@ impl App {
         C: CoinPriceApiT,
         M: BlockchainMonitoringApiT,
     >(
-        mut screen: Screen<L, C, M>,
+        screen: ScreenName,
+        state: StateRegistry,
+        api_registry: ApiRegistry<L, C, M>,
         terminal: &mut Terminal<B>,
-    ) -> (StateRegistry, OutgoingMessage) {
+    ) -> (ApiRegistry<L, C, M>, StateRegistry, OutgoingMessage) {
+        let mut screen = Screen::new(screen, state, api_registry);
+
         let resources = Resources::default();
 
         loop {
@@ -266,8 +183,8 @@ impl App {
             let msg = screen.tick(event).await;
 
             if let Some(msg) = msg {
-                let state = screen.deconstruct();
-                return (state, msg);
+                let (state, api_registry) = screen.deconstruct().await;
+                return (api_registry, state, msg);
             }
         }
     }
