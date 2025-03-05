@@ -22,6 +22,7 @@ pub struct Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> 
     model: ScreenModel<L, C, M>,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum ScreenModel<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     Asset(asset::Model<C, M>),
     Deposit(deposit::Model),
