@@ -25,7 +25,7 @@ pub struct Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> 
 enum ScreenModel<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     Asset(asset::Model<C, M>),
     Deposit(deposit::Model),
-    DeviceSelection(device_selection::Model<L, C, M>),
+    DeviceSelection(device_selection::Model<L>),
     Portfolio(portfolio::Model<L, C, M>),
 }
 
@@ -51,9 +51,14 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
                     model: ScreenModel::Deposit(model),
                 }
             }
-            // ScreenName::DeviceSelection => Self::DeviceSelection(
-            //     device_selection::Model::construct(state_registry, api_registry),
-            // ),
+            ScreenName::DeviceSelection => {
+                let (model, remaining_apis) =
+                    device_selection::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::DeviceSelection(model),
+                }
+            }
             // ScreenName::Portfolio => {
             //     Self::Portfolio(portfolio::Model::construct(state_registry, api_registry))
             // }
@@ -82,8 +87,8 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, 
     pub async fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
         match self.model {
             ScreenModel::Asset(model) => model.deconstruct(self.remaining_apis).await,
-            // Self::Deposit(screen) => screen.deconstruct(),
-            // Self::DeviceSelection(screen) => screen.deconstruct(),
+            ScreenModel::Deposit(model) => model.deconstruct(self.remaining_apis).await,
+            ScreenModel::DeviceSelection(model) => model.deconstruct(self.remaining_apis).await,
             // Self::Portfolio(screen) => screen.deconstruct(),
             _ => todo!(),
         }

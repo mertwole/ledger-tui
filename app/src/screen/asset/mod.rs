@@ -122,6 +122,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
             None => spawn_price_history_task(),
         });
 
+        // TODO: Fix.
         let blockchain_monitoring_api = self.apis.blockchain_monitoring_api.take().unwrap();
         let spawn_transaction_list_task = || {
             tokio::task::spawn(async move {
