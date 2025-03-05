@@ -101,7 +101,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
 
         if let Some(price_history) = self
             .price_history_task
-            .try_fetch_value(spawn_price_history_task)
+            .try_fetch_value_and_rerun(spawn_price_history_task)
             .await
         {
             self.coin_price_history = price_history;
@@ -128,7 +128,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
 
         if let Some(transactions) = self
             .transaction_list_task
-            .try_fetch_value(spawn_transaction_list_task)
+            .try_fetch_value_and_rerun(spawn_transaction_list_task)
             .await
         {
             self.transactions = Some(transactions);

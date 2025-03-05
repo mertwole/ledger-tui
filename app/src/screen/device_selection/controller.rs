@@ -33,7 +33,7 @@ pub enum InputEvent {
     Refresh,
 }
 
-pub(super) fn process_input<L: LedgerApiT>(
+pub(super) async fn process_input<L: LedgerApiT>(
     event: &Event,
     model: &mut Model<L>,
 ) -> Option<OutgoingMessage> {
@@ -77,7 +77,7 @@ pub(super) fn process_input<L: LedgerApiT>(
             }
         }
         InputEvent::Refresh => {
-            model.refresh_device_list();
+            model.refresh_device_list().await;
             None
         }
     }

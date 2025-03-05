@@ -100,7 +100,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
 
         if let Some(coin_prices) = self
             .coin_price_task
-            .try_fetch_value(spawn_coin_price_task)
+            .try_fetch_value_and_rerun(spawn_coin_price_task)
             .await
         {
             self.coin_prices = coin_prices;
@@ -134,7 +134,7 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
         // TODO: Request balances only when user updates the screen.
         if let Some(balances) = self
             .account_balances_task
-            .try_fetch_value(spawn_account_balances_task)
+            .try_fetch_value_and_rerun(spawn_account_balances_task)
             .await
         {
             self.balances = balances;
