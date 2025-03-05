@@ -9,19 +9,15 @@ use ratatui::{
 
 use super::{Model, controller};
 use crate::{
-    api::{
-        blockchain_monitoring::BlockchainMonitoringApiT,
-        coin_price::CoinPriceApiT,
-        ledger::{Device, DeviceInfo, LedgerApiT},
-    },
+    api::ledger::{Device, DeviceInfo, LedgerApiT},
     screen::{
         common::{self, BackgroundWidget, render_centered_text},
         resources::Resources,
     },
 };
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+pub(super) fn render<L: LedgerApiT>(
+    model: &Model<L>,
     frame: &mut Frame<'_>,
     resources: &Resources,
 ) {

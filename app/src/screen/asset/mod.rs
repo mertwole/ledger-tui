@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
 use strum::EnumIter;
-use tokio::task::JoinHandle;
 
-use super::{OutgoingMessage, ScreenT, resources::Resources};
+use super::{OutgoingMessage, ScreenT, common::api_task::ApiTask, resources::Resources};
 use crate::{
     api::{
         blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
@@ -22,19 +19,17 @@ mod view;
 const DEFAULT_SELECTED_TIME_PERIOD: TimePeriod = TimePeriod::Day;
 
 type TransactionList = Vec<(TransactionUid, TransactionInfo)>;
-type TaskHandle<R> = Option<JoinHandle<R>>;
 
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
+pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
     coin_price_history: Option<Vec<PriceHistoryPoint>>,
     transactions: Option<TransactionList>,
     selected_time_period: TimePeriod,
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: Arc<ApiRegistry<L, C, M>>,
 
-    price_history_task: TaskHandle<Option<Vec<PriceHistoryPoint>>>,
-    transaction_list_task: TaskHandle<TransactionList>,
+    price_history_task: ApiTask<C, Option<Vec<PriceHistoryPoint>>>,
+    transaction_list_task: ApiTask<M, TransactionList>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
@@ -48,7 +43,31 @@ enum TimePeriod {
 
 type PriceHistoryPoint = Decimal;
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
+impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
+    pub fn construct<L: LedgerApiT>(
+        state: StateRegistry,
+        mut api_registry: ApiRegistry<L, C, M>,
+    ) -> (Self, ApiRegistry<L, C, M>) {
+        let price_history_task = ApiTask::new(api_registry.coin_price_api.take().unwrap());
+        let transaction_list_task =
+            ApiTask::new(api_registry.blockchain_monitoring_api.take().unwrap());
+
+        (
+            Self {
+                coin_price_history: Default::default(),
+                transactions: Default::default(),
+                selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
+                show_navigation_help: false,
+
+                state,
+
+                price_history_task,
+                transaction_list_task,
+            },
+            api_registry,
+        )
+    }
+
     async fn tick_logic(&mut self) {
         let (selected_network, selected_account) = self
             .state
@@ -70,83 +89,64 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
             TimePeriod::All => ApiTimePeriod::All,
         };
 
-        let apis = self.apis.clone();
-        let spawn_price_history_task = || {
+        let spawn_price_history_task = |coin_price_api: C| {
             tokio::task::spawn(async move {
-                apis.coin_price_api
+                let result = coin_price_api
                     .get_price_history(coin, Coin::USDT, time_period)
-                    .await
+                    .await;
+
+                (coin_price_api, result)
             })
         };
 
-        self.price_history_task = Some(match self.price_history_task.take() {
-            Some(join_handle) => {
-                if join_handle.is_finished() {
-                    self.coin_price_history = join_handle.await.unwrap();
+        if let Some(price_history) = self
+            .price_history_task
+            .try_fetch_value_and_rerun(spawn_price_history_task)
+            .await
+        {
+            self.coin_price_history = price_history;
+        }
 
-                    spawn_price_history_task()
-                } else {
-                    join_handle
-                }
-            }
-            None => spawn_price_history_task(),
-        });
-
-        let apis = self.apis.clone();
-        let spawn_transaction_list_task = || {
+        let spawn_transaction_list_task = |blockchain_monitoring_api: M| {
             tokio::task::spawn(async move {
-                let tx_list = apis
-                    .blockchain_monitoring_api
+                let tx_list = blockchain_monitoring_api
                     .get_transactions(selected_network, &selected_account)
                     .await;
 
                 let mut txs = vec![];
                 for tx in tx_list {
-                    let tx_info = apis
-                        .blockchain_monitoring_api
+                    let tx_info = blockchain_monitoring_api
                         .get_transaction_info(selected_network, &tx)
                         .await;
 
                     txs.push((tx, tx_info));
                 }
 
-                txs
+                (blockchain_monitoring_api, txs)
             })
         };
 
-        self.transaction_list_task = Some(match self.transaction_list_task.take() {
-            Some(join_handle) => {
-                if join_handle.is_finished() {
-                    self.transactions = Some(join_handle.await.unwrap());
-
-                    spawn_transaction_list_task()
-                } else {
-                    join_handle
-                }
-            }
-            None => spawn_transaction_list_task(),
-        });
-    }
-}
-
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
-    for Model<L, C, M>
-{
-    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
-        Self {
-            coin_price_history: Default::default(),
-            transactions: Default::default(),
-            selected_time_period: DEFAULT_SELECTED_TIME_PERIOD,
-            show_navigation_help: false,
-
-            state,
-            apis: api_registry,
-
-            price_history_task: None,
-            transaction_list_task: None,
+        if let Some(transactions) = self
+            .transaction_list_task
+            .try_fetch_value_and_rerun(spawn_transaction_list_task)
+            .await
+        {
+            self.transactions = Some(transactions);
         }
     }
 
+    pub async fn deconstruct<L: LedgerApiT>(
+        self,
+        mut api_registry: ApiRegistry<L, C, M>,
+    ) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        api_registry.coin_price_api = Some(self.price_history_task.abort().await);
+        api_registry.blockchain_monitoring_api = Some(self.transaction_list_task.abort().await);
+
+        (self.state, api_registry)
+    }
+}
+
+impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT for Model<C, M> {
     fn render(&self, frame: &mut Frame<'_>, resources: &Resources) {
         view::render(self, frame, resources);
     }
@@ -155,9 +155,5 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
         self.tick_logic().await;
 
         controller::process_input(event.as_ref()?, self)
-    }
-
-    fn deconstruct(self) -> StateRegistry {
-        self.state
     }
 }

@@ -19,7 +19,6 @@ use crate::{
         },
         coin_price::CoinPriceApiT,
         common_types::{Account, Network},
-        ledger::LedgerApiT,
     },
     screen::{
         common::{self, BackgroundWidget, format_address, network_symbol, render_centered_text},
@@ -32,8 +31,8 @@ use super::{Model, TimePeriod};
 const ADDRESSES_MAX_LEN: usize = 12;
 const TX_UID_MAX_LEN: usize = 16;
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
+pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
     frame: &mut Frame<'_>,
     resources: &Resources,
 ) {

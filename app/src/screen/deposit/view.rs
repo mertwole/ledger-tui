@@ -11,26 +11,16 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Padding, Widget},
 };
 
-use crate::{
-    api::{
-        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
-        ledger::LedgerApiT,
-    },
-    screen::{
-        common::{self, BackgroundWidget},
-        resources::Resources,
-    },
+use crate::screen::{
+    common::{self, BackgroundWidget},
+    resources::Resources,
 };
 
 use super::Model;
 
 const DISPLAY_COPIED_TEXT_FOR: Duration = Duration::from_secs(2);
 
-pub(super) fn render<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<L, C, M>,
-    frame: &mut Frame<'_>,
-    resources: &Resources,
-) {
+pub(super) fn render(model: &Model, frame: &mut Frame<'_>, resources: &Resources) {
     let area = frame.size();
 
     frame.render_widget(BackgroundWidget::new(resources.background_color), area);

@@ -2,13 +2,7 @@ use input_mapping_common::InputMappingT;
 use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::{Event, KeyCode};
 
-use crate::{
-    api::{
-        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
-        ledger::LedgerApiT,
-    },
-    screen::OutgoingMessage,
-};
+use crate::{api::ledger::LedgerApiT, screen::OutgoingMessage};
 
 use super::Model;
 
@@ -39,9 +33,9 @@ pub enum InputEvent {
     Refresh,
 }
 
-pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+pub(super) async fn process_input<L: LedgerApiT>(
     event: &Event,
-    model: &mut Model<L, C, M>,
+    model: &mut Model<L>,
 ) -> Option<OutgoingMessage> {
     let event = InputEvent::map_event(event.clone())?;
 
@@ -83,7 +77,7 @@ pub(super) fn process_input<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonito
             }
         }
         InputEvent::Refresh => {
-            model.refresh_device_list();
+            model.refresh_device_list().await;
             None
         }
     }

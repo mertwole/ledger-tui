@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ratatui::{Frame, crossterm::event::Event};
 use resources::Resources;
 
@@ -18,69 +16,92 @@ pub mod device_selection;
 pub mod portfolio;
 pub mod resources;
 
+pub struct Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
+    remaining_apis: ApiRegistry<L, C, M>,
+    model: ScreenModel<L, C, M>,
+}
+
 #[allow(clippy::large_enum_variant)]
-pub enum Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    Asset(asset::Model<L, C, M>),
-    Deposit(deposit::Model<L, C, M>),
-    DeviceSelection(device_selection::Model<L, C, M>),
-    Portfolio(portfolio::Model<L, C, M>),
+enum ScreenModel<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
+    Asset(asset::Model<C, M>),
+    Deposit(deposit::Model),
+    DeviceSelection(device_selection::Model<L>),
+    Portfolio(portfolio::Model<C, M>),
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Screen<L, C, M> {
     pub fn new(
         name: ScreenName,
         state_registry: StateRegistry,
-        api_registry: Arc<ApiRegistry<L, C, M>>,
+        api_registry: ApiRegistry<L, C, M>,
     ) -> Self {
         match name {
-            ScreenName::Asset => Self::Asset(asset::Model::construct(state_registry, api_registry)),
-            ScreenName::Deposit => {
-                Self::Deposit(deposit::Model::construct(state_registry, api_registry))
+            ScreenName::Asset => {
+                let (model, remaining_apis) = asset::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::Asset(model),
+                }
             }
-            ScreenName::DeviceSelection => Self::DeviceSelection(
-                device_selection::Model::construct(state_registry, api_registry),
-            ),
+            ScreenName::Deposit => {
+                let (model, remaining_apis) =
+                    deposit::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::Deposit(model),
+                }
+            }
+            ScreenName::DeviceSelection => {
+                let (model, remaining_apis) =
+                    device_selection::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::DeviceSelection(model),
+                }
+            }
             ScreenName::Portfolio => {
-                Self::Portfolio(portfolio::Model::construct(state_registry, api_registry))
+                let (model, remaining_apis) =
+                    portfolio::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::Portfolio(model),
+                }
             }
         }
     }
 
     pub fn render(&self, frame: &mut Frame<'_>, resources: &Resources) {
-        match self {
-            Self::Asset(screen) => screen.render(frame, resources),
-            Self::Deposit(screen) => screen.render(frame, resources),
-            Self::DeviceSelection(screen) => screen.render(frame, resources),
-            Self::Portfolio(screen) => screen.render(frame, resources),
+        match &self.model {
+            ScreenModel::Asset(screen) => screen.render(frame, resources),
+            ScreenModel::Deposit(screen) => screen.render(frame, resources),
+            ScreenModel::DeviceSelection(screen) => screen.render(frame, resources),
+            ScreenModel::Portfolio(screen) => screen.render(frame, resources),
         }
     }
 
     pub async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
-        match self {
-            Self::Asset(screen) => screen.tick(event).await,
-            Self::Deposit(screen) => screen.tick(event).await,
-            Self::DeviceSelection(screen) => screen.tick(event).await,
-            Self::Portfolio(screen) => screen.tick(event).await,
+        match &mut self.model {
+            ScreenModel::Asset(screen) => screen.tick(event).await,
+            ScreenModel::Deposit(screen) => screen.tick(event).await,
+            ScreenModel::DeviceSelection(screen) => screen.tick(event).await,
+            ScreenModel::Portfolio(screen) => screen.tick(event).await,
         }
     }
 
-    pub fn deconstruct(self) -> StateRegistry {
-        match self {
-            Self::Asset(screen) => screen.deconstruct(),
-            Self::Deposit(screen) => screen.deconstruct(),
-            Self::DeviceSelection(screen) => screen.deconstruct(),
-            Self::Portfolio(screen) => screen.deconstruct(),
+    pub async fn deconstruct(self) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        match self.model {
+            ScreenModel::Asset(model) => model.deconstruct(self.remaining_apis).await,
+            ScreenModel::Deposit(model) => model.deconstruct(self.remaining_apis).await,
+            ScreenModel::DeviceSelection(model) => model.deconstruct(self.remaining_apis).await,
+            ScreenModel::Portfolio(model) => model.deconstruct(self.remaining_apis).await,
         }
     }
 }
 
-trait ScreenT<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self;
-
+trait ScreenT {
     fn render(&self, frame: &mut Frame<'_>, resources: &Resources);
-    async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage>;
 
-    fn deconstruct(self) -> StateRegistry;
+    async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage>;
 }
 
 pub enum OutgoingMessage {

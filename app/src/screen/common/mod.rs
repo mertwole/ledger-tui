@@ -15,6 +15,8 @@ pub use background_widget::*;
 mod navigation_help_widget;
 pub use navigation_help_widget::*;
 
+pub mod api_task;
+
 use super::resources::Resources;
 
 pub fn network_symbol(network: Network) -> String {

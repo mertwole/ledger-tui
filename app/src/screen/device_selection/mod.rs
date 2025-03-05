@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use ratatui::{Frame, crossterm::event::Event};
-use tokio::task::JoinHandle;
 
-use super::{OutgoingMessage, ScreenT, resources::Resources};
+use super::{OutgoingMessage, ScreenT, common::api_task::ApiTask, resources::Resources};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT,
@@ -16,33 +13,41 @@ use crate::{
 mod controller;
 mod view;
 
-type TaskHandle<R> = Option<JoinHandle<R>>;
-
-pub struct Model<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
+pub struct Model<L: LedgerApiT> {
     devices: Vec<(Device, DeviceInfo)>,
     selected_device: Option<usize>,
     show_navigation_help: bool,
 
     state: StateRegistry,
-    apis: Arc<ApiRegistry<L, C, M>>,
 
-    device_list_refresh_task: TaskHandle<Vec<(Device, DeviceInfo)>>,
+    device_list_refresh_task: ApiTask<L, Vec<(Device, DeviceInfo)>>,
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M> {
-    async fn tick_logic(&mut self) {
-        self.device_list_refresh_task = match self.device_list_refresh_task.take() {
-            Some(join_handle) => {
-                if join_handle.is_finished() {
-                    self.devices = join_handle.await.unwrap();
+impl<L: LedgerApiT> Model<L> {
+    pub fn construct<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+        state: StateRegistry,
+        mut api_registry: ApiRegistry<L, C, M>,
+    ) -> (Self, ApiRegistry<L, C, M>) {
+        let device_list_refresh_task = ApiTask::new(api_registry.ledger_api.take().unwrap());
 
-                    None
-                } else {
-                    Some(join_handle)
-                }
-            }
-            None => None,
-        };
+        (
+            Self {
+                devices: vec![],
+                selected_device: None,
+                show_navigation_help: false,
+
+                state,
+
+                device_list_refresh_task,
+            },
+            api_registry,
+        )
+    }
+
+    async fn tick_logic(&mut self) {
+        if let Some(devices) = self.device_list_refresh_task.try_fetch_value().await {
+            self.devices = devices;
+        }
 
         if self.devices.is_empty() {
             self.selected_device = None;
@@ -55,45 +60,41 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<L, C, M
         }
     }
 
-    fn refresh_device_list(&mut self) {
-        let apis = self.apis.clone();
+    async fn refresh_device_list(&mut self) {
+        let spawn_task = |ledger_api: L| {
+            tokio::task::spawn(async move {
+                log::info!("Requesting device list from ledger api");
 
-        self.device_list_refresh_task = Some(tokio::task::spawn(async move {
-            log::info!("Requesting device list from ledger api");
+                let devices = ledger_api.discover_devices().await;
+                let mut devices_with_info = Vec::with_capacity(devices.len());
 
-            let devices = apis.ledger_api.discover_devices().await;
-            let mut devices_with_info = Vec::with_capacity(devices.len());
-
-            for device in devices {
-                let info = apis.ledger_api.get_device_info(&device).await;
-                if let Some(info) = info {
-                    devices_with_info.push((device, info));
+                for device in devices {
+                    let info = ledger_api.get_device_info(&device).await;
+                    if let Some(info) = info {
+                        devices_with_info.push((device, info));
+                    }
                 }
-            }
 
-            log::info!("Discovered {} ledger devices", devices_with_info.len());
+                log::info!("Discovered {} ledger devices", devices_with_info.len());
 
-            devices_with_info
-        }));
+                (ledger_api, devices_with_info)
+            })
+        };
+
+        self.device_list_refresh_task.run(spawn_task).await;
+    }
+
+    pub async fn deconstruct<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+        self,
+        mut api_registry: ApiRegistry<L, C, M>,
+    ) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        api_registry.ledger_api = Some(self.device_list_refresh_task.abort().await);
+
+        (self.state, api_registry)
     }
 }
 
-impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C, M>
-    for Model<L, C, M>
-{
-    fn construct(state: StateRegistry, api_registry: Arc<ApiRegistry<L, C, M>>) -> Self {
-        Self {
-            devices: vec![],
-            selected_device: None,
-            show_navigation_help: false,
-
-            state,
-            apis: api_registry,
-
-            device_list_refresh_task: None,
-        }
-    }
-
+impl<L: LedgerApiT> ScreenT for Model<L> {
     fn render(&self, frame: &mut Frame<'_>, resources: &Resources) {
         view::render(self, frame, resources);
     }
@@ -101,10 +102,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT> ScreenT<L, C,
     async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         self.tick_logic().await;
 
-        controller::process_input(event.as_ref()?, self)
-    }
-
-    fn deconstruct(self) -> StateRegistry {
-        self.state
+        controller::process_input(event.as_ref()?, self).await
     }
 }

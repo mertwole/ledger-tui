@@ -1,6 +1,5 @@
 use std::{
-    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, sync::Arc,
-    time::Duration,
+    collections::HashMap, fs::read_to_string, io::stdout, marker::PhantomData, time::Duration,
 };
 
 use ratatui::{
@@ -53,9 +52,9 @@ where
     C: CoinPriceApiT,
     M: BlockchainMonitoringApiT,
 {
-    pub ledger_api: L,
-    pub coin_price_api: C,
-    pub blockchain_monitoring_api: M,
+    pub ledger_api: Option<L>,
+    pub coin_price_api: Option<C>,
+    pub blockchain_monitoring_api: Option<M>,
     _phantom: PhantomData<()>,
 }
 
@@ -90,9 +89,9 @@ impl App {
     }
 
     async fn main_loop<B: Backend>(&mut self, mut terminal: Terminal<B>) {
-        let mut state = Some(StateRegistry::new());
+        let mut state = StateRegistry::new();
 
-        let api_registry = {
+        let mut api_registry = {
             let ledger_api = LedgerApiMock::new(4, 4);
             let _ledger_api = LedgerApi::new().await;
             let mut ledger_api = LedgerApiCache::new(ledger_api).await;
@@ -122,14 +121,12 @@ impl App {
                 .await;
 
             ApiRegistry {
-                ledger_api,
-                coin_price_api,
-                blockchain_monitoring_api,
+                ledger_api: Some(ledger_api),
+                coin_price_api: Some(coin_price_api),
+                blockchain_monitoring_api: Some(blockchain_monitoring_api),
                 _phantom: PhantomData,
             }
         };
-
-        let api_registry = Arc::new(api_registry);
 
         loop {
             let screen = self
@@ -137,10 +134,11 @@ impl App {
                 .last()
                 .expect("At least one screen should be present");
 
-            let screen = Screen::new(*screen, state.take().unwrap(), api_registry.clone());
+            let (new_api_registry, new_state, msg) =
+                Self::screen_loop(*screen, state, api_registry, &mut terminal).await;
 
-            let (new_state, msg) = Self::screen_loop(screen, &mut terminal).await;
-            state = Some(new_state);
+            api_registry = new_api_registry;
+            state = new_state;
 
             match msg {
                 OutgoingMessage::Exit => {
@@ -164,9 +162,13 @@ impl App {
         C: CoinPriceApiT,
         M: BlockchainMonitoringApiT,
     >(
-        mut screen: Screen<L, C, M>,
+        screen: ScreenName,
+        state: StateRegistry,
+        api_registry: ApiRegistry<L, C, M>,
         terminal: &mut Terminal<B>,
-    ) -> (StateRegistry, OutgoingMessage) {
+    ) -> (ApiRegistry<L, C, M>, StateRegistry, OutgoingMessage) {
+        let mut screen = Screen::new(screen, state, api_registry);
+
         let resources = Resources::default();
 
         loop {
@@ -181,8 +183,8 @@ impl App {
             let msg = screen.tick(event).await;
 
             if let Some(msg) = msg {
-                let state = screen.deconstruct();
-                return (state, msg);
+                let (state, api_registry) = screen.deconstruct().await;
+                return (api_registry, state, msg);
             }
         }
     }
