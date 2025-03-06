@@ -11,7 +11,7 @@ input-mapping-common.workspace = true
 
 alloy = { workspace = true, features = ["full"] }
 async-trait.workspace = true
-binance_spot_connector_rust.workspace = true
+binance_spot_connector_rust = { workspace = true, features = ["enable-hyper"] }
 bitcoin.workspace = true
 bigdecimal.workspace = true
 bitcoincore-rpc-json.workspace = true

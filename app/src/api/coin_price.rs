@@ -1,8 +1,8 @@
 use api_proc_macro::implement_cache;
 use async_trait::async_trait;
 use binance_spot_connector_rust::{
+    hyper::BinanceHttpClient,
     market::{self, klines::KlineInterval},
-    ureq::BinanceHttpClient,
 };
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -54,7 +54,7 @@ impl Coin {
 }
 
 pub struct CoinPriceApi {
-    client: BinanceHttpClient,
+    client: BinanceHttpClient<HttpsConnector<HttpConnector>>,
 }
 
 #[derive(Deserialize, Debug)]
