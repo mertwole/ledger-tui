@@ -6,7 +6,7 @@ use super::{OutgoingMessage, ScreenT, resources::Resources};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
-        ledger::LedgerApiT,
+        ledger::LedgerApiT, storage::StorageApiT,
     },
     app::{ApiRegistry, StateRegistry},
 };
@@ -22,10 +22,15 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn construct<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    pub fn construct<
+        L: LedgerApiT,
+        C: CoinPriceApiT,
+        M: BlockchainMonitoringApiT,
+        S: StorageApiT,
+    >(
         state: StateRegistry,
-        api_registry: ApiRegistry<L, C, M>,
-    ) -> (Self, ApiRegistry<L, C, M>) {
+        api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (Self, ApiRegistry<L, C, M, S>) {
         (
             Self {
                 last_address_copy: None,
@@ -37,10 +42,15 @@ impl Model {
         )
     }
 
-    pub async fn deconstruct<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    pub async fn deconstruct<
+        L: LedgerApiT,
+        C: CoinPriceApiT,
+        M: BlockchainMonitoringApiT,
+        S: StorageApiT,
+    >(
         self,
-        api_registry: ApiRegistry<L, C, M>,
-    ) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (StateRegistry, ApiRegistry<L, C, M, S>) {
         (self.state, api_registry)
     }
 }

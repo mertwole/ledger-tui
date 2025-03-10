@@ -6,6 +6,7 @@ use crate::{
         blockchain_monitoring::BlockchainMonitoringApiT,
         coin_price::CoinPriceApiT,
         ledger::{Device, DeviceInfo, LedgerApiT},
+        storage::StorageApiT,
     },
     app::{ApiRegistry, StateRegistry},
 };
@@ -24,10 +25,10 @@ pub struct Model<L: LedgerApiT> {
 }
 
 impl<L: LedgerApiT> Model<L> {
-    pub fn construct<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    pub fn construct<C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApiT>(
         state: StateRegistry,
-        mut api_registry: ApiRegistry<L, C, M>,
-    ) -> (Self, ApiRegistry<L, C, M>) {
+        mut api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (Self, ApiRegistry<L, C, M, S>) {
         let device_list_refresh_task = ApiTask::new(api_registry.ledger_api.take().unwrap());
 
         (
@@ -84,10 +85,10 @@ impl<L: LedgerApiT> Model<L> {
         self.device_list_refresh_task.run(spawn_task).await;
     }
 
-    pub async fn deconstruct<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    pub async fn deconstruct<C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApiT>(
         self,
-        mut api_registry: ApiRegistry<L, C, M>,
-    ) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        mut api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (StateRegistry, ApiRegistry<L, C, M, S>) {
         api_registry.ledger_api = Some(self.device_list_refresh_task.abort().await);
 
         (self.state, api_registry)

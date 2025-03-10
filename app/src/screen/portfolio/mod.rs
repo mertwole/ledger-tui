@@ -13,6 +13,7 @@ use crate::{
         coin_price::{Coin, CoinPriceApiT},
         common_types::{Account, Network},
         ledger::LedgerApiT,
+        storage::StorageApiT,
     },
     app::{ApiRegistry, StateRegistry},
 };
@@ -36,10 +37,10 @@ type AccountIdx = usize;
 type NetworkIdx = usize;
 
 impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
-    pub fn construct<L: LedgerApiT>(
+    pub fn construct<L: LedgerApiT, S: StorageApiT>(
         mut state: StateRegistry,
-        mut api_registry: ApiRegistry<L, C, M>,
-    ) -> (Self, ApiRegistry<L, C, M>) {
+        mut api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (Self, ApiRegistry<L, C, M, S>) {
         let coin_price_task = ApiTask::new(api_registry.coin_price_api.take().unwrap());
         let account_balances_task =
             ApiTask::new(api_registry.blockchain_monitoring_api.take().unwrap());
@@ -141,10 +142,10 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
         }
     }
 
-    pub async fn deconstruct<L: LedgerApiT>(
+    pub async fn deconstruct<L: LedgerApiT, S: StorageApiT>(
         self,
-        mut api_registry: ApiRegistry<L, C, M>,
-    ) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        mut api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (StateRegistry, ApiRegistry<L, C, M, S>) {
         api_registry.coin_price_api = Some(self.coin_price_task.abort().await);
         api_registry.blockchain_monitoring_api = Some(self.account_balances_task.abort().await);
 

@@ -9,6 +9,7 @@ use crate::{
         coin_price::{Coin, CoinPriceApiT, TimePeriod as ApiTimePeriod},
         common_types::Network,
         ledger::LedgerApiT,
+        storage::StorageApiT,
     },
     app::{ApiRegistry, StateRegistry},
 };
@@ -44,10 +45,10 @@ enum TimePeriod {
 type PriceHistoryPoint = Decimal;
 
 impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
-    pub fn construct<L: LedgerApiT>(
+    pub fn construct<L: LedgerApiT, S: StorageApiT>(
         state: StateRegistry,
-        mut api_registry: ApiRegistry<L, C, M>,
-    ) -> (Self, ApiRegistry<L, C, M>) {
+        mut api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (Self, ApiRegistry<L, C, M, S>) {
         let price_history_task = ApiTask::new(api_registry.coin_price_api.take().unwrap());
         let transaction_list_task =
             ApiTask::new(api_registry.blockchain_monitoring_api.take().unwrap());
@@ -135,10 +136,10 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
         }
     }
 
-    pub async fn deconstruct<L: LedgerApiT>(
+    pub async fn deconstruct<L: LedgerApiT, S: StorageApiT>(
         self,
-        mut api_registry: ApiRegistry<L, C, M>,
-    ) -> (StateRegistry, ApiRegistry<L, C, M>) {
+        mut api_registry: ApiRegistry<L, C, M, S>,
+    ) -> (StateRegistry, ApiRegistry<L, C, M, S>) {
         api_registry.coin_price_api = Some(self.price_history_task.abort().await);
         api_registry.blockchain_monitoring_api = Some(self.transaction_list_task.abort().await);
 

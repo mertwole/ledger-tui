@@ -28,7 +28,7 @@ use crate::{
             Device, DeviceInfo, LedgerApi, LedgerApiT, cache::Cache as LedgerApiCache,
             mock::LedgerApiMock,
         },
-        storage::{StorageApi, mock::StorageApiMock},
+        storage::{StorageApi, StorageApiT, mock::StorageApiMock},
     },
     screen::{OutgoingMessage, Screen, ScreenName, resources::Resources},
 };
@@ -47,15 +47,17 @@ pub(crate) struct StateRegistry {
     _phantom: PhantomData<()>,
 }
 
-pub(crate) struct ApiRegistry<L, C, M>
+pub(crate) struct ApiRegistry<L, C, M, S>
 where
     L: LedgerApiT,
     C: CoinPriceApiT,
     M: BlockchainMonitoringApiT,
+    S: StorageApiT,
 {
     pub ledger_api: Option<L>,
     pub coin_price_api: Option<C>,
     pub blockchain_monitoring_api: Option<M>,
+    pub storage_api: Option<S>,
     _phantom: PhantomData<()>,
 }
 
@@ -119,12 +121,13 @@ impl App {
                 .await;
 
             let _storage_api = StorageApi::new("./data".into());
-            let _storage_api = StorageApiMock::new();
+            let storage_api = StorageApiMock::new();
 
             ApiRegistry {
                 ledger_api: Some(ledger_api),
                 coin_price_api: Some(coin_price_api),
                 blockchain_monitoring_api: Some(blockchain_monitoring_api),
+                storage_api: Some(storage_api),
                 _phantom: PhantomData,
             }
         };
@@ -162,12 +165,13 @@ impl App {
         L: LedgerApiT,
         C: CoinPriceApiT,
         M: BlockchainMonitoringApiT,
+        S: StorageApiT,
     >(
         screen: ScreenName,
         state: StateRegistry,
-        api_registry: ApiRegistry<L, C, M>,
+        api_registry: ApiRegistry<L, C, M, S>,
         terminal: &mut Terminal<B>,
-    ) -> (ApiRegistry<L, C, M>, StateRegistry, OutgoingMessage) {
+    ) -> (ApiRegistry<L, C, M, S>, StateRegistry, OutgoingMessage) {
         let mut screen = Screen::new(screen, state, api_registry);
 
         let resources = Resources::default();
