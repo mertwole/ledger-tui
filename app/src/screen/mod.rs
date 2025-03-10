@@ -71,6 +71,14 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
                     model: ScreenModel::Portfolio(model),
                 }
             }
+            ScreenName::AccountDiscovery => {
+                let (model, remaining_apis) =
+                    account_discovery::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::AccountDiscovery(model),
+                }
+            }
         }
     }
 
@@ -123,4 +131,5 @@ pub enum ScreenName {
     Portfolio,
     Asset,
     Deposit,
+    AccountDiscovery,
 }

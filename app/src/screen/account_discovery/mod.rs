@@ -1,17 +1,12 @@
 use std::marker::PhantomData;
 
 use ratatui::{Frame, crossterm::event::Event};
-use rust_decimal::Decimal;
-use strum::EnumIter;
 
-use super::{OutgoingMessage, ScreenT, common::api_task::ApiTask, resources::Resources};
+use super::{OutgoingMessage, ScreenT, resources::Resources};
 use crate::{
     api::{
-        blockchain_monitoring::{BlockchainMonitoringApiT, TransactionInfo, TransactionUid},
-        coin_price::{Coin, CoinPriceApiT, TimePeriod as ApiTimePeriod},
-        common_types::Network,
-        ledger::LedgerApiT,
-        storage::StorageApiT,
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT, storage::StorageApiT,
     },
     app::{ApiRegistry, StateRegistry},
 };
