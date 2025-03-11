@@ -17,6 +17,8 @@ implement_cache!(
 
         async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
 
+        async fn open_app(&self, device: &Device, network: Network) -> ();
+
         // TODO: Return stream of accounts?
         async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account>;
     }
@@ -123,6 +125,39 @@ impl LedgerApiT for LedgerApi {
         Some(DeviceInfo { model })
     }
 
+    async fn open_app(&self, device: &Device, network: Network) -> () {
+        let device_info = device.get_info().expect("Expected non-mock device");
+        let transport = TransportNativeHID::open_device(&self.hid_api, device_info).unwrap();
+
+        let data = match network {
+            Network::Bitcoin => "Bitcoin",
+            Network::Ethereum => "Ethereum",
+        }
+        .as_bytes();
+
+        let command = APDUCommand {
+            cla: 0xE0,
+            ins: 0xD8,
+            p1: 0x00,
+            p2: 0x00,
+            data,
+        };
+
+        let response = transport.exchange(&command).unwrap();
+
+        match response.error_code() {
+            Err(e) => {
+                log::error!("Error received from ledegr device: {:#x}", e);
+            }
+            Ok(APDUErrorCode::NoError) => {}
+            Ok(e) => {
+                log::error!("Error received from ledegr device: {}", e);
+            }
+        }
+
+        ()
+    }
+
     async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account> {
         match network {
             Network::Bitcoin => self.discover_bitcoin_accounts(device).await,
@@ -179,13 +214,14 @@ impl LedgerApi {
 }
 
 pub mod mock {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Mutex};
 
     use super::*;
 
     pub struct LedgerApiMock {
         devices: Vec<Device>,
         accounts: HashMap<Network, Vec<Account>>,
+        open_app: Mutex<Option<Network>>,
     }
 
     impl LedgerApiMock {
@@ -217,6 +253,7 @@ pub mod mock {
             Self {
                 devices: (0..device_count).map(Device::new_mock).collect(),
                 accounts,
+                open_app: Mutex::new(None),
             }
         }
     }
@@ -246,7 +283,13 @@ pub mod mock {
             Some(info)
         }
 
+        async fn open_app(&self, _device: &Device, network: Network) {
+            *self.open_app.lock().unwrap() = Some(network);
+        }
+
         async fn discover_accounts(&self, _device: &Device, network: Network) -> Vec<Account> {
+            assert_eq!(*self.open_app.lock().unwrap(), Some(network));
+
             self.accounts
                 .get(&network)
                 .cloned()
