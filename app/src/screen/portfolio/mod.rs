@@ -51,6 +51,14 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
             .expect("TODO: Enforce this rule at app level?")
             .0;
 
+        block_on(
+            api_registry
+                .ledger_api
+                .as_ref()
+                .unwrap()
+                .open_app(&active_device, Network::Bitcoin),
+        );
+
         // TODO: Introduce separate screen where account loading and management will be performed.
         let mut device_accounts = vec![];
         for network in [Network::Bitcoin, Network::Ethereum] {

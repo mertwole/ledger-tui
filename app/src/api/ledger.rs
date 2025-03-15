@@ -1,6 +1,5 @@
-use std::{hash::Hash, str::FromStr};
+use std::{hash::Hash, str::FromStr, time::Duration};
 
-use api_proc_macro::implement_cache;
 use async_trait::async_trait;
 use ledger_apdu::{APDUCommand, APDUErrorCode};
 use ledger_transport_hid::{
@@ -10,19 +9,19 @@ use ledger_transport_hid::{
 
 use super::common_types::{Account, Network};
 
-implement_cache!(
-    #[async_trait]
-    pub trait LedgerApiT: Send + Sync + 'static {
-        async fn discover_devices(&self) -> Vec<Device>;
+const DELAY_BEFORE_ACCOUNTS_DISCOVERY: Duration = Duration::from_secs(1);
 
-        async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
+#[async_trait]
+pub trait LedgerApiT: Send + Sync + 'static {
+    async fn discover_devices(&self) -> Vec<Device>;
 
-        async fn open_app(&self, device: &Device, network: Network) -> ();
+    async fn get_device_info(&self, device: &Device) -> Option<DeviceInfo>;
 
-        // TODO: Return stream of accounts?
-        async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account>;
-    }
-);
+    async fn open_app(&self, device: &Device, network: Network) -> ();
+
+    // TODO: Return stream of accounts?
+    async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account>;
+}
 
 #[derive(Clone, Debug)]
 pub struct Device(DeviceInner);
@@ -89,15 +88,11 @@ pub struct DeviceInfo {
     pub model: String,
 }
 
-pub struct LedgerApi {
-    hid_api: HidApi,
-}
+pub struct LedgerApi {}
 
 impl LedgerApi {
     pub async fn new() -> Self {
-        Self {
-            hid_api: HidApi::new().unwrap(),
-        }
+        Self {}
     }
 }
 
@@ -106,7 +101,8 @@ impl LedgerApiT for LedgerApi {
     async fn discover_devices(&self) -> Vec<Device> {
         log::info!("Discovering connected ledger devices...");
 
-        let devices = TransportNativeHID::list_ledgers(&self.hid_api);
+        let hid_api = HidApi::new().unwrap();
+        let devices = TransportNativeHID::list_ledgers(&hid_api);
         let devices: Vec<_> = devices.cloned().map(Device::new).collect();
 
         log::info!("Discovered {} connected ledger devices", devices.len());
@@ -127,7 +123,8 @@ impl LedgerApiT for LedgerApi {
 
     async fn open_app(&self, device: &Device, network: Network) -> () {
         let device_info = device.get_info().expect("Expected non-mock device");
-        let transport = TransportNativeHID::open_device(&self.hid_api, device_info).unwrap();
+        let hid_api = HidApi::new().unwrap();
+        let transport = TransportNativeHID::open_device(&hid_api, device_info).unwrap();
 
         let data = match network {
             Network::Bitcoin => "Bitcoin",
@@ -159,6 +156,11 @@ impl LedgerApiT for LedgerApi {
     }
 
     async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account> {
+        // TODO: It's a workaround of a problem that ledger disconnects after `open_app` request
+        // and so maintainionhg connection to it is impossible, so we try to reconnect to it
+        // after some delay.
+        tokio::time::sleep(DELAY_BEFORE_ACCOUNTS_DISCOVERY).await;
+
         match network {
             Network::Bitcoin => self.discover_bitcoin_accounts(device).await,
             Network::Ethereum => self.discover_ethereum_accounts(device).await,
@@ -170,7 +172,8 @@ impl LedgerApi {
     // TODO: It's just a showcase of communicating with bitcoin app.
     async fn discover_bitcoin_accounts(&self, device: &Device) -> Vec<Account> {
         let device_info = device.get_info().expect("Expected non-mock device");
-        let transport = TransportNativeHID::open_device(&self.hid_api, device_info).unwrap();
+        let hid_api = HidApi::new().unwrap();
+        let transport = TransportNativeHID::open_device(&hid_api, device_info).unwrap();
 
         #[allow(clippy::identity_op)]
         let data = &[

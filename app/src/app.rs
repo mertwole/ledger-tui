@@ -24,10 +24,7 @@ use crate::{
             CoinPriceApi, CoinPriceApiT, cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock,
         },
         common_types::{Account, Network},
-        ledger::{
-            Device, DeviceInfo, LedgerApi, LedgerApiT, cache::Cache as LedgerApiCache,
-            mock::LedgerApiMock,
-        },
+        ledger::{Device, DeviceInfo, LedgerApi, LedgerApiT, mock::LedgerApiMock},
         storage::{StorageApi, StorageApiT, mock::StorageApiMock},
     },
     screen::{OutgoingMessage, Screen, ScreenName, resources::Resources},
@@ -95,10 +92,8 @@ impl App {
         let mut state = StateRegistry::new();
 
         let mut api_registry = {
-            let ledger_api = LedgerApiMock::new(4, 4);
-            let _ledger_api = LedgerApi::new().await;
-            let mut ledger_api = LedgerApiCache::new(ledger_api).await;
-            ledger_api.set_all_modes(ModePlan::Transparent).await;
+            let _ledger_api = LedgerApiMock::new(4, 4);
+            let ledger_api = LedgerApi::new().await;
 
             let _coin_price_api = CoinPriceApiMock::new();
             let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
