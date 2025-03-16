@@ -37,13 +37,13 @@ pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         frame.size(),
     );
 
-    let accounts = model
-        .state
-        .device_accounts
-        .as_ref()
-        .expect("TODO: Enforce this rule at app level?");
+    let accounts = model.state.device_accounts.as_ref();
 
-    render_account_table(model, frame, accounts, resources);
+    if let Some(accounts) = accounts {
+        render_account_table(model, frame, accounts, resources);
+    } else {
+        render_account_table_placeholder(model, frame, resources);
+    }
 
     if model.show_navigation_help {
         let mapping = controller::InputEvent::get_mapping();
@@ -100,6 +100,14 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     state.select(selected_network);
 
     frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn render_account_table_placeholder<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+    model: &Model<C, M>,
+    frame: &mut Frame<'_>,
+    resources: &Resources,
+) {
+    // TODO
 }
 
 struct NetworkAccountsTable<'a> {

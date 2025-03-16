@@ -1,12 +1,13 @@
 use std::marker::PhantomData;
 
+use futures::executor::block_on;
 use ratatui::{Frame, crossterm::event::Event};
 
 use super::{OutgoingMessage, ScreenT, resources::Resources};
 use crate::{
     api::{
         blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
-        ledger::LedgerApiT, storage::StorageApiT,
+        common_types::Network, ledger::LedgerApiT, storage::StorageApiT,
     },
     app::{ApiRegistry, StateRegistry},
 };
@@ -24,9 +25,40 @@ pub struct Model<L: LedgerApiT, S: StorageApiT> {
 
 impl<L: LedgerApiT, S: StorageApiT> Model<L, S> {
     pub fn construct<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-        state: StateRegistry,
+        mut state: StateRegistry,
         api_registry: ApiRegistry<L, C, M, S>,
     ) -> (Self, ApiRegistry<L, C, M, S>) {
+        let active_device = state
+            .active_device
+            .clone()
+            .expect("TODO: Enforce this rule at app level?")
+            .0;
+
+        block_on(
+            api_registry
+                .ledger_api
+                .as_ref()
+                .unwrap()
+                .open_app(&active_device, Network::Bitcoin),
+        );
+
+        let mut device_accounts = vec![];
+        for network in [Network::Bitcoin, Network::Ethereum] {
+            let accounts = block_on(
+                api_registry
+                    .ledger_api
+                    .as_ref()
+                    .unwrap()
+                    .discover_accounts(&active_device, network),
+            );
+
+            if !accounts.is_empty() {
+                device_accounts.push((network, accounts));
+            }
+        }
+
+        state.device_accounts = Some(device_accounts);
+
         (
             Self {
                 show_navigation_help: false,

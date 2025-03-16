@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bigdecimal::BigDecimal;
-use futures::{executor::block_on, future::join_all};
+use futures::future::join_all;
 use itertools::Itertools;
 use ratatui::{Frame, crossterm::event::Event};
 use rust_decimal::Decimal;
@@ -38,44 +38,12 @@ type NetworkIdx = usize;
 
 impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
     pub fn construct<L: LedgerApiT, S: StorageApiT>(
-        mut state: StateRegistry,
+        state: StateRegistry,
         mut api_registry: ApiRegistry<L, C, M, S>,
     ) -> (Self, ApiRegistry<L, C, M, S>) {
         let coin_price_task = ApiTask::new(api_registry.coin_price_api.take().unwrap());
         let account_balances_task =
             ApiTask::new(api_registry.blockchain_monitoring_api.take().unwrap());
-
-        let active_device = state
-            .active_device
-            .clone()
-            .expect("TODO: Enforce this rule at app level?")
-            .0;
-
-        block_on(
-            api_registry
-                .ledger_api
-                .as_ref()
-                .unwrap()
-                .open_app(&active_device, Network::Bitcoin),
-        );
-
-        // TODO: Introduce separate screen where account loading and management will be performed.
-        let mut device_accounts = vec![];
-        for network in [Network::Bitcoin, Network::Ethereum] {
-            let accounts = block_on(
-                api_registry
-                    .ledger_api
-                    .as_ref()
-                    .unwrap()
-                    .discover_accounts(&active_device, network),
-            );
-
-            if !accounts.is_empty() {
-                device_accounts.push((network, accounts));
-            }
-        }
-
-        state.device_accounts = Some(device_accounts);
 
         (
             Self {
@@ -115,14 +83,12 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
             self.coin_prices = coin_prices;
         }
 
-        let accounts = self
-            .state
-            .device_accounts
-            .clone()
-            .expect("TODO: Enforce this rule at app level?");
+        let accounts = self.state.device_accounts.clone();
         let spawn_account_balances_task = |blockchain_monitoring_api: M| {
             tokio::task::spawn(async move {
                 let accounts: Vec<_> = accounts
+                    .into_iter()
+                    .flatten()
                     .into_iter()
                     .flat_map(|(network, accounts)| {
                         accounts.into_iter().map(move |account| (network, account))
