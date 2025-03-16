@@ -34,9 +34,6 @@ impl<L: LedgerApiT, S: StorageApiT> Model<L, S> {
         mut state: StateRegistry,
         mut api_registry: ApiRegistry<L, C, M, S>,
     ) -> (Self, ApiRegistry<L, C, M, S>) {
-        let fetch_accounts_task = ApiTask::new(api_registry.ledger_api.take().unwrap());
-        let store_accounts_task = ApiTask::new(api_registry.storage_api.take().unwrap());
-
         // TODO: Store unique device id alongside with accounts to have ability
         // to use more than one device with an app.
         let accounts = block_on(
@@ -50,7 +47,12 @@ impl<L: LedgerApiT, S: StorageApiT> Model<L, S> {
         if let Some(accounts) = accounts {
             let accounts: AccountList = serde_json::from_str(&accounts).unwrap();
             state.device_accounts = Some(accounts);
+        } else {
+            state.device_accounts = Some(vec![]);
         }
+
+        let fetch_accounts_task = ApiTask::new(api_registry.ledger_api.take().unwrap());
+        let store_accounts_task = ApiTask::new(api_registry.storage_api.take().unwrap());
 
         (
             Self {
@@ -127,6 +129,6 @@ impl<L: LedgerApiT, S: StorageApiT> ScreenT for Model<L, S> {
     async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
         self.tick_logic().await;
 
-        controller::process_input(event.as_ref()?, self)
+        controller::process_input(event.as_ref()?, self).await
     }
 }

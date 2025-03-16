@@ -61,8 +61,8 @@ where
 impl StateRegistry {
     fn new() -> StateRegistry {
         StateRegistry {
-            active_device: Default::default(),
-            device_accounts: Default::default(),
+            active_device: None,
+            device_accounts: None,
             selected_account: None,
             _phantom: PhantomData,
         }
