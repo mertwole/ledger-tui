@@ -22,7 +22,7 @@ use crate::{
         common_types::{Account, Network},
     },
     screen::{
-        common::{self, BackgroundWidget, network_symbol},
+        common::{self, BackgroundWidget, network_symbol, render_centered_text},
         resources::Resources,
     },
 };
@@ -42,7 +42,7 @@ pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     if let Some(accounts) = accounts {
         render_account_table(model, frame, accounts, resources);
     } else {
-        render_account_table_placeholder(model, frame, resources);
+        render_account_table_placeholder(frame, resources);
     }
 
     if model.show_navigation_help {
@@ -102,12 +102,10 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-fn render_account_table_placeholder<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<C, M>,
-    frame: &mut Frame<'_>,
-    resources: &Resources,
-) {
-    // TODO
+fn render_account_table_placeholder(frame: &mut Frame<'_>, resources: &Resources) {
+    let text =
+        Text::raw("No accounts found. Try importing some accounts [a].").fg(resources.main_color);
+    render_centered_text(frame, frame.size(), text);
 }
 
 struct NetworkAccountsTable<'a> {

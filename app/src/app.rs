@@ -115,8 +115,8 @@ impl App {
                 .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
                 .await;
 
-            let _storage_api = StorageApi::new("./data".into());
-            let storage_api = StorageApiMock::new();
+            let storage_api = StorageApi::new("./data".into());
+            let _storage_api = StorageApiMock::new();
 
             ApiRegistry {
                 ledger_api: Some(ledger_api),

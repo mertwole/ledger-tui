@@ -16,7 +16,7 @@ use crate::{
 mod controller;
 mod view;
 
-const ACCOUNT_STORAGE_NAME: &'static str = "accounts";
+const ACCOUNT_STORAGE_NAME: &str = "accounts";
 
 type AccountList = Vec<(Network, Vec<Account>)>;
 

@@ -89,7 +89,6 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
                 let accounts: Vec<_> = accounts
                     .into_iter()
                     .flatten()
-                    .into_iter()
                     .flat_map(|(network, accounts)| {
                         accounts.into_iter().map(move |account| (network, account))
                     })
