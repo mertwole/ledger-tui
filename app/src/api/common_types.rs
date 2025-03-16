@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum Network {
     Bitcoin,
     Ethereum,
@@ -25,9 +27,7 @@ impl Network {
     }
 }
 
-// TODO: Don't allow to construct it directly
-// And allow mocks to substitute `MockAccount` instead of `Account`.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct Account {
     pub public_key: String,
 }

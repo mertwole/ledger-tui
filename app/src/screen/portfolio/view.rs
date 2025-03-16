@@ -22,7 +22,7 @@ use crate::{
         common_types::{Account, Network},
     },
     screen::{
-        common::{self, BackgroundWidget, network_symbol},
+        common::{self, BackgroundWidget, network_symbol, render_centered_text},
         resources::Resources,
     },
 };
@@ -37,13 +37,13 @@ pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         frame.size(),
     );
 
-    let accounts = model
-        .state
-        .device_accounts
-        .as_ref()
-        .expect("TODO: Enforce this rule at app level?");
+    let accounts = model.state.device_accounts.as_ref();
 
-    render_account_table(model, frame, accounts, resources);
+    if let Some(accounts) = accounts {
+        render_account_table(model, frame, accounts, resources);
+    } else {
+        render_account_table_placeholder(frame, resources);
+    }
 
     if model.show_navigation_help {
         let mapping = controller::InputEvent::get_mapping();
@@ -100,6 +100,12 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     state.select(selected_network);
 
     frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn render_account_table_placeholder(frame: &mut Frame<'_>, resources: &Resources) {
+    let text =
+        Text::raw("No accounts found. Try importing some accounts [a].").fg(resources.main_color);
+    render_centered_text(frame, frame.size(), text);
 }
 
 struct NetworkAccountsTable<'a> {

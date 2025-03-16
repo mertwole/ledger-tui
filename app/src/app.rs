@@ -24,11 +24,8 @@ use crate::{
             CoinPriceApi, CoinPriceApiT, cache::Cache as CoinPriceApiCache, mock::CoinPriceApiMock,
         },
         common_types::{Account, Network},
-        ledger::{
-            Device, DeviceInfo, LedgerApi, LedgerApiT, cache::Cache as LedgerApiCache,
-            mock::LedgerApiMock,
-        },
-        storage::{StorageApi, mock::StorageApiMock},
+        ledger::{Device, DeviceInfo, LedgerApi, LedgerApiT, mock::LedgerApiMock},
+        storage::{StorageApi, StorageApiT, mock::StorageApiMock},
     },
     screen::{OutgoingMessage, Screen, ScreenName, resources::Resources},
 };
@@ -47,23 +44,25 @@ pub(crate) struct StateRegistry {
     _phantom: PhantomData<()>,
 }
 
-pub(crate) struct ApiRegistry<L, C, M>
+pub(crate) struct ApiRegistry<L, C, M, S>
 where
     L: LedgerApiT,
     C: CoinPriceApiT,
     M: BlockchainMonitoringApiT,
+    S: StorageApiT,
 {
     pub ledger_api: Option<L>,
     pub coin_price_api: Option<C>,
     pub blockchain_monitoring_api: Option<M>,
+    pub storage_api: Option<S>,
     _phantom: PhantomData<()>,
 }
 
 impl StateRegistry {
     fn new() -> StateRegistry {
         StateRegistry {
-            active_device: Default::default(),
-            device_accounts: Default::default(),
+            active_device: None,
+            device_accounts: None,
             selected_account: None,
             _phantom: PhantomData,
         }
@@ -93,10 +92,8 @@ impl App {
         let mut state = StateRegistry::new();
 
         let mut api_registry = {
-            let ledger_api = LedgerApiMock::new(4, 4);
-            let _ledger_api = LedgerApi::new().await;
-            let mut ledger_api = LedgerApiCache::new(ledger_api).await;
-            ledger_api.set_all_modes(ModePlan::Transparent).await;
+            let _ledger_api = LedgerApiMock::new(4, 4);
+            let ledger_api = LedgerApi::new().await;
 
             let _coin_price_api = CoinPriceApiMock::new();
             let coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
@@ -118,13 +115,14 @@ impl App {
                 .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
                 .await;
 
-            let _storage_api = StorageApi::new("./data".into());
+            let storage_api = StorageApi::new("./data".into());
             let _storage_api = StorageApiMock::new();
 
             ApiRegistry {
                 ledger_api: Some(ledger_api),
                 coin_price_api: Some(coin_price_api),
                 blockchain_monitoring_api: Some(blockchain_monitoring_api),
+                storage_api: Some(storage_api),
                 _phantom: PhantomData,
             }
         };
@@ -162,12 +160,13 @@ impl App {
         L: LedgerApiT,
         C: CoinPriceApiT,
         M: BlockchainMonitoringApiT,
+        S: StorageApiT,
     >(
         screen: ScreenName,
         state: StateRegistry,
-        api_registry: ApiRegistry<L, C, M>,
+        api_registry: ApiRegistry<L, C, M, S>,
         terminal: &mut Terminal<B>,
-    ) -> (ApiRegistry<L, C, M>, StateRegistry, OutgoingMessage) {
+    ) -> (ApiRegistry<L, C, M, S>, StateRegistry, OutgoingMessage) {
         let mut screen = Screen::new(screen, state, api_registry);
 
         let resources = Resources::default();

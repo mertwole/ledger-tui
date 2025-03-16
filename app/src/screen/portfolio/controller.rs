@@ -24,6 +24,10 @@ pub enum InputEvent {
     #[description = "Open device selection screen"]
     OpenDeviceSelection,
 
+    #[key = 'a']
+    #[description = "Open account discovery screen"]
+    OpenAccountDiscovery,
+
     #[key = "KeyCode::Down"]
     #[description = "Navigate down in list"]
     Down,
@@ -51,6 +55,9 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         }
         InputEvent::OpenDeviceSelection => {
             return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection));
+        }
+        InputEvent::OpenAccountDiscovery => {
+            return Some(OutgoingMessage::SwitchScreen(ScreenName::AccountDiscovery));
         }
         _ => {}
     };
