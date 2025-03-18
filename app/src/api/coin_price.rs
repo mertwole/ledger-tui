@@ -1,13 +1,16 @@
-use api_proc_macro::implement_cache;
 use async_trait::async_trait;
 use binance_spot_connector_rust::{
+    hyper::BinanceHttpClient,
     market::{self, klines::KlineInterval},
-    ureq::BinanceHttpClient,
 };
 use chrono::{DateTime, Utc};
+use hyper::client::HttpConnector;
+use hyper_tls::HttpsConnector;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
+
+use api_proc_macro::implement_cache;
 
 implement_cache! {
     #[async_trait]
@@ -54,7 +57,7 @@ impl Coin {
 }
 
 pub struct CoinPriceApi {
-    client: BinanceHttpClient,
+    client: BinanceHttpClient<HttpsConnector<HttpConnector>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -133,8 +136,10 @@ impl CoinPriceApiT for CoinPriceApi {
         let price = self
             .client
             .send(market::avg_price(&pair))
+            .await
             .unwrap()
             .into_body_str()
+            .await
             .unwrap();
 
         let price: BinanceApiMarketAvgPriceResponse = serde_json::from_str(&price).unwrap();
@@ -161,7 +166,14 @@ impl CoinPriceApiT for CoinPriceApi {
 
         let request = market::klines(&pair, kline_interval).limit(limit);
 
-        let history = self.client.send(request).unwrap().into_body_str().unwrap();
+        let history = self
+            .client
+            .send(request)
+            .await
+            .unwrap()
+            .into_body_str()
+            .await
+            .unwrap();
         let history: Vec<BinanceApiKline> = serde_json::from_str(&history).unwrap();
 
         Some(
