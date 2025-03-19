@@ -36,4 +36,4 @@ serde_json.workspace = true
 strum = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["time", "rt-multi-thread", "fs"] }
 toml.workspace = true
-tui-widget-list.workspace = true
+tui-tree-widget.workspace = true
