@@ -1,4 +1,4 @@
 /target
 log
 NetworkApiConfig.toml
-data
+/data
