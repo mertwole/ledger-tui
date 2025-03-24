@@ -22,7 +22,8 @@ mod controller;
 mod view;
 
 pub struct Model<C: CoinPriceApiT, M: BlockchainMonitoringApiT> {
-    selected_account: Option<(NetworkIdx, AccountIdx)>,
+    selected_network: Option<NetworkIdx>,
+    selected_account: Option<AccountIdx>,
     coin_prices: HashMap<Network, Option<Decimal>>,
     balances: HashMap<(Network, Account), BigDecimal>,
     show_navigation_help: bool,
@@ -47,9 +48,10 @@ impl<C: CoinPriceApiT, M: BlockchainMonitoringApiT> Model<C, M> {
 
         (
             Self {
+                selected_network: None,
                 selected_account: None,
-                coin_prices: Default::default(),
-                balances: Default::default(),
+                coin_prices: HashMap::new(),
+                balances: HashMap::new(),
                 show_navigation_help: false,
 
                 state,
