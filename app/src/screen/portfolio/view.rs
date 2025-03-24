@@ -1,19 +1,9 @@
-use std::iter;
-
-use bigdecimal::{BigDecimal, FromPrimitive};
 use input_mapping_common::InputMappingT;
 use ratatui::{
     Frame,
-    buffer::Buffer,
-    layout::{Alignment, Constraint, Rect},
     style::{Style, Stylize},
     text::Text,
-    widgets::{
-        Block, BorderType, Borders, HighlightSpacing, Row, StatefulWidget, Table, TableState,
-        Widget, block::Title,
-    },
 };
-use rust_decimal::Decimal;
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 use super::{Model, controller};
@@ -24,7 +14,7 @@ use crate::{
         common_types::{Account, Network},
     },
     screen::{
-        common::{self, BackgroundWidget, network_symbol, render_centered_text},
+        common::{self, BackgroundWidget},
         resources::Resources,
     },
 };
@@ -36,7 +26,7 @@ pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
 ) {
     frame.render_widget(
         BackgroundWidget::new(resources.background_color),
-        frame.size(),
+        frame.area(),
     );
 
     let accounts = model.state.device_accounts.as_ref();
@@ -127,9 +117,4 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     }
 
     frame.render_stateful_widget(tree, area, &mut tree_state);
-}
-
-fn mul_bigdecimal_decimal(lhs: BigDecimal, rhs: Decimal) -> BigDecimal {
-    lhs * BigDecimal::from_f64(rhs.try_into().expect("Failed to convert Decimal to f64"))
-        .expect("Fauiled to convert f64 to BigDecimal")
 }

@@ -69,27 +69,26 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         .expect("TODO: Enforce this rule at app level?");
 
     if matches!(event, InputEvent::Select) {
-        match (model.selected_network, model.selected_account) {
-            (Some(network_idx), Some(account_idx)) => {
-                if network_idx == accounts.len() {
-                    // TODO: Add network.
-                    return None;
-                }
-
-                let (selected_network, accounts) = &accounts[network_idx];
-
-                if account_idx == accounts.len() {
-                    // TODO: Add account.
-                    return None;
-                }
-
-                let selected_account = accounts[account_idx].clone();
-
-                model.state.selected_account = Some((*selected_network, selected_account));
-
-                return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
+        if let (Some(network_idx), Some(account_idx)) =
+            (model.selected_network, model.selected_account)
+        {
+            if network_idx == accounts.len() {
+                // TODO: Add network.
+                return None;
             }
-            _ => {}
+
+            let (selected_network, accounts) = &accounts[network_idx];
+
+            if account_idx == accounts.len() {
+                // TODO: Add account.
+                return None;
+            }
+
+            let selected_account = accounts[account_idx].clone();
+
+            model.state.selected_account = Some((*selected_network, selected_account));
+
+            return Some(OutgoingMessage::SwitchScreen(ScreenName::Asset));
         }
     }
 
@@ -121,25 +120,19 @@ fn process_table_navigation(
             if let Some(selected_account_idx) = selected_account {
                 if *selected_account_idx + 1 < entries_per_network[*selected_network_idx] {
                     *selected_account_idx += 1;
-                } else {
-                    if *selected_network_idx + 1 < entries_per_network.len() {
-                        *selected_network_idx += 1;
-                        *selected_account = None;
-                    }
+                } else if *selected_network_idx + 1 < entries_per_network.len() {
+                    *selected_network_idx += 1;
+                    *selected_account = None;
+                }
+            } else if entries_per_network[*selected_network_idx] == 0 {
+                if *selected_network_idx + 1 < entries_per_network.len() {
+                    *selected_network_idx += 1;
                 }
             } else {
-                if entries_per_network[*selected_network_idx] == 0 {
-                    if *selected_network_idx + 1 < entries_per_network.len() {
-                        *selected_network_idx += 1;
-                    }
-                } else {
-                    *selected_account = Some(0);
-                }
+                *selected_account = Some(0);
             }
-        } else {
-            if !entries_per_network.is_empty() {
-                *selected_network = Some(0);
-            }
+        } else if !entries_per_network.is_empty() {
+            *selected_network = Some(0);
         }
     }
 
@@ -151,24 +144,20 @@ fn process_table_navigation(
                 } else {
                     *selected_account = None;
                 }
-            } else {
-                if *selected_network_idx != 0 {
-                    *selected_network_idx -= 1;
-                    let accounts_len = entries_per_network[*selected_network_idx];
-                    if accounts_len != 0 {
-                        *selected_account = Some(accounts_len - 1);
-                    }
+            } else if *selected_network_idx != 0 {
+                *selected_network_idx -= 1;
+                let accounts_len = entries_per_network[*selected_network_idx];
+                if accounts_len != 0 {
+                    *selected_account = Some(accounts_len - 1);
                 }
             }
-        } else {
-            if !entries_per_network.is_empty() {
-                *selected_network = Some(entries_per_network.len() - 1);
-                let last_accounts_len = *entries_per_network
-                    .last()
-                    .expect("accounts_per_network checked to be non-empty");
-                if last_accounts_len != 0 {
-                    *selected_account = Some(last_accounts_len - 1);
-                }
+        } else if !entries_per_network.is_empty() {
+            *selected_network = Some(entries_per_network.len() - 1);
+            let last_accounts_len = *entries_per_network
+                .last()
+                .expect("accounts_per_network checked to be non-empty");
+            if last_accounts_len != 0 {
+                *selected_account = Some(last_accounts_len - 1);
             }
         }
     }

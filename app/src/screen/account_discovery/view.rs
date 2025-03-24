@@ -18,7 +18,7 @@ pub(super) fn render<L: LedgerApiT, S: StorageApiT>(
 ) {
     frame.render_widget(
         BackgroundWidget::new(resources.background_color),
-        frame.size(),
+        frame.area(),
     );
 
     if model.show_navigation_help {

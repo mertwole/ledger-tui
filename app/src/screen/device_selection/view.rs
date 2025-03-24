@@ -21,7 +21,7 @@ pub(super) fn render<L: LedgerApiT>(
     frame: &mut Frame<'_>,
     resources: &Resources,
 ) {
-    let area = frame.size();
+    let area = frame.area();
 
     frame.render_widget(BackgroundWidget::new(resources.background_color), area);
 
