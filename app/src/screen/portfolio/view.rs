@@ -57,48 +57,49 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     accounts: &[(Network, Vec<Account>)],
     resources: &Resources,
 ) {
-    let area = frame.size();
+    let area = frame.area();
 
     let tree_items: Vec<_> = accounts
         .iter()
-        .enumerate()
-        .map(|(network_idx, (network, accounts))| {
+        .map(|(network, accounts)| {
             let network_name = network.get_info().name;
 
             let leafs = accounts
                 .iter()
-                .enumerate()
-                .map(|(account_idx, account)| {
+                .map(|account| {
                     // TODO: Pretty formatting.
                     let pk = account.get_info().public_key[..8].to_string();
-                    let mut text = Text::from(pk.clone()).fg(resources.main_color);
-
-                    if Some(account_idx) == model.selected_account
-                        && Some(network_idx) == model.selected_network
-                    {
-                        text = text.bold();
-                    }
+                    let text = Text::from(pk.clone()).fg(resources.main_color);
 
                     TreeItem::new_leaf(pk, text)
                 })
                 .collect();
 
-            let mut text = Text::from(network_name.clone()).fg(resources.main_color);
-
-            if Some(network_idx) == model.selected_network && model.selected_account.is_none() {
-                text = text.bold();
-            }
-
+            let text = Text::from(network_name.clone()).fg(resources.main_color);
             TreeItem::new(network_name, text, leafs).expect("Duplicate networks found")
         })
         .collect();
 
-    let tree = Tree::new(&tree_items).expect("Duplicate networks found");
+    let tree = Tree::new(&tree_items)
+        .expect("Duplicate networks found")
+        .highlight_style(Style::new().bold());
 
     let mut tree_state = TreeState::default();
 
-    for account in accounts {
-        tree_state.open(vec![account.0.get_info().name]);
+    for &(network, _) in accounts {
+        tree_state.open(vec![network.get_info().name]);
+    }
+
+    if let Some(network_idx) = model.selected_network {
+        let (network, accounts) = &accounts[network_idx];
+        let mut path = vec![network.get_info().name];
+
+        if let Some(account_idx) = model.selected_account {
+            let account = accounts[account_idx].get_info().public_key[..8].to_string();
+            path.push(account);
+        }
+
+        tree_state.select(path);
     }
 
     frame.render_stateful_widget(tree, area, &mut tree_state);
