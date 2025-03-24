@@ -1,3 +1,5 @@
+use std::iter;
+
 use input_mapping_common::InputMappingT;
 use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::{Event, KeyCode};
@@ -69,7 +71,18 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     if matches!(event, InputEvent::Select) {
         match (model.selected_network, model.selected_account) {
             (Some(network_idx), Some(account_idx)) => {
+                if network_idx == accounts.len() {
+                    // TODO: Add network.
+                    return None;
+                }
+
                 let (selected_network, accounts) = &accounts[network_idx];
+
+                if account_idx == accounts.len() {
+                    // TODO: Add account.
+                    return None;
+                }
+
                 let selected_account = accounts[account_idx].clone();
 
                 model.state.selected_account = Some((*selected_network, selected_account));
@@ -80,16 +93,17 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         }
     }
 
-    let accounts_per_network: Vec<_> = accounts
+    let entries_per_network: Vec<_> = accounts
         .iter()
-        .map(|(_, accounts)| accounts.len())
+        .map(|(_, accounts)| accounts.len() + 1)
+        .chain(iter::once(0))
         .collect();
 
     process_table_navigation(
         &mut model.selected_network,
         &mut model.selected_account,
         &event,
-        &accounts_per_network,
+        &entries_per_network,
     );
 
     None
@@ -99,23 +113,23 @@ fn process_table_navigation(
     selected_network: &mut Option<NetworkIdx>,
     selected_account: &mut Option<NetworkIdx>,
     event: &InputEvent,
-    accounts_per_network: &[usize],
+    entries_per_network: &[usize],
 ) {
     // TODO: Refactor these if-else.
     if matches!(event, InputEvent::Down) {
         if let Some(selected_network_idx) = selected_network {
             if let Some(selected_account_idx) = selected_account {
-                if *selected_account_idx + 1 < accounts_per_network[*selected_network_idx] {
+                if *selected_account_idx + 1 < entries_per_network[*selected_network_idx] {
                     *selected_account_idx += 1;
                 } else {
-                    if *selected_network_idx + 1 < accounts_per_network.len() {
+                    if *selected_network_idx + 1 < entries_per_network.len() {
                         *selected_network_idx += 1;
                         *selected_account = None;
                     }
                 }
             } else {
-                if accounts_per_network[*selected_network_idx] == 0 {
-                    if *selected_network_idx + 1 < accounts_per_network.len() {
+                if entries_per_network[*selected_network_idx] == 0 {
+                    if *selected_network_idx + 1 < entries_per_network.len() {
                         *selected_network_idx += 1;
                     }
                 } else {
@@ -123,7 +137,7 @@ fn process_table_navigation(
                 }
             }
         } else {
-            if !accounts_per_network.is_empty() {
+            if !entries_per_network.is_empty() {
                 *selected_network = Some(0);
             }
         }
@@ -140,16 +154,16 @@ fn process_table_navigation(
             } else {
                 if *selected_network_idx != 0 {
                     *selected_network_idx -= 1;
-                    let accounts_len = accounts_per_network[*selected_network_idx];
+                    let accounts_len = entries_per_network[*selected_network_idx];
                     if accounts_len != 0 {
                         *selected_account = Some(accounts_len - 1);
                     }
                 }
             }
         } else {
-            if !accounts_per_network.is_empty() {
-                *selected_network = Some(accounts_per_network.len() - 1);
-                let last_accounts_len = *accounts_per_network
+            if !entries_per_network.is_empty() {
+                *selected_network = Some(entries_per_network.len() - 1);
+                let last_accounts_len = *entries_per_network
                     .last()
                     .expect("accounts_per_network checked to be non-empty");
                 if last_accounts_len != 0 {

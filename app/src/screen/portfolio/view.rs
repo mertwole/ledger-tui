@@ -1,3 +1,5 @@
+use std::iter;
+
 use bigdecimal::{BigDecimal, FromPrimitive};
 use input_mapping_common::InputMappingT;
 use ratatui::{
@@ -59,12 +61,12 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
 ) {
     let area = frame.area();
 
-    let tree_items: Vec<_> = accounts
+    let mut tree_items: Vec<_> = accounts
         .iter()
         .map(|(network, accounts)| {
             let network_name = network.get_info().name;
 
-            let leafs = accounts
+            let mut leafs: Vec<_> = accounts
                 .iter()
                 .map(|account| {
                     // TODO: Pretty formatting.
@@ -75,10 +77,24 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
                 })
                 .collect();
 
+            let add_account_tree_item = TreeItem::new_leaf(
+                "AddAccount".to_string(),
+                Text::from("+ discover accounts").fg(resources.main_color),
+            );
+
+            leafs.push(add_account_tree_item);
+
             let text = Text::from(network_name.clone()).fg(resources.main_color);
             TreeItem::new(network_name, text, leafs).expect("Duplicate networks found")
         })
         .collect();
+
+    let add_network_tree_item = TreeItem::new_leaf(
+        "AddNetwork".to_string(),
+        Text::from("+ add networks").fg(resources.main_color),
+    );
+
+    tree_items.push(add_network_tree_item);
 
     let tree = Tree::new(&tree_items)
         .expect("Duplicate networks found")
@@ -91,15 +107,23 @@ fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     }
 
     if let Some(network_idx) = model.selected_network {
-        let (network, accounts) = &accounts[network_idx];
-        let mut path = vec![network.get_info().name];
+        if network_idx == accounts.len() {
+            tree_state.select(vec!["AddNetwork".to_string()]);
+        } else {
+            let (network, accounts) = &accounts[network_idx];
+            let mut path = vec![network.get_info().name];
 
-        if let Some(account_idx) = model.selected_account {
-            let account = accounts[account_idx].get_info().public_key[..8].to_string();
-            path.push(account);
+            if let Some(account_idx) = model.selected_account {
+                if account_idx == accounts.len() {
+                    path.push("AddAccount".to_string());
+                } else {
+                    let account = accounts[account_idx].get_info().public_key[..8].to_string();
+                    path.push(account);
+                }
+            }
+
+            tree_state.select(path);
         }
-
-        tree_state.select(path);
     }
 
     frame.render_stateful_widget(tree, area, &mut tree_state);
