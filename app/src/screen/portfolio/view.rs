@@ -71,9 +71,10 @@ fn render_account_table<
             let mut leafs: Vec<_> = accounts
                 .iter()
                 .map(|account| {
+                    let pk = account.get_info().public_key;
+
                     // TODO: Pretty formatting.
-                    let pk = account.get_info().public_key[..8].to_string();
-                    let text = Text::from(pk.clone()).fg(resources.main_color);
+                    let text = Text::from(pk[..8].to_string().clone()).fg(resources.main_color);
 
                     TreeItem::new_leaf(pk, text)
                 })
