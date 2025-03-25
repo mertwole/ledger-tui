@@ -6,7 +6,10 @@ use ratatui::crossterm::event::{Event, KeyCode};
 
 use super::{Model, NetworkIdx};
 use crate::{
-    api::{blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT},
+    api::{
+        blockchain_monitoring::BlockchainMonitoringApiT, coin_price::CoinPriceApiT,
+        ledger::LedgerApiT, storage::StorageApiT,
+    },
     screen::{OutgoingMessage, ScreenName},
 };
 
@@ -24,10 +27,6 @@ pub enum InputEvent {
     #[description = "Open device selection screen"]
     OpenDeviceSelection,
 
-    #[key = 'a']
-    #[description = "Open account discovery screen"]
-    OpenAccountDiscovery,
-
     #[key = "KeyCode::Down"]
     #[description = "Navigate down in list"]
     Down,
@@ -41,9 +40,14 @@ pub enum InputEvent {
     Select,
 }
 
-pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
+pub(super) async fn process_input<
+    L: LedgerApiT,
+    C: CoinPriceApiT,
+    M: BlockchainMonitoringApiT,
+    S: StorageApiT,
+>(
     event: &Event,
-    model: &mut Model<C, M>,
+    model: &mut Model<L, C, M, S>,
 ) -> Option<OutgoingMessage> {
     let event = InputEvent::map_event(event.clone())?;
 
@@ -55,9 +59,6 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         }
         InputEvent::OpenDeviceSelection => {
             return Some(OutgoingMessage::SwitchScreen(ScreenName::DeviceSelection));
-        }
-        InputEvent::OpenAccountDiscovery => {
-            return Some(OutgoingMessage::SwitchScreen(ScreenName::AccountDiscovery));
         }
         _ => {}
     };
@@ -80,7 +81,8 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
             let (selected_network, accounts) = &accounts[network_idx];
 
             if account_idx == accounts.len() {
-                // TODO: Add account.
+                model.fetch_accounts(*selected_network).await;
+
                 return None;
             }
 

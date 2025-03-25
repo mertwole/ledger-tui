@@ -250,7 +250,12 @@ pub mod mock {
             ]);
             accounts.insert(Network::Bitcoin, btc_accounts);
 
-            let eth_accounts = repeat_accounts(vec!["0x1234567891011121123456789101112112345678"]);
+            let eth_accounts = repeat_accounts(vec![
+                "0x1234567891011121123456789101112112345678",
+                "0x1111111111111111111111111111111111111111",
+                "0x3333333333333333333333333333333333333333",
+                "0x5555555555555555555555555555555555555555",
+            ]);
             accounts.insert(Network::Ethereum, eth_accounts);
 
             Self {

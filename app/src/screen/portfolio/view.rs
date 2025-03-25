@@ -12,6 +12,8 @@ use crate::{
         blockchain_monitoring::BlockchainMonitoringApiT,
         coin_price::CoinPriceApiT,
         common_types::{Account, Network},
+        ledger::LedgerApiT,
+        storage::StorageApiT,
     },
     screen::{
         common::{self, BackgroundWidget},
@@ -19,8 +21,13 @@ use crate::{
     },
 };
 
-pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<C, M>,
+pub(super) fn render<
+    L: LedgerApiT,
+    C: CoinPriceApiT,
+    M: BlockchainMonitoringApiT,
+    S: StorageApiT,
+>(
+    model: &Model<L, C, M, S>,
     frame: &mut Frame<'_>,
     resources: &Resources,
 ) {
@@ -43,8 +50,13 @@ pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     }
 }
 
-fn render_account_table<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
-    model: &Model<C, M>,
+fn render_account_table<
+    L: LedgerApiT,
+    C: CoinPriceApiT,
+    M: BlockchainMonitoringApiT,
+    S: StorageApiT,
+>(
+    model: &Model<L, C, M, S>,
     frame: &mut Frame<'_>,
     accounts: &[(Network, Vec<Account>)],
     resources: &Resources,
