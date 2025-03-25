@@ -66,7 +66,7 @@ pub fn render_navigation_help(
     frame: &mut Frame<'_>,
     resources: &Resources,
 ) {
-    let area = frame.size();
+    let area = frame.area();
 
     let bindings = input_mapping
         .mapping

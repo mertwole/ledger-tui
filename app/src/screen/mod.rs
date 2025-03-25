@@ -9,7 +9,6 @@ use crate::{
     app::{ApiRegistry, StateRegistry},
 };
 
-pub mod account_discovery;
 pub mod asset;
 mod common;
 pub mod deposit;
@@ -27,8 +26,7 @@ enum ScreenModel<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S
     Asset(asset::Model<C, M>),
     Deposit(deposit::Model),
     DeviceSelection(device_selection::Model<L>),
-    Portfolio(portfolio::Model<C, M>),
-    AccountDiscovery(account_discovery::Model<L, S>),
+    Portfolio(portfolio::Model<L, C, M, S>),
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApiT>
@@ -71,14 +69,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
                     model: ScreenModel::Portfolio(model),
                 }
             }
-            ScreenName::AccountDiscovery => {
-                let (model, remaining_apis) =
-                    account_discovery::Model::construct(state_registry, api_registry);
-                Self {
-                    remaining_apis,
-                    model: ScreenModel::AccountDiscovery(model),
-                }
-            }
         }
     }
 
@@ -88,7 +78,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
             ScreenModel::Deposit(screen) => screen.render(frame, resources),
             ScreenModel::DeviceSelection(screen) => screen.render(frame, resources),
             ScreenModel::Portfolio(screen) => screen.render(frame, resources),
-            ScreenModel::AccountDiscovery(screen) => screen.render(frame, resources),
         }
     }
 
@@ -98,7 +87,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
             ScreenModel::Deposit(screen) => screen.tick(event).await,
             ScreenModel::DeviceSelection(screen) => screen.tick(event).await,
             ScreenModel::Portfolio(screen) => screen.tick(event).await,
-            ScreenModel::AccountDiscovery(screen) => screen.tick(event).await,
         }
     }
 
@@ -108,7 +96,6 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
             ScreenModel::Deposit(model) => model.deconstruct(self.remaining_apis).await,
             ScreenModel::DeviceSelection(model) => model.deconstruct(self.remaining_apis).await,
             ScreenModel::Portfolio(model) => model.deconstruct(self.remaining_apis).await,
-            ScreenModel::AccountDiscovery(model) => model.deconstruct(self.remaining_apis).await,
         }
     }
 }
@@ -131,5 +118,4 @@ pub enum ScreenName {
     Portfolio,
     Asset,
     Deposit,
-    AccountDiscovery,
 }

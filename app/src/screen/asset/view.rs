@@ -36,7 +36,7 @@ pub(super) fn render<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
     frame: &mut Frame<'_>,
     resources: &Resources,
 ) {
-    let area = frame.size();
+    let area = frame.area();
 
     frame.render_widget(BackgroundWidget::new(resources.background_color), area);
 
@@ -244,7 +244,7 @@ fn render_tx_list(
         .intersperse(Row::new(vec!["", "", ""]));
 
     let table = Table::new(rows, [Constraint::Ratio(1, 3); 3])
-        .highlight_style(Style::new().reversed())
+        .row_highlight_style(Style::new().reversed())
         .highlight_spacing(HighlightSpacing::WhenSelected)
         .highlight_symbol(">>");
 
