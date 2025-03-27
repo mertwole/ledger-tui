@@ -234,16 +234,14 @@ impl LedgerApi {
         #[allow(clippy::identity_op)]
         let data = &[
             // Number of BIP 32 derivations to perform (max 10)
-            &[5u8][..],
+            &[4u8][..],
             // 1st derivation index (big endian)
-            &((1u32 << 31) ^ 84u32).to_be_bytes()[..],
+            &((1u32 << 31) ^ 44u32).to_be_bytes()[..],
             // 2nd derivation index (big endian)
-            &((1u32 << 31) ^ 0u32).to_be_bytes()[..],
+            &((1u32 << 31) ^ 60u32).to_be_bytes()[..],
             // 3rd derivation index (big endian)
             &((1u32 << 31) ^ 0u32).to_be_bytes()[..],
             // 4th derivation index (big endian)
-            &0u32.to_be_bytes()[..],
-            // 5th derivation index (big endian)
             &0u32.to_be_bytes()[..],
             //Optional - 8 bytes for chain id.
         ]
@@ -252,7 +250,7 @@ impl LedgerApi {
         let command = APDUCommand {
             cla: 0xE0,
             ins: 0x02,
-            p1: 0x00, // 0x00 - return address; 0x01 - display address and return.
+            p1: 0x01, // 0x00 - return address; 0x01 - display address and return.
             p2: 0x00, // 0x00 - do not return the chain code; 0x01 - return the chain code.
             data,
         };
@@ -268,20 +266,17 @@ impl LedgerApi {
         let response = response.data();
 
         let public_key_length = response[0] as usize;
-        let public_key = &response[1..public_key_length + 1];
+        let _public_key = &response[1..1 + public_key_length];
 
-        let ethereum_address_length = response[public_key_length + 1] as usize;
-        let _ethereum_address = &response
-            [1 + public_key_length + 1..1 + public_key_length + 1 + ethereum_address_length + 1];
+        let ethereum_address_length = response[1 + public_key_length] as usize;
+        let ethereum_address = &response
+            [1 + public_key_length + 1..1 + public_key_length + 1 + ethereum_address_length];
 
-        // The last 32 bytes will contain chain code if it was requested.
-
-        let public_key = hex::encode(public_key);
-        let public_key = ["0x", &public_key].concat();
+        let public_key = String::from_utf8(ethereum_address.to_vec()).unwrap();
 
         log::info!(
             "Discovered ethereum account with public key = {}",
-            public_key
+            public_key,
         );
 
         vec![Account { public_key }]
