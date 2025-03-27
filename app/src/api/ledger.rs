@@ -250,7 +250,7 @@ impl LedgerApi {
         let command = APDUCommand {
             cla: 0xE0,
             ins: 0x02,
-            p1: 0x01, // 0x00 - return address; 0x01 - display address and return.
+            p1: 0x00, // 0x00 - return address; 0x01 - display address and return.
             p2: 0x00, // 0x00 - do not return the chain code; 0x01 - return the chain code.
             data,
         };
@@ -273,6 +273,7 @@ impl LedgerApi {
             [1 + public_key_length + 1..1 + public_key_length + 1 + ethereum_address_length];
 
         let public_key = String::from_utf8(ethereum_address.to_vec()).unwrap();
+        let public_key = ["0x", &public_key].concat();
 
         log::info!(
             "Discovered ethereum account with public key = {}",
