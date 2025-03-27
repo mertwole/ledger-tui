@@ -2745,6 +2745,7 @@ dependencies = [
  "chrono",
  "copypasta",
  "futures",
+ "hex",
  "input-mapping-common",
  "input-mapping-derive",
  "itertools 0.13.0",

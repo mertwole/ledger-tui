@@ -92,8 +92,8 @@ impl App {
         let mut state = StateRegistry::new();
 
         let mut api_registry = {
-            let ledger_api = LedgerApiMock::new(4, 4);
-            let _ledger_api = LedgerApi::new().await;
+            let _ledger_api = LedgerApiMock::new(4, 4);
+            let ledger_api = LedgerApi::new().await;
 
             let coin_price_api = CoinPriceApiMock::new();
             let _coin_price_api = CoinPriceApi::new("https://data-api.binance.vision");
@@ -115,8 +115,8 @@ impl App {
                 .set_all_modes(ModePlan::TimedOut(Duration::from_secs(3)))
                 .await;
 
-            let storage_api = StorageApi::new("./data".into());
-            let _storage_api = StorageApiMock::new();
+            let _storage_api = StorageApi::new("./data".into());
+            let storage_api = StorageApiMock::new();
 
             ApiRegistry {
                 ledger_api: Some(ledger_api),
