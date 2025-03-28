@@ -23,9 +23,13 @@ pub enum InputEvent {
     #[description = "Return one screen back"]
     Back,
 
-    #[key = 's']
+    #[key = 'e']
     #[description = "Open deposit screen"]
     OpenDepositScreen,
+
+    #[key = 's']
+    #[description = "Open send screen"]
+    OpenSendScreen,
 
     SelectTimeInterval(SelectTimeInterval),
 }
@@ -67,6 +71,7 @@ pub(super) fn process_input<C: CoinPriceApiT, M: BlockchainMonitoringApiT>(
         }
         InputEvent::Back => Some(OutgoingMessage::Back),
         InputEvent::OpenDepositScreen => Some(OutgoingMessage::SwitchScreen(ScreenName::Deposit)),
+        InputEvent::OpenSendScreen => Some(OutgoingMessage::SwitchScreen(ScreenName::Send)),
         InputEvent::SelectTimeInterval(event) => {
             model.selected_time_period = match event {
                 SelectTimeInterval::Day => TimePeriod::Day,
