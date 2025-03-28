@@ -1,13 +1,9 @@
-use std::time::Duration;
-
 use input_mapping_common::InputMappingT;
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Flex, Layout, Rect},
-    prelude::Buffer,
-    style::{Color, Stylize},
+    layout::{Constraint, Flex, Layout},
+    style::Stylize,
     text::Text,
-    widgets::{Block, BorderType, Borders, Padding, Widget},
 };
 
 use crate::{
