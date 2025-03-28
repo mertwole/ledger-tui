@@ -25,6 +25,7 @@ pub trait LedgerApiT: Send + Sync + 'static {
     // TODO: Return stream of accounts?
     async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account>;
 
+    // TODO: Accept `account: Account` argument here.
     #[allow(dead_code)] // TODO: Remove.
     async fn sign_message(&self, message: Vec<u8>, device: &Device, network: Network) -> Vec<u8>;
 }
