@@ -1,4 +1,4 @@
-use std::{hash::Hash, str::FromStr, time::Duration};
+use std::{hash::Hash, time::Duration};
 
 use async_trait::async_trait;
 use ledger_apdu::{APDUCommand, APDUErrorCode};
@@ -8,6 +8,9 @@ use ledger_transport_hid::{
 };
 
 use super::common_types::{Account, Network};
+
+mod bitcoin_app;
+mod ethereum_app;
 
 const DELAY_BEFORE_ACCOUNTS_DISCOVERY: Duration = Duration::from_secs(1);
 
@@ -21,6 +24,10 @@ pub trait LedgerApiT: Send + Sync + 'static {
 
     // TODO: Return stream of accounts?
     async fn discover_accounts(&self, device: &Device, network: Network) -> Vec<Account>;
+
+    // TODO: Accept `account: Account` argument here.
+    #[allow(dead_code)] // TODO: Remove.
+    async fn sign_message(&self, message: Vec<u8>, device: &Device, network: Network) -> Vec<u8>;
 }
 
 #[derive(Clone, Debug)]
@@ -162,125 +169,21 @@ impl LedgerApiT for LedgerApi {
         tokio::time::sleep(DELAY_BEFORE_ACCOUNTS_DISCOVERY).await;
 
         match network {
-            Network::Bitcoin => self.discover_bitcoin_accounts(device).await,
-            Network::Ethereum => self.discover_ethereum_accounts(device).await,
+            Network::Bitcoin => bitcoin_app::discover_accounts(device).await,
+            Network::Ethereum => ethereum_app::discover_accounts(device).await,
         }
     }
-}
 
-impl LedgerApi {
-    async fn discover_bitcoin_accounts(&self, device: &Device) -> Vec<Account> {
-        log::info!("Discovering bitcoin accounts...");
+    async fn sign_message(&self, message: Vec<u8>, device: &Device, network: Network) -> Vec<u8> {
+        // TODO: It's a workaround of a problem that ledger disconnects after `open_app` request
+        // and so maintainionhg connection to it is impossible, so we try to reconnect to it
+        // after some delay.
+        tokio::time::sleep(DELAY_BEFORE_ACCOUNTS_DISCOVERY).await;
 
-        let device_info = device.get_info().expect("Expected non-mock device");
-        let hid_api = HidApi::new().unwrap();
-        let transport = TransportNativeHID::open_device(&hid_api, device_info).unwrap();
-
-        #[allow(clippy::identity_op)]
-        let data = &[
-            // Display
-            &[0u8][..],
-            // Number of BIP 32 derivations to perform (max 8)
-            &[5u8][..],
-            // 1st derivation index (big endian)
-            &((1u32 << 31) ^ 84u32).to_be_bytes()[..],
-            // 2nd derivation index (big endian)
-            &((1u32 << 31) ^ 0u32).to_be_bytes()[..],
-            // 3rd derivation index (big endian)
-            &((1u32 << 31) ^ 0u32).to_be_bytes()[..],
-            // 4th derivation index (big endian)
-            &0u32.to_be_bytes()[..],
-            // 5th derivation index (big endian)
-            &0u32.to_be_bytes()[..],
-        ]
-        .concat()[..];
-
-        let command = APDUCommand {
-            cla: 0xE1,
-            ins: 0x00,
-            p1: 0x00,
-            p2: 0x00,
-            data,
-        };
-
-        let response = transport.exchange(&command).unwrap();
-
-        match response.error_code() {
-            Err(_) => return vec![],
-            Ok(APDUErrorCode::NoError) => {}
-            Ok(_) => return vec![],
+        match network {
+            Network::Bitcoin => bitcoin_app::sign_message(message, device).await,
+            Network::Ethereum => ethereum_app::sign_message(message, device).await,
         }
-
-        let response = String::from_utf8(response.data().to_vec()).unwrap();
-        let xpub = bitcoin::bip32::ExtendedPubKey::from_str(&response).unwrap();
-
-        let public_key = xpub.public_key.to_string();
-
-        log::info!(
-            "Discovered bitcoin account with public key = {}",
-            public_key
-        );
-
-        vec![Account { public_key }]
-    }
-
-    async fn discover_ethereum_accounts(&self, device: &Device) -> Vec<Account> {
-        log::info!("Discovering ethereum accounts");
-
-        let device_info = device.get_info().expect("Expected non-mock device");
-        let hid_api = HidApi::new().unwrap();
-        let transport = TransportNativeHID::open_device(&hid_api, device_info).unwrap();
-
-        #[allow(clippy::identity_op)]
-        let data = &[
-            // Number of BIP 32 derivations to perform (max 10)
-            &[4u8][..],
-            // 1st derivation index (big endian)
-            &((1u32 << 31) ^ 44u32).to_be_bytes()[..],
-            // 2nd derivation index (big endian)
-            &((1u32 << 31) ^ 60u32).to_be_bytes()[..],
-            // 3rd derivation index (big endian)
-            &((1u32 << 31) ^ 0u32).to_be_bytes()[..],
-            // 4th derivation index (big endian)
-            &0u32.to_be_bytes()[..],
-            //Optional - 8 bytes for chain id.
-        ]
-        .concat()[..];
-
-        let command = APDUCommand {
-            cla: 0xE0,
-            ins: 0x02,
-            p1: 0x00, // 0x00 - return address; 0x01 - display address and return.
-            p2: 0x00, // 0x00 - do not return the chain code; 0x01 - return the chain code.
-            data,
-        };
-
-        let response = transport.exchange(&command).unwrap();
-
-        match response.error_code() {
-            Err(_) => return vec![],
-            Ok(APDUErrorCode::NoError) => {}
-            Ok(_) => return vec![],
-        }
-
-        let response = response.data();
-
-        let public_key_length = response[0] as usize;
-        let _public_key = &response[1..1 + public_key_length];
-
-        let ethereum_address_length = response[1 + public_key_length] as usize;
-        let ethereum_address = &response
-            [1 + public_key_length + 1..1 + public_key_length + 1 + ethereum_address_length];
-
-        let public_key = String::from_utf8(ethereum_address.to_vec()).unwrap();
-        let public_key = ["0x", &public_key].concat();
-
-        log::info!(
-            "Discovered ethereum account with public key = {}",
-            public_key,
-        );
-
-        vec![Account { public_key }]
     }
 }
 
@@ -372,6 +275,15 @@ pub mod mock {
                 .into_iter()
                 .flatten()
                 .collect()
+        }
+
+        async fn sign_message(
+            &self,
+            _message: Vec<u8>,
+            _device: &Device,
+            _network: Network,
+        ) -> Vec<u8> {
+            todo!()
         }
     }
 }
