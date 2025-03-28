@@ -1,3 +1,4 @@
+use copypasta::{ClipboardContext, ClipboardProvider};
 use input_mapping_common::InputMappingT;
 use input_mapping_derive::InputMapping;
 use ratatui::crossterm::event::Event;
@@ -18,6 +19,10 @@ pub enum InputEvent {
     #[key = 'b']
     #[description = "Return one screen back"]
     Back,
+
+    #[key = 'p']
+    #[description = "Paste a receiver address"]
+    PasteAddress,
 }
 
 pub(super) fn process_input<L: LedgerApiT>(
@@ -33,5 +38,13 @@ pub(super) fn process_input<L: LedgerApiT>(
             None
         }
         InputEvent::Back => Some(OutgoingMessage::Back),
+        InputEvent::PasteAddress => {
+            let mut ctx = ClipboardContext::new().unwrap();
+            let address = ctx.get_contents().unwrap();
+
+            model.receiver_address = Some(address);
+
+            None
+        }
     }
 }

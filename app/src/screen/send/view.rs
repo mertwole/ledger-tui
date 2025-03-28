@@ -20,8 +20,6 @@ use crate::{
 
 use super::Model;
 
-const DISPLAY_COPIED_TEXT_FOR: Duration = Duration::from_secs(2);
-
 pub(super) fn render<L: LedgerApiT>(
     model: &Model<L>,
     frame: &mut Frame<'_>,
@@ -31,7 +29,7 @@ pub(super) fn render<L: LedgerApiT>(
 
     frame.render_widget(BackgroundWidget::new(resources.background_color), area);
 
-    let pubkey = model
+    let sender = model
         .state
         .selected_account
         .as_ref()
@@ -39,36 +37,51 @@ pub(super) fn render<L: LedgerApiT>(
         .1
         .get_info()
         .public_key;
+    let sender = Text::from(sender).fg(resources.main_color);
+    let sender_label = Text::from("sender:").fg(resources.main_color);
 
-    let address_text = Text::raw(&pubkey)
-        .alignment(Alignment::Center)
-        .fg(resources.main_color);
-
-    let display_copied_text = if let Some(last_copy) = model.last_address_copy {
-        last_copy.elapsed() <= DISPLAY_COPIED_TEXT_FOR
+    let receiver = if let Some(receiver_address) = &model.receiver_address {
+        Text::from(&**receiver_address).fg(resources.main_color)
     } else {
-        false
+        Text::from("paste receiver address [p]").fg(resources.accent_color)
     };
+    let receiver_label = Text::from("receiver:").fg(resources.main_color);
 
-    let description_text = if display_copied_text {
-        Text::raw("copied!").fg(resources.accent_color)
+    let amount = if let Some(amount) = &model.send_amount {
+        Text::from(amount.to_string()).fg(resources.main_color)
     } else {
-        Text::raw("press `c` to copy").fg(resources.main_color)
-    }
-    .alignment(Alignment::Center);
+        Text::from("start typing amount").fg(resources.accent_color)
+    };
+    let amount_label = Text::from("amount:").fg(resources.main_color);
 
-    let [qr_code_area, address_with_description_area] =
-        Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
-
-    let [address_area, description_area] = Layout::vertical([
-        Constraint::Length(address_text.height() as u16),
-        Constraint::Length(description_text.height() as u16),
+    let [
+        sender_label_area,
+        sender_area,
+        _,
+        receiver_label_area,
+        receiver_area,
+        _,
+        amount_label_area,
+        amount_area,
+    ] = Layout::vertical([
+        Constraint::Length(sender_label.height() as u16),
+        Constraint::Length(sender.height() as u16),
+        Constraint::Length(1),
+        Constraint::Length(receiver_label.height() as u16),
+        Constraint::Length(receiver.height() as u16),
+        Constraint::Length(1),
+        Constraint::Length(amount_label.height() as u16),
+        Constraint::Length(amount.height() as u16),
     ])
     .flex(Flex::Center)
-    .areas(address_with_description_area);
+    .areas(area);
 
-    frame.render_widget(address_text, address_area);
-    frame.render_widget(description_text, description_area);
+    frame.render_widget(sender_label.centered(), sender_label_area);
+    frame.render_widget(sender.centered(), sender_area);
+    frame.render_widget(receiver_label.centered(), receiver_label_area);
+    frame.render_widget(receiver.centered(), receiver_area);
+    frame.render_widget(amount_label.centered(), amount_label_area);
+    frame.render_widget(amount.centered(), amount_area);
 
     if model.show_navigation_help {
         let mapping = super::controller::InputEvent::get_mapping();

@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use bigdecimal::{BigDecimal, FromPrimitive};
 use ratatui::{Frame, crossterm::event::Event};
 
 use super::{OutgoingMessage, ScreenT, common::api_task::ApiTask, resources::Resources};
@@ -17,8 +18,9 @@ mod view;
 type SignedTx = Vec<u8>;
 
 pub struct Model<L: LedgerApiT> {
-    last_address_copy: Option<Instant>,
     show_navigation_help: bool,
+    receiver_address: Option<String>,
+    send_amount: Option<BigDecimal>,
 
     state: StateRegistry,
 
@@ -34,8 +36,9 @@ impl<L: LedgerApiT> Model<L> {
 
         (
             Self {
-                last_address_copy: None,
                 show_navigation_help: false,
+                receiver_address: None,
+                send_amount: None,
 
                 state,
 
