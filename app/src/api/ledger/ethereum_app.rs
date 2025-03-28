@@ -61,11 +61,7 @@ pub async fn sign_message(message: Vec<u8>, device: &Device) -> Vec<u8> {
     let first_chunk = chunks[0];
     let remaining_chunks = if chunks.len() == 1 { &[] } else { &chunks[1..] };
 
-    let data = &[
-        &encode_default_derivation_path()[..],
-        //Optional - 8 bytes for chain id.
-    ]
-    .concat()[..];
+    let data = &[&encode_default_derivation_path()[..], first_chunk].concat()[..];
 
     let p2 = if remaining_chunks.is_empty() {
         0x00
@@ -151,7 +147,7 @@ fn send_command(command: &APDUCommand<&[u8]>, transport: &TransportNativeHID) ->
 
     match response.error_code() {
         Err(error_code) => {
-            log::error!("Error returned from ledger device: {:#010x}", error_code);
+            log::error!("Error returned from ledger device: {:#06x}", error_code);
             Err(())
         }
         Ok(APDUErrorCode::NoError) => Ok(response.data().to_vec()),
@@ -177,4 +173,36 @@ fn encode_default_derivation_path() -> Vec<u8> {
         &0u32.to_be_bytes()[..],
     ]
     .concat()
+}
+
+#[ignore = "manual test"]
+#[tokio::test]
+async fn test_ethereum_sign_message() {
+    use crate::api::{
+        common_types::Network,
+        ledger::{LedgerApi, LedgerApiT},
+    };
+
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
+    let ledger_api = LedgerApi::new().await;
+    let device = &ledger_api.discover_devices().await[0];
+
+    println!("Open an ethereum app on the connected ledger device");
+
+    ledger_api.open_app(device, Network::Ethereum).await;
+
+    let tx = hex::decode(
+        "eb808509502f900082520894423163e58aabec5daa3dd1130b759d24bef0f6ea8711c37937e0800080018080",
+    )
+    .expect("Invalid hex string");
+
+    let signature = ledger_api
+        .sign_message(tx.clone(), device, Network::Ethereum)
+        .await;
+
+    println!("tx: {}", hex::encode(&tx));
+    println!("signature: {}", hex::encode(&signature));
 }
