@@ -82,18 +82,7 @@ pub async fn sign_message(message: Vec<u8>, device: &Device) -> Vec<u8> {
     };
 
     if remaining_chunks.is_empty() {
-        let v = response[0];
-        let r = &response[1..33];
-        let s = &response[33..65];
-
-        log::info!(
-            "Ethereum message signature: v={:#04x} r=0x{} s=0x{}",
-            v,
-            hex::encode(r),
-            hex::encode(s)
-        );
-
-        return response;
+        return decode_send_message_response(response);
     }
 
     for chunk in &remaining_chunks[..remaining_chunks.len() - 1] {
@@ -126,24 +115,13 @@ pub async fn sign_message(message: Vec<u8>, device: &Device) -> Vec<u8> {
         return vec![];
     };
 
-    let v = response[0];
-    let r = &response[1..33];
-    let s = &response[33..65];
-
-    log::info!(
-        "Ethereum message signature: v={:#04x} r=0x{} s=0x{}",
-        v,
-        hex::encode(r),
-        hex::encode(s)
-    );
-
-    response
+    decode_send_message_response(response)
 }
 
 type CommandResult = Result<Vec<u8>, ()>;
 
 fn send_command(command: &APDUCommand<&[u8]>, transport: &TransportNativeHID) -> CommandResult {
-    let response = transport.exchange(&command).unwrap();
+    let response = transport.exchange(command).unwrap();
 
     match response.error_code() {
         Err(error_code) => {
@@ -156,6 +134,21 @@ fn send_command(command: &APDUCommand<&[u8]>, transport: &TransportNativeHID) ->
             Err(())
         }
     }
+}
+
+fn decode_send_message_response(apdu_response: Vec<u8>) -> Vec<u8> {
+    let v = apdu_response[0];
+    let r = &apdu_response[1..33];
+    let s = &apdu_response[33..65];
+
+    log::info!(
+        "Ethereum message signature: v={:#04x} r=0x{} s=0x{}",
+        v,
+        hex::encode(r),
+        hex::encode(s)
+    );
+
+    apdu_response
 }
 
 fn encode_default_derivation_path() -> Vec<u8> {
@@ -175,6 +168,7 @@ fn encode_default_derivation_path() -> Vec<u8> {
     .concat()
 }
 
+// TODO: Test it also for big payloads(> 255 * 3 bytes).
 #[ignore = "manual test"]
 #[tokio::test]
 async fn test_ethereum_sign_message() {
