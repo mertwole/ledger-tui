@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use bigdecimal::BigDecimal;
 use ratatui::{Frame, crossterm::event::Event};
 
@@ -18,7 +20,7 @@ type SignedTx = Vec<u8>;
 pub struct Model<L: LedgerApiT> {
     show_navigation_help: bool,
     receiver_address: Option<String>,
-    send_amount: Option<BigDecimal>,
+    send_amount: String,
 
     state: StateRegistry,
 
@@ -36,7 +38,7 @@ impl<L: LedgerApiT> Model<L> {
             Self {
                 show_navigation_help: false,
                 receiver_address: None,
-                send_amount: None,
+                send_amount: "".to_string(),
 
                 state,
 
@@ -44,6 +46,14 @@ impl<L: LedgerApiT> Model<L> {
             },
             api_registry,
         )
+    }
+
+    fn is_amount_valid(&self) -> bool {
+        BigDecimal::from_str(&self.send_amount).is_ok()
+    }
+
+    pub async fn sign_and_send_tx(&mut self) {
+        // TODO.
     }
 
     pub async fn deconstruct<C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApiT>(
@@ -62,6 +72,6 @@ impl<L: LedgerApiT> ScreenT for Model<L> {
     }
 
     async fn tick(&mut self, event: Option<Event>) -> Option<OutgoingMessage> {
-        controller::process_input(event.as_ref()?, self)
+        controller::process_input(event.as_ref()?, self).await
     }
 }

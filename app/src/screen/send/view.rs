@@ -43,12 +43,13 @@ pub(super) fn render<L: LedgerApiT>(
     };
     let receiver_label = Text::from("receiver:").fg(resources.main_color);
 
-    let amount = if let Some(amount) = &model.send_amount {
-        Text::from(amount.to_string()).fg(resources.main_color)
-    } else {
+    let amount = if model.send_amount.is_empty() {
         Text::from("start typing amount").fg(resources.accent_color)
+    } else {
+        Text::from(&*model.send_amount).fg(resources.main_color)
     };
     let amount_label = Text::from("amount:").fg(resources.main_color);
+    let invalid_amount_label = Text::from("invalid amount").fg(resources.accent_color);
 
     let [
         sender_label_area,
@@ -59,6 +60,7 @@ pub(super) fn render<L: LedgerApiT>(
         _,
         amount_label_area,
         amount_area,
+        invalid_amount_label_area,
     ] = Layout::vertical([
         Constraint::Length(sender_label.height() as u16),
         Constraint::Length(sender.height() as u16),
@@ -68,6 +70,7 @@ pub(super) fn render<L: LedgerApiT>(
         Constraint::Length(1),
         Constraint::Length(amount_label.height() as u16),
         Constraint::Length(amount.height() as u16),
+        Constraint::Length(invalid_amount_label.height() as u16),
     ])
     .flex(Flex::Center)
     .areas(area);
@@ -78,6 +81,10 @@ pub(super) fn render<L: LedgerApiT>(
     frame.render_widget(receiver.centered(), receiver_area);
     frame.render_widget(amount_label.centered(), amount_label_area);
     frame.render_widget(amount.centered(), amount_area);
+
+    if !model.is_amount_valid() && !model.send_amount.is_empty() {
+        frame.render_widget(invalid_amount_label.centered(), invalid_amount_label_area);
+    }
 
     if model.show_navigation_help {
         let mapping = super::controller::InputEvent::get_mapping();

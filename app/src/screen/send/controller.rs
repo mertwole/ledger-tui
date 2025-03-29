@@ -1,7 +1,7 @@
 use copypasta::{ClipboardContext, ClipboardProvider};
 use input_mapping_common::InputMappingT;
 use input_mapping_derive::InputMapping;
-use ratatui::crossterm::event::Event;
+use ratatui::crossterm::event::{Event, KeyCode, KeyEvent};
 
 use super::Model;
 use crate::{api::ledger::LedgerApiT, screen::OutgoingMessage};
@@ -23,28 +23,71 @@ pub enum InputEvent {
     #[key = 'p']
     #[description = "Paste a receiver address"]
     PasteAddress,
+
+    #[key = "KeyCode::Backspace"]
+    #[description = "Erase a symbol from amount"]
+    EraseSymbol,
+
+    #[key = "KeyCode::Enter"]
+    #[description = "Sign and send a transaction"]
+    SignAndSend,
 }
 
-pub(super) fn process_input<L: LedgerApiT>(
+pub(super) async fn process_input<L: LedgerApiT>(
     event: &Event,
     model: &mut Model<L>,
 ) -> Option<OutgoingMessage> {
-    let event = InputEvent::map_event(event.clone())?;
+    let input_event = InputEvent::map_event(event.clone());
 
-    match event {
-        InputEvent::Quit => Some(OutgoingMessage::Exit),
-        InputEvent::NavigationHelp => {
-            model.show_navigation_help ^= true;
-            None
-        }
-        InputEvent::Back => Some(OutgoingMessage::Back),
-        InputEvent::PasteAddress => {
-            let mut ctx = ClipboardContext::new().unwrap();
-            let address = ctx.get_contents().unwrap();
+    if let Some(event) = input_event {
+        match event {
+            InputEvent::Quit => {
+                return Some(OutgoingMessage::Exit);
+            }
+            InputEvent::NavigationHelp => {
+                model.show_navigation_help ^= true;
+                return None;
+            }
+            InputEvent::Back => {
+                return Some(OutgoingMessage::Back);
+            }
+            InputEvent::PasteAddress => {
+                let mut ctx = ClipboardContext::new().unwrap();
+                let address = ctx.get_contents().unwrap();
 
-            model.receiver_address = Some(address);
+                model.receiver_address = Some(address);
 
-            None
+                return None;
+            }
+            InputEvent::EraseSymbol => {
+                let _ = model.send_amount.pop();
+
+                return None;
+            }
+            InputEvent::SignAndSend => {
+                model.sign_and_send_tx().await;
+
+                return None;
+            }
         }
     }
+
+    match event.clone() {
+        Event::Key(KeyEvent {
+            code: KeyCode::Char(char),
+            ..
+        }) => match char {
+            '.' => {
+                model.send_amount.push(char);
+            }
+            _ => {
+                if char.is_digit(10) {
+                    model.send_amount.push(char);
+                }
+            }
+        },
+        _ => {}
+    }
+
+    None
 }
