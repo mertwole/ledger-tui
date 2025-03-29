@@ -72,21 +72,20 @@ pub(super) async fn process_input<L: LedgerApiT>(
         }
     }
 
-    match event.clone() {
-        Event::Key(KeyEvent {
-            code: KeyCode::Char(char),
-            ..
-        }) => match char {
+    if let Event::Key(KeyEvent {
+        code: KeyCode::Char(char),
+        ..
+    }) = event
+    {
+        match char {
             '.' => {
-                model.send_amount.push(char);
+                model.send_amount.push(*char);
             }
-            _ => {
-                if char.is_digit(10) {
-                    model.send_amount.push(char);
-                }
+            char if char.is_ascii_digit() => {
+                model.send_amount.push(*char);
             }
-        },
-        _ => {}
+            _ => {}
+        }
     }
 
     None
