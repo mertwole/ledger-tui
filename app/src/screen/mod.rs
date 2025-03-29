@@ -15,6 +15,7 @@ pub mod deposit;
 pub mod device_selection;
 pub mod portfolio;
 pub mod resources;
+pub mod send;
 
 pub struct Screen<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApiT> {
     remaining_apis: ApiRegistry<L, C, M, S>,
@@ -27,6 +28,7 @@ enum ScreenModel<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S
     Deposit(deposit::Model),
     DeviceSelection(device_selection::Model<L>),
     Portfolio(portfolio::Model<L, C, M, S>),
+    Send(send::Model<L>),
 }
 
 impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApiT>
@@ -69,6 +71,13 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
                     model: ScreenModel::Portfolio(model),
                 }
             }
+            ScreenName::Send => {
+                let (model, remaining_apis) = send::Model::construct(state_registry, api_registry);
+                Self {
+                    remaining_apis,
+                    model: ScreenModel::Send(model),
+                }
+            }
         }
     }
 
@@ -78,6 +87,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
             ScreenModel::Deposit(screen) => screen.render(frame, resources),
             ScreenModel::DeviceSelection(screen) => screen.render(frame, resources),
             ScreenModel::Portfolio(screen) => screen.render(frame, resources),
+            ScreenModel::Send(screen) => screen.render(frame, resources),
         }
     }
 
@@ -87,6 +97,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
             ScreenModel::Deposit(screen) => screen.tick(event).await,
             ScreenModel::DeviceSelection(screen) => screen.tick(event).await,
             ScreenModel::Portfolio(screen) => screen.tick(event).await,
+            ScreenModel::Send(screen) => screen.tick(event).await,
         }
     }
 
@@ -96,6 +107,7 @@ impl<L: LedgerApiT, C: CoinPriceApiT, M: BlockchainMonitoringApiT, S: StorageApi
             ScreenModel::Deposit(model) => model.deconstruct(self.remaining_apis).await,
             ScreenModel::DeviceSelection(model) => model.deconstruct(self.remaining_apis).await,
             ScreenModel::Portfolio(model) => model.deconstruct(self.remaining_apis).await,
+            ScreenModel::Send(model) => model.deconstruct(self.remaining_apis).await,
         }
     }
 }
@@ -118,4 +130,5 @@ pub enum ScreenName {
     Portfolio,
     Asset,
     Deposit,
+    Send,
 }
